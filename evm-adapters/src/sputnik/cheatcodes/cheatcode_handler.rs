@@ -1,6 +1,6 @@
 use super::{
-    backend::CheatcodeBackend, memory_stackstate_owned::MemoryStackStateOwned, HEVMCalls,
-    HevmConsoleEvents,
+    backend::CheatcodeBackend, memory_stackstate_owned::MemoryStackStateOwned, ConsoleLogCalls,
+    HEVMCalls, HevmConsoleEvents,
 };
 use crate::{
     sputnik::{Executor, SputnikExecutor},
@@ -33,6 +33,12 @@ use once_cell::sync::Lazy;
 // Lazy::new(|| Address::from_slice(&keccak256("hevm cheat code")[12..]));
 pub static CHEATCODE_ADDRESS: Lazy<Address> = Lazy::new(|| {
     Address::from_slice(&hex::decode("7109709ECfa91a80626fF3989D68f67F5b1DD12D").unwrap())
+});
+
+// This is the address used by console.sol, vendored by nomiclabs/hardhat:
+// https://github.com/nomiclabs/hardhat/blob/master/packages/hardhat-core/console.sol
+pub static CONSOLE_LOG_ADDRESS: Lazy<Address> = Lazy::new(|| {
+    Address::from_slice(&hex::decode("000000000000000000636F6e736F6c652e6c6f67").unwrap())
 });
 
 #[derive(Clone, Debug)]
@@ -217,8 +223,10 @@ impl<'a, 'b, B: Backend, P: PrecompileSet>
 
         // Need to create a non-empty contract at the cheat code address so that the EVM backend
         // thinks that something exists there.
-        evm.initialize_contracts([(*CHEATCODE_ADDRESS, vec![0u8; 1].into())]);
-
+        evm.initialize_contracts([
+            (*CHEATCODE_ADDRESS, vec![0u8; 1].into()),
+            (*CONSOLE_LOG_ADDRESS, vec![0u8; 1].into()),
+        ]);
         evm
     }
 }
@@ -286,7 +294,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
             HEVMCalls::Addr(inner) => {
                 let sk = inner.0;
                 if sk.is_zero() {
-                    return evm_error("Bad Cheat Code. Private Key cannot be 0.")
+                    return evm_error("Bad Cheat Code. Private Key cannot be 0.");
                 }
                 // 256 bit priv key -> 32 byte slice
                 let mut bs: [u8; 32] = [0; 32];
@@ -302,7 +310,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
                 let sk = inner.0;
                 let digest = inner.1;
                 if sk.is_zero() {
-                    return evm_error("Bad Cheat Code. Private Key cannot be 0.")
+                    return evm_error("Bad Cheat Code. Private Key cannot be 0.");
                 }
                 // 256 bit priv key -> 32 byte slice
                 let mut bs: [u8; 32] = [0; 32];
@@ -335,6 +343,14 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
         // TODO: Add more cheat codes.
 
         Capture::Exit((ExitReason::Succeed(ExitSucceed::Stopped), res))
+    }
+
+    fn console_log(&mut self, input: Vec<u8>) -> Capture<(ExitReason, Vec<u8>), Infallible> {
+        let decoded = match ConsoleLogCalls::decode(&input) {
+            Ok(inner) => inner,
+            Err(err) => return evm_error(&err.to_string()),
+        };
+        println!("{}", decoded);
     }
 
     // NB: This function is copy-pasted from uptream's `execute`, adjusted so that we call the
@@ -404,7 +420,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
         if let Some(depth) = self.state().metadata().depth() {
             if depth > self.config().call_stack_limit {
                 let _ = self.handler.exit_substate(StackExitKind::Reverted);
-                return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
+                return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()));
             }
         }
 
@@ -413,7 +429,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
                 Ok(()) => (),
                 Err(e) => {
                     let _ = self.handler.exit_substate(StackExitKind::Reverted);
-                    return Capture::Exit((ExitReason::Error(e), Vec::new()))
+                    return Capture::Exit((ExitReason::Error(e), Vec::new()));
                 }
             }
         }
@@ -449,7 +465,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
                     let _ = self.handler.exit_substate(StackExitKind::Failed);
                     Capture::Exit((e, Vec::new()))
                 }
-            }
+            };
         }
 
         // each cfg is about 200 bytes, is this a lot to clone? why does this error
@@ -503,7 +519,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
         fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
             if config.disallow_executable_format {
                 if let Some(0xef) = code.get(0) {
-                    return Err(ExitError::InvalidCode)
+                    return Err(ExitError::InvalidCode);
                 }
             }
             Ok(())
@@ -520,12 +536,12 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
 
         if let Some(depth) = self.state().metadata().depth() {
             if depth > self.config().call_stack_limit {
-                return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
+                return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()));
             }
         }
 
         if self.balance(caller) < value {
-            return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
+            return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
         }
 
         let after_gas = if take_l64 && self.config().call_l64_after_gas {
@@ -553,12 +569,12 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
         {
             if self.code_size(address) != U256::zero() {
                 let _ = self.handler.exit_substate(StackExitKind::Failed);
-                return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+                return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
             }
 
             if self.handler.nonce(address) > U256::zero() {
                 let _ = self.handler.exit_substate(StackExitKind::Failed);
-                return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+                return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
             }
 
             self.state_mut().reset_storage(address);
@@ -570,7 +586,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
             Ok(()) => (),
             Err(e) => {
                 let _ = self.handler.exit_substate(StackExitKind::Reverted);
-                return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+                return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
             }
         }
 
@@ -592,7 +608,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
                 if let Err(e) = check_first_byte(self.config(), &out) {
                     self.state_mut().metadata_mut().gasometer_mut().fail();
                     let _ = self.handler.exit_substate(StackExitKind::Failed);
-                    return Capture::Exit((e.into(), None, Vec::new()))
+                    return Capture::Exit((e.into(), None, Vec::new()));
                 }
 
                 if let Some(limit) = self.config().create_contract_limit {
@@ -603,7 +619,7 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
                             ExitError::CreateContractLimit.into(),
                             None,
                             Vec::new(),
-                        ))
+                        ));
                     }
                 }
 
@@ -661,6 +677,8 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> Handler for CheatcodeStackExecutor<'a
         // (e.g. with the StateManager)
         if code_address == *CHEATCODE_ADDRESS {
             self.apply_cheatcode(input)
+        } else if code_address == *CONSOLE_LOG_ADDRESS {
+            self.console_log(input)
         } else {
             self.handler.call(code_address, transfer, input, target_gas, is_static, context)
         }
