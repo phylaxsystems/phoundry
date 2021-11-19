@@ -858,6 +858,20 @@ mod tests {
     }
 
     #[test]
+    fn debug_console_log() {
+        let config = Config::istanbul();
+        let vicinity = new_vicinity();
+        let backend = new_backend(&vicinity, Default::default());
+        let gas_limit = 10_000_000;
+        let mut evm = Executor::new_with_cheatcodes(backend, gas_limit, &config, true);
+        let compiled = COMPILED.get("ConsoleLog").expect("could not find contract");
+        let (addr, _, _, _) =
+            evm.deploy(Address::zero(), compiled.bytecode.clone(), 0.into()).unwrap();
+        let (_, _, _, logs) = evm
+            .call::<(), _, _>(Address::zero(), addr, "test_console_log()", (), 0.into())
+            .unwrap();
+    }
+    #[test]
     fn cheatcodes() {
         let config = Config::istanbul();
         let vicinity = new_vicinity();
