@@ -856,14 +856,15 @@ mod tests {
         .collect::<Vec<_>>();
         assert_eq!(logs, expected);
     }
-
     #[test]
     fn debug_console_log() {
         let config = Config::istanbul();
         let vicinity = new_vicinity();
         let backend = new_backend(&vicinity, Default::default());
         let gas_limit = 10_000_000;
-        let mut evm = Executor::new_with_cheatcodes(backend, gas_limit, &config, true);
+        let precompiles = PRECOMPILES_MAP.clone();
+        let mut evm =
+            Executor::new_with_cheatcodes(backend, gas_limit, &config, &precompiles, true);
         let compiled = COMPILED.get("ConsoleLog").expect("could not find contract");
         let (addr, _, _, _) =
             evm.deploy(Address::zero(), compiled.bytecode.clone(), 0.into()).unwrap();
