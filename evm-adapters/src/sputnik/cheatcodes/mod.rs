@@ -74,6 +74,9 @@ ethers::contract::abigen!(
             log(address)
             log(string)
             log(string, string)
+            log(string, uint256)
+            log(string, int)
+            log(string, address, string)
     ]"#,
 );
 

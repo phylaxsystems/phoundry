@@ -346,11 +346,22 @@ impl<'a, 'b, B: Backend, P: PrecompileSet> CheatcodeStackExecutor<'a, 'b, B, P> 
     }
 
     fn console_log(&mut self, input: Vec<u8>) -> Capture<(ExitReason, Vec<u8>), Infallible> {
+        let mut res = vec![];
+        // Get a mutable ref to the state so we can apply the cheats
         let decoded = match ConsoleLogCalls::decode(&input) {
             Ok(inner) => inner,
             Err(err) => return evm_error(&err.to_string()),
         };
-        println!("{}", decoded);
+        let string = decoded.to_string();
+        let mut string_iterator = string.split(",");
+        let input = string_iterator.next().unwrap();
+        let mut output = String::new();
+        for substring in string_iterator {
+            println!("substring: {}, output: {}", substring, input);
+            output = input.replacen("%s", substring, 1);
+        }
+        println!("{}", output);
+        Capture::Exit((ExitReason::Succeed(ExitSucceed::Stopped), res))
     }
 
     // NB: This function is copy-pasted from uptream's `execute`, adjusted so that we call the
@@ -865,9 +876,10 @@ mod tests {
         let precompiles = PRECOMPILES_MAP.clone();
         let mut evm =
             Executor::new_with_cheatcodes(backend, gas_limit, &config, &precompiles, true);
-        let compiled = COMPILED.get("ConsoleLog").expect("could not find contract");
+        println!("asfsaffsa");
+        let compiled = COMPILED.find("ConsoleLog").expect("could not find contract");
         let (addr, _, _, _) =
-            evm.deploy(Address::zero(), compiled.bytecode.clone(), 0.into()).unwrap();
+            evm.deploy(Address::zero(), compiled.bin.unwrap().clone(), 0.into()).unwrap();
         let (_, _, _, logs) = evm
             .call::<(), _, _>(Address::zero(), addr, "test_console_log()", (), 0.into())
             .unwrap();
