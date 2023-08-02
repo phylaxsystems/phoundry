@@ -315,7 +315,7 @@ impl CallTraceDecoder {
         if let RawOrDecodedLog::Raw(raw_log) = log {
             // do not attempt decoding if no topics
             if raw_log.topics.is_empty() {
-                return
+                return;
             }
 
             let mut events = vec![];
@@ -349,7 +349,7 @@ impl CallTraceDecoder {
                             })
                             .collect(),
                     );
-                    break
+                    break;
                 }
             }
         }
