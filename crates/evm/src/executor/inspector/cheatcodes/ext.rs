@@ -516,7 +516,7 @@ fn key_exists(json_str: &str, key: &str) -> Result {
     Ok(exists)
 }
 
-/// Sleeps for a given amount of milliseconds.
+// Sleeps for a given amount of milliseconds.
 fn sleep(milliseconds: &U256) -> Result {
     let sleep_duration = std::time::Duration::from_millis(milliseconds.to::<u64>());
     std::thread::sleep(sleep_duration);
@@ -548,6 +548,12 @@ pub fn skip(state: &mut Cheatcodes, depth: u64, skip: bool) -> Result {
 
     state.skip = true;
     Err(Error::custom_bytes(MAGIC_SKIP_BYTES))
+}
+
+/// Export data for external consumption
+fn export(state: &mut Cheatcodes, key: &str, value: &str) -> Result {
+    state.raw_exported_data.insert(key.to_string(), value.to_string());
+    Ok(Bytes::new())
 }
 
 #[instrument(level = "error", name = "ext", target = "evm::cheatcodes", skip_all)]
@@ -747,6 +753,7 @@ pub fn apply<DB: Database>(
         HEVMCalls::WriteJson1(inner) => write_json(state, &inner.0, &inner.1, Some(&inner.2)),
         HEVMCalls::KeyExists(inner) => key_exists(&inner.0, &inner.1),
         HEVMCalls::Skip(inner) => skip(state, data.journaled_state.depth(), inner.0),
+        HEVMCalls::Export(inner) => export(state, &inner.0, &inner.1),
         _ => return None,
     })
 }

@@ -4,7 +4,7 @@ use super::{
 use crate::{
     coverage::HitMaps,
     debug::DebugArena,
-    executor::{backend::DatabaseExt, inspector::CoverageCollector},
+    executor::{backend::DatabaseExt, inspector::CoverageCollector, RawExportedData},
     trace::CallTraceArena,
 };
 use alloy_primitives::{Address, Bytes, B256, U256};
@@ -48,6 +48,8 @@ pub struct InspectorStackBuilder {
     pub print: Option<bool>,
     /// The chisel state inspector.
     pub chisel_state: Option<usize>,
+    ///
+    pub exported_data: Option<RawExportedData>,
 }
 
 impl InspectorStackBuilder {
@@ -142,6 +144,7 @@ impl InspectorStackBuilder {
             coverage,
             print,
             chisel_state,
+            exported_data,
         } = self;
         let mut stack = InspectorStack::new();
 
@@ -194,6 +197,7 @@ pub struct InspectorData {
     pub cheatcodes: Option<Cheatcodes>,
     pub script_wallets: Vec<LocalWallet>,
     pub chisel_state: Option<(Stack, Memory, InstructionResult)>,
+    pub raw_exported_data: RawExportedData,
 }
 
 /// An inspector that calls multiple inspectors in sequence.
@@ -210,6 +214,7 @@ pub struct InspectorStack {
     pub log_collector: Option<LogCollector>,
     pub printer: Option<TracePrinter>,
     pub tracer: Option<Tracer>,
+    pub exported_data: Option<RawExportedData>,
 }
 
 impl InspectorStack {
@@ -316,6 +321,7 @@ impl InspectorStack {
                 .unwrap_or_default(),
             cheatcodes: self.cheatcodes,
             chisel_state: self.chisel_state.and_then(|state| state.state),
+            raw_exported_data: self.exported_data.unwrap_or_default(),
         }
     }
 
@@ -343,10 +349,10 @@ impl InspectorStack {
 
                 // If the inspector returns a different status or a revert with a non-empty message,
                 // we assume it wants to tell us something
-                if new_status != status ||
-                    (new_status == InstructionResult::Revert && new_retdata != retdata)
+                if new_status != status
+                    || (new_status == InstructionResult::Revert && new_retdata != retdata)
                 {
-                    return (new_status, new_gas, new_retdata)
+                    return (new_status, new_gas, new_retdata);
                 }
             }
         );
@@ -375,7 +381,7 @@ impl<DB: DatabaseExt> Inspector<DB> for InspectorStack {
 
                 // Allow inspectors to exit early
                 if status != InstructionResult::Continue {
-                    return status
+                    return status;
                 }
             }
         );
@@ -403,7 +409,7 @@ impl<DB: DatabaseExt> Inspector<DB> for InspectorStack {
 
                 // Allow inspectors to exit early
                 if status != InstructionResult::Continue {
-                    return status
+                    return status;
                 }
             }
         );
@@ -446,7 +452,7 @@ impl<DB: DatabaseExt> Inspector<DB> for InspectorStack {
 
                 // Allow inspectors to exit early
                 if status != InstructionResult::Continue {
-                    return status
+                    return status;
                 }
             }
         );
@@ -474,7 +480,7 @@ impl<DB: DatabaseExt> Inspector<DB> for InspectorStack {
 
                 // Allow inspectors to exit early
                 if status != InstructionResult::Continue {
-                    return (status, gas, retdata)
+                    return (status, gas, retdata);
                 }
             }
         );
@@ -523,7 +529,7 @@ impl<DB: DatabaseExt> Inspector<DB> for InspectorStack {
 
                 // Allow inspectors to exit early
                 if status != InstructionResult::Continue {
-                    return (status, addr, gas, retdata)
+                    return (status, addr, gas, retdata);
                 }
             }
         );
@@ -560,7 +566,7 @@ impl<DB: DatabaseExt> Inspector<DB> for InspectorStack {
                 );
 
                 if new_status != status {
-                    return (new_status, new_address, new_gas, new_retdata)
+                    return (new_status, new_address, new_gas, new_retdata);
                 }
             }
         );

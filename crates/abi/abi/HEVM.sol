@@ -229,6 +229,7 @@ serializeString(string,string,string[])(string)
 serializeBytes(string,string,bytes)(string)
 serializeBytes(string,string,bytes[])(string)
 keyExists(string,string)(bool)
+export(string, string)
 
 pauseGasMetering()
 resumeGasMetering()
