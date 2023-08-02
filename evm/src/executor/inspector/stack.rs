@@ -43,6 +43,7 @@ pub struct InspectorData {
     pub cheatcodes: Option<Cheatcodes>,
     pub script_wallets: Vec<LocalWallet>,
     pub chisel_state: Option<(Stack, Memory, InstructionResult)>,
+    pub raw_exported_data: crate::executor::RawExportedData,
 }
 
 /// An inspector that calls multiple inspectors in sequence.
@@ -79,6 +80,11 @@ impl InspectorStack {
                 .cheatcodes
                 .as_ref()
                 .map(|cheatcodes| cheatcodes.script_wallets.clone())
+                .unwrap_or_default(),
+            raw_exported_data: self
+                .cheatcodes
+                .as_ref()
+                .map(|cheatcodes| cheatcodes.raw_exported_data.clone())
                 .unwrap_or_default(),
             cheatcodes: self.cheatcodes,
             chisel_state: self.chisel_state.unwrap_or_default().state,

@@ -7,8 +7,8 @@ use self::{
 use crate::{
     abi::HEVMCalls,
     executor::{
-        backend::DatabaseExt, inspector::cheatcodes::env::RecordedLogs, CHEATCODE_ADDRESS,
-        HARDHAT_CONSOLE_ADDRESS,
+        backend::DatabaseExt, inspector::cheatcodes::env::RecordedLogs, RawExportedData,
+        CHEATCODE_ADDRESS, HARDHAT_CONSOLE_ADDRESS,
     },
     utils::{b160_to_h160, b256_to_h256, h160_to_b160, ru256_to_u256},
 };
@@ -194,6 +194,8 @@ pub struct Cheatcodes {
     /// Breakpoints supplied by the `vm.breakpoint("<char>")` cheatcode
     /// char -> pc
     pub breakpoints: Breakpoints,
+
+    pub raw_exported_data: RawExportedData,
 }
 
 impl Cheatcodes {

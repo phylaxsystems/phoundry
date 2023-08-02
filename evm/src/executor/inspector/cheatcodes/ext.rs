@@ -416,6 +416,12 @@ fn key_exists(json_str: &str, key: &str) -> Result {
     Ok(exists)
 }
 
+/// Export data for external consumption
+fn export(state: &mut Cheatcodes, key: &str, value: &str) -> Result {
+    state.raw_exported_data.insert(key.to_string(), value.to_string());
+    Ok(Bytes::new())
+}
+
 #[instrument(level = "error", name = "ext", target = "evm::cheatcodes", skip_all)]
 pub fn apply(state: &mut Cheatcodes, call: &HEVMCalls) -> Option<Result> {
     Some(match call {
@@ -593,6 +599,7 @@ pub fn apply(state: &mut Cheatcodes, call: &HEVMCalls) -> Option<Result> {
         HEVMCalls::WriteJson0(inner) => write_json(state, &inner.0, &inner.1, None),
         HEVMCalls::WriteJson1(inner) => write_json(state, &inner.0, &inner.1, Some(&inner.2)),
         HEVMCalls::KeyExists(inner) => key_exists(&inner.0, &inner.1),
+        HEVMCalls::Export(inner) => export(state, &inner.0, &inner.1),
         _ => return None,
     })
 }
