@@ -204,7 +204,7 @@ pub fn enable_paint() {
 pub fn print_receipt(chain: Chain, receipt: &TransactionReceipt) {
     let gas_used = receipt.gas_used.unwrap_or_default();
     let gas_price = receipt.effective_gas_price.unwrap_or_default();
-    println!(
+    foundry_common::shell::println(format!(
         "\n##### {chain}\n{status}Hash: {tx_hash:?}{caddr}\nBlock: {bn}\n{gas}\n",
         status = if receipt.status.map_or(true, |s| s.is_zero()) {
             "❌  [Failed]"
@@ -229,7 +229,7 @@ pub fn print_receipt(chain: Chain, receipt: &TransactionReceipt) {
                 gas_price.trim_end_matches('0').trim_end_matches('.')
             )
         },
-    );
+    ));
 }
 
 /// Useful extensions to [`std::process::Command`].
