@@ -16,7 +16,7 @@ type NewSenderChanges = (CallTraceDecoder, Libraries, ArtifactContracts<Contract
 
 impl ScriptArgs {
     /// Executes the script
-    pub async fn run_script(mut self, breakpoints: Breakpoints) -> eyre::Result<()> {
+    pub async fn run_script(mut self, breakpoints: Breakpoints) -> eyre::Result<ScriptResult> {
         trace!(target: "script", "executing script command");
 
         let (config, evm_opts) = self.load_config_and_evm_opts_emit_warnings()?;
@@ -68,32 +68,32 @@ impl ScriptArgs {
         let mut result =
             self.execute(&mut script_config, contract, sender, &predeploy_libraries).await?;
 
-        if self.resume || (self.verify && !self.broadcast) {
-            return self
-                .resume_deployment(
-                    script_config,
-                    project,
-                    default_known_contracts,
-                    libraries,
-                    result,
-                    verify,
-                )
-                .await
-        }
+        // if self.resume || (self.verify && !self.broadcast) {
+        //     return self
+        //         .resume_deployment(
+        //             script_config,
+        //             project,
+        //             default_known_contracts,
+        //             libraries,
+        //             result,
+        //             verify,
+        //         )
+        //         .await
+        // }
 
         let known_contracts = flatten_contracts(&highlevel_known_contracts, true);
         let mut decoder = self.decode_traces(&script_config, &mut result, &known_contracts)?;
 
-        if self.debug {
-            return self.run_debugger(
-                &decoder,
-                sources,
-                result,
-                project,
-                highlevel_known_contracts,
-                breakpoints,
-            )
-        }
+        // if self.debug {
+        //     return self.run_debugger(
+        //         &decoder,
+        //         sources,
+        //         result,
+        //         project,
+        //         highlevel_known_contracts,
+        //         breakpoints,
+        //     )
+        // }
 
         if let Some((new_traces, updated_libraries, updated_contracts)) = self
             .maybe_prepare_libraries(
@@ -116,17 +116,18 @@ impl ScriptArgs {
             self.show_traces(&script_config, &decoder, &mut result).await?;
         }
 
-        verify.known_contracts = flatten_contracts(&highlevel_known_contracts, false);
+        // verify.known_contracts = flatten_contracts(&highlevel_known_contracts, false);
         self.check_contract_sizes(&result, &highlevel_known_contracts)?;
 
         self.handle_broadcastable_transactions(
-            result,
+            result.clone(),
             libraries,
             &mut decoder,
             script_config,
             verify,
         )
-        .await
+        .await?;
+        Ok(result)
     }
 
     // In case there are libraries to be deployed, it makes sure that these are added to the list of

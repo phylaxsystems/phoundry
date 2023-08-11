@@ -642,6 +642,7 @@ impl Provider for ScriptArgs {
     }
 }
 
+#[derive(Clone)]
 pub struct ScriptResult {
     pub success: bool,
     pub logs: Vec<Log>,
