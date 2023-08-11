@@ -70,7 +70,7 @@ mod executor;
 mod multi;
 mod providers;
 mod receipts;
-mod sequence;
+pub mod sequence;
 pub mod transaction;
 mod verify;
 
