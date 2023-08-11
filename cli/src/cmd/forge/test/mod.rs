@@ -537,7 +537,7 @@ async fn test(
 
     if json {
         let results = runner.test(filter, None, test_options).await;
-        println!("{}", serde_json::to_string(&results)?);
+        foundry_common::shell::println(format!("{}", serde_json::to_string(&results)?));
         Ok(TestOutcome::new(results, allow_failure))
     } else {
         // Set up identifiers
