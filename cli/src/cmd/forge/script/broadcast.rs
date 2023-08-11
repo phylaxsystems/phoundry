@@ -263,7 +263,7 @@ impl ScriptArgs {
         &self,
         mut result: ScriptResult,
         libraries: Libraries,
-        decoder: &mut CallTraceDecoder,
+        decoder: &CallTraceDecoder,
         mut script_config: ScriptConfig,
         verify: VerifyBundle,
     ) -> Result<Vec<ScriptSequence>> {
@@ -362,7 +362,7 @@ impl ScriptArgs {
         txs: BroadcastableTransactions,
         script_result: &ScriptResult,
         script_config: &mut ScriptConfig,
-        decoder: &mut CallTraceDecoder,
+        decoder: &CallTraceDecoder,
         known_contracts: &ContractsByArtifact,
     ) -> Result<Vec<ScriptSequence>> {
         if !txs.is_empty() {
@@ -393,8 +393,8 @@ impl ScriptArgs {
     async fn fills_transactions_with_gas(
         &self,
         txs: BroadcastableTransactions,
-        script_config: &mut ScriptConfig,
-        decoder: &mut CallTraceDecoder,
+        script_config: &ScriptConfig,
+        decoder: &CallTraceDecoder,
         known_contracts: &ContractsByArtifact,
     ) -> Result<VecDeque<TransactionWithMetadata>> {
         let gas_filled_txs = if self.skip_simulation {
