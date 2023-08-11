@@ -70,7 +70,7 @@ mod executor;
 mod multi;
 mod providers;
 mod receipts;
-mod sequence;
+pub mod sequence;
 pub mod transaction;
 mod verify;
 
@@ -642,6 +642,7 @@ impl Provider for ScriptArgs {
     }
 }
 
+#[derive(Clone)]
 pub struct ScriptResult {
     pub success: bool,
     pub logs: Vec<Log>,
