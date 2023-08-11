@@ -285,7 +285,8 @@ impl ScriptArgs {
         decoder: &CallTraceDecoder,
         mut script_config: ScriptConfig,
         verify: VerifyBundle,
-    ) -> Result<()> {
+    ) -> Result<Vec<ScriptSequence>> {
+        let mut script_sequences = vec![];
         if let Some(txs) = result.transactions.take() {
             script_config.collect_rpcs(&txs);
             script_config.check_multi_chain_constraints(&libraries)?;
@@ -303,6 +304,7 @@ impl ScriptArgs {
                         &verify.known_contracts,
                     )
                     .await?;
+                script_sequences.extend(deployments.clone());
 
                 if script_config.has_multiple_rpcs() {
                     trace!(target: "script", "broadcasting multi chain deployment");
@@ -343,7 +345,7 @@ impl ScriptArgs {
                 shell::println("\nIf you wish to simulate on-chain transactions pass a RPC URL.")?;
             }
         }
-        Ok(())
+        Ok(script_sequences)
     }
 
     /// Broadcasts a single chain script.
