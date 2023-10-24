@@ -80,7 +80,7 @@ impl ScriptArgs {
                     result,
                     verify,
                 )
-                .await
+                .await;
         }
 
         let known_contracts = flatten_contracts(&highlevel_known_contracts, true);
@@ -120,8 +120,10 @@ impl ScriptArgs {
         verify.known_contracts = flatten_contracts(&highlevel_known_contracts, false);
         self.check_contract_sizes(&result, &highlevel_known_contracts)?;
 
-        self.handle_broadcastable_transactions(result, libraries, &decoder, script_config, verify)
-            .await
+        let _ = self
+            .handle_broadcastable_transactions(result, libraries, &decoder, script_config, verify)
+            .await?;
+        Ok(())
     }
 
     // In case there are libraries to be deployed, it makes sure that these are added to the list of
@@ -157,7 +159,7 @@ impl ScriptArgs {
                 &flatten_contracts(&highlevel_known_contracts, true),
             )?;
 
-            return Ok(Some((new_traces, libraries, highlevel_known_contracts)))
+            return Ok(Some((new_traces, libraries, highlevel_known_contracts)));
         }
 
         // Add predeploy libraries to the list of broadcastable transactions.
@@ -204,7 +206,7 @@ impl ScriptArgs {
                     result.script_wallets,
                     verify,
                 )
-                .await
+                .await;
         }
         self.resume_single_deployment(
             script_config,
