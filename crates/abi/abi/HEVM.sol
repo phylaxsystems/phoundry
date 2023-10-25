@@ -8,6 +8,8 @@ struct FfiResult { int32 exitCode; bytes stdout; bytes stderr; }
 
 allowCheatcodes(address)
 
+export(string,string)
+
 tryFfi(string[])(FfiResult)
 ffi(string[])(bytes)
 

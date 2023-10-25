@@ -18,7 +18,10 @@ use alloy_json_abi::{Function, JsonAbi as Abi};
 /// Reexport commonly used revm types
 pub use alloy_primitives::{Address, Bytes, U256};
 use backend::FuzzBackendWrapper;
-use ethers::{signers::LocalWallet, types::Log};
+use ethers::{
+    signers::LocalWallet,
+    types::{Chain, Log},
+};
 use foundry_common::{abi::IntoFunction, evm::Breakpoints};
 use revm::primitives::hex_literal::hex;
 pub use revm::{
@@ -29,6 +32,7 @@ pub use revm::{
         TransactTo, TxEnv,
     },
 };
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// ABIs used internally in the executor
@@ -222,6 +226,7 @@ impl Executor {
                         state_changeset: None,
                         transactions: None,
                         script_wallets: res.script_wallets,
+                        exported_data: res.exported_data,
                     })))
                 }
             }
@@ -412,7 +417,8 @@ impl Executor {
                         labels,
                         state_changeset: None,
                         transactions: None,
-                        script_wallets
+                        script_wallets,
+                    exported_data: Default::default(),
                     })));
                 }
             }
@@ -432,6 +438,7 @@ impl Executor {
                     state_changeset: None,
                     transactions: None,
                     script_wallets,
+                    exported_data: Default::default(),
                 })))
             }
         };
@@ -583,6 +590,7 @@ pub struct ExecutionErr {
     pub transactions: Option<BroadcastableTransactions>,
     pub state_changeset: Option<StateChangeset>,
     pub script_wallets: Vec<LocalWallet>,
+    pub exported_data: ExportedData,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -657,6 +665,7 @@ pub struct CallResult {
     pub env: Env,
     /// breakpoints
     pub breakpoints: Breakpoints,
+    pub exported_data: ExportedData,
 }
 
 /// The result of a raw call.
@@ -701,6 +710,7 @@ pub struct RawCallResult {
     pub out: Option<Output>,
     /// The chisel state
     pub chisel_state: Option<(Stack, Memory, InstructionResult)>,
+    pub exported_data: ExportedData,
 }
 
 impl Default for RawCallResult {
@@ -724,6 +734,7 @@ impl Default for RawCallResult {
             cheatcodes: Default::default(),
             out: None,
             chisel_state: None,
+            exported_data: Default::default(),
         }
     }
 }
@@ -769,8 +780,10 @@ fn convert_executed_result(
         cheatcodes,
         script_wallets,
         chisel_state,
+        raw_exported_data,
     } = inspector.collect();
-
+    let mut exported_data = ExportedData::new();
+    exported_data.extend_from_env(raw_exported_data, &env);
     let transactions = match cheatcodes.as_ref() {
         Some(cheats) if !cheats.broadcastable_transactions.is_empty() => {
             Some(cheats.broadcastable_transactions.clone())
@@ -797,6 +810,7 @@ fn convert_executed_result(
         cheatcodes,
         out,
         chisel_state,
+        exported_data,
     })
 }
 
@@ -821,6 +835,7 @@ fn convert_call_result(
         state_changeset,
         script_wallets,
         env,
+        exported_data,
         ..
     } = call_result;
 
@@ -856,6 +871,7 @@ fn convert_call_result(
                 env,
                 breakpoints,
                 skipped: false,
+                exported_data,
             })
         }
         _ => {
@@ -877,7 +893,111 @@ fn convert_call_result(
                 transactions,
                 state_changeset,
                 script_wallets,
+                exported_data,
             })))
         }
+    }
+}
+
+/// A value exported from the EVM via the `export` cheatcode
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub struct ExportedValue {
+    /// The name of the exported value
+    pub name: String,
+    /// The context of the exported value
+    pub context: Option<String>,
+    /// The block at which the value was read
+    pub block: u64,
+    /// The chain on which the value was exported
+    pub chain: ethers::prelude::Chain,
+    /// The value
+    pub value: String,
+}
+
+impl ExportedValue {
+    pub fn new(
+        name: String,
+        context: Option<String>,
+        block: u64,
+        chain: ethers::prelude::Chain,
+        value: String,
+    ) -> Self {
+        Self { name, context, block, chain, value }
+    }
+
+    pub fn new_from_env(
+        name: String,
+        context: Option<String>,
+        env: &Env,
+        value: impl Into<String>,
+    ) -> Self {
+        let block = env.block.number.to::<u64>();
+        let chain: Chain = env.cfg.chain_id.try_into().unwrap();
+        Self { name, context, block, chain, value: value.into() }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct RawExportedData(std::collections::HashMap<String, String>);
+
+impl RawExportedData {
+    fn insert(&mut self, key: String, value: String) -> Option<String> {
+        self.0.insert(key, value)
+    }
+}
+
+impl IntoIterator for RawExportedData {
+    type Item = (String, String);
+    type IntoIter = std::collections::hash_map::IntoIter<String, String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct ExportedData(Vec<ExportedValue>);
+
+impl IntoIterator for ExportedData {
+    type Item = ExportedValue;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl ExportedData {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    fn append(&mut self, value: ExportedValue) {
+        self.0.push(value)
+    }
+
+    fn append_from_env(&mut self, exported_value: ExportedValue) {
+        self.append(exported_value)
+    }
+
+    pub fn extend(&mut self, other: Self) {
+        self.0.extend(other.0)
+    }
+
+    pub fn extend_from_env(
+        &mut self,
+        other: impl IntoIterator<Item = (String, String)>,
+        env: &Env,
+    ) {
+        other.into_iter().for_each(|(name, value)| {
+            let exported_value = ExportedValue {
+                name,
+                context: None,
+                block: env.block.number.to::<u64>(),
+                chain: env.cfg.chain_id.try_into().unwrap(),
+                value,
+            };
+            self.append_from_env(exported_value);
+        })
     }
 }

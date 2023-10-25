@@ -42,7 +42,8 @@ pub fn patch_hardhat_console_selector(input: &mut Vec<u8>) {
 pub static HEVM_ABI: Lazy<JsonAbi> = Lazy::new(|| {
     // TODO: Move to file & find a way to sync with actual HEVM.sol
     JsonAbi::parse([
-        "function allowCheatcodes(address)",
+"function export(string,string)",
+"function allowCheatcodes(address)",
 "function tryFfi(string[])(tuple(int32,bytes,bytes))",
 "function ffi(string[])(bytes)",
 "function breakpoint(string)",

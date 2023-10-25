@@ -6,7 +6,7 @@ use foundry_common::evm::Breakpoints;
 use foundry_evm::{
     coverage::HitMaps,
     debug::DebugArena,
-    executor::EvmError,
+    executor::{EvmError, ExportedData},
     fuzz::{types::FuzzCase, CounterExample},
     trace::{TraceKind, Traces},
 };
@@ -56,6 +56,12 @@ impl SuiteResult {
     /// The number of tests in this test suite.
     pub fn len(&self) -> usize {
         self.test_results.len()
+    }
+
+    pub fn exported_data(&self) -> ExportedData {
+        let mut exported_data = ExportedData::new();
+        self.test_results.values().for_each(|res| exported_data.extend(res.exported_data.clone()));
+        exported_data
     }
 }
 
@@ -128,6 +134,7 @@ pub struct TestResult {
 
     /// pc breakpoint char map
     pub breakpoints: Breakpoints,
+    pub exported_data: ExportedData,
 }
 
 impl TestResult {
@@ -230,6 +237,7 @@ pub struct TestSetup {
     pub labeled_addresses: BTreeMap<Address, String>,
     /// The reason the setup failed, if it did
     pub reason: Option<String>,
+    pub exported_data: ExportedData,
 }
 
 impl TestSetup {
@@ -238,20 +246,23 @@ impl TestSetup {
         mut logs: Vec<Log>,
         mut traces: Traces,
         mut labeled_addresses: BTreeMap<Address, String>,
+        mut exported_data: ExportedData,
     ) -> Self {
         match error {
             EvmError::Execution(err) => {
                 // force the tracekind to be setup so a trace is shown.
                 traces.extend(err.traces.map(|traces| (TraceKind::Setup, traces)));
                 logs.extend(err.logs);
+                exported_data.extend(err.exported_data);
                 labeled_addresses.extend(err.labels);
-                Self::failed_with(logs, traces, labeled_addresses, err.reason)
+                Self::failed_with(logs, traces, labeled_addresses, err.reason, exported_data)
             }
             e => Self::failed_with(
                 logs,
                 traces,
                 labeled_addresses,
                 format!("Failed to deploy contract: {e}"),
+                exported_data,
             ),
         }
     }
@@ -261,8 +272,9 @@ impl TestSetup {
         logs: Vec<Log>,
         traces: Traces,
         labeled_addresses: BTreeMap<Address, String>,
+        exported_data: ExportedData,
     ) -> Self {
-        Self { address, logs, traces, labeled_addresses, reason: None }
+        Self { address, logs, traces, labeled_addresses, reason: None, exported_data }
     }
 
     pub fn failed_with(
@@ -270,8 +282,16 @@ impl TestSetup {
         traces: Traces,
         labeled_addresses: BTreeMap<Address, String>,
         reason: String,
+        exported_data: ExportedData,
     ) -> Self {
-        Self { address: Address::ZERO, logs, traces, labeled_addresses, reason: Some(reason) }
+        Self {
+            address: Address::ZERO,
+            logs,
+            traces,
+            labeled_addresses,
+            reason: Some(reason),
+            exported_data,
+        }
     }
 
     pub fn failed(reason: String) -> Self {

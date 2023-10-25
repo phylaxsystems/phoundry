@@ -12,7 +12,7 @@ use foundry_common::{
 use foundry_config::{FuzzConfig, InvariantConfig};
 use foundry_evm::{
     decode::decode_console_logs,
-    executor::{CallResult, EvmError, ExecutionErr, Executor},
+    executor::{CallResult, EvmError, ExecutionErr, Executor, ExportedData},
     fuzz::{
         invariant::{
             replay_run, InvariantContract, InvariantExecutor, InvariantFuzzError,
@@ -102,6 +102,7 @@ impl<'a> ContractRunner<'a> {
 
         // Deploy libraries
         let mut logs = Vec::new();
+        let mut exported_data = ExportedData::new();
         let mut traces = Vec::with_capacity(self.predeploy_libs.len());
         for code in self.predeploy_libs.iter() {
             match self.executor.deploy(self.sender, code.clone(), U256::ZERO, self.errors) {
@@ -110,7 +111,13 @@ impl<'a> ContractRunner<'a> {
                     traces.extend(d.traces.map(|traces| (TraceKind::Deployment, traces)));
                 }
                 Err(e) => {
-                    return Ok(TestSetup::from_evm_error_with(e, logs, traces, Default::default()))
+                    return Ok(TestSetup::from_evm_error_with(
+                        e,
+                        logs,
+                        traces,
+                        Default::default(),
+                        exported_data,
+                    ))
                 }
             }
         }
@@ -124,7 +131,13 @@ impl<'a> ContractRunner<'a> {
                     d.address
                 }
                 Err(e) => {
-                    return Ok(TestSetup::from_evm_error_with(e, logs, traces, Default::default()))
+                    return Ok(TestSetup::from_evm_error_with(
+                        e,
+                        logs,
+                        traces,
+                        Default::default(),
+                        exported_data,
+                    ))
                 }
             };
 
@@ -139,28 +152,41 @@ impl<'a> ContractRunner<'a> {
         // Optionally call the `setUp` function
         let setup = if setup {
             trace!("setting up");
-            let (setup_logs, setup_traces, labeled_addresses, reason) =
+            let (setup_logs, setup_traces, labeled_addresses, reason, setup_exported_data) =
                 match self.executor.setup(None, address) {
-                    Ok(CallResult { traces, labels, logs, .. }) => {
+                    Ok(CallResult { traces, labels, logs, exported_data, .. }) => {
                         trace!(contract = ?address, "successfully setUp test");
-                        (logs, traces, labels, None)
+                        (logs, traces, labels, None, exported_data)
                     }
                     Err(EvmError::Execution(err)) => {
-                        let ExecutionErr { traces, labels, logs, reason, .. } = *err;
+                        let ExecutionErr { traces, labels, logs, reason, exported_data, .. } = *err;
                         error!(reason = ?reason, contract = ?address, "setUp failed");
-                        (logs, traces, labels, Some(format!("Setup failed: {reason}")))
+                        (
+                            logs,
+                            traces,
+                            labels,
+                            Some(format!("Setup failed: {reason}")),
+                            exported_data,
+                        )
                     }
                     Err(err) => {
                         error!(reason=?err, contract= ?address, "setUp failed");
-                        (Vec::new(), None, BTreeMap::new(), Some(format!("Setup failed: {err}")))
+                        (
+                            Vec::new(),
+                            None,
+                            BTreeMap::new(),
+                            Some(format!("Setup failed: {err}")),
+                            ExportedData::new(),
+                        )
                     }
                 };
             traces.extend(setup_traces.map(|traces| (TraceKind::Setup, traces)));
+            exported_data.extend(setup_exported_data);
             logs.extend(setup_logs);
 
-            TestSetup { address, logs, traces, labeled_addresses, reason }
+            TestSetup { address, logs, traces, labeled_addresses, reason, exported_data }
         } else {
-            TestSetup::success(address, logs, traces, Default::default())
+            TestSetup::success(address, logs, traces, Default::default(), exported_data)
         };
 
         Ok(setup)
@@ -300,7 +326,14 @@ impl<'a> ContractRunner<'a> {
     /// similar to `eth_call`.
     #[instrument(name = "test", skip_all, fields(name = %func.signature(), %should_fail))]
     pub fn run_test(&self, func: &Function, should_fail: bool, setup: TestSetup) -> TestResult {
-        let TestSetup { address, mut logs, mut traces, mut labeled_addresses, .. } = setup;
+        let TestSetup {
+            address,
+            mut logs,
+            mut traces,
+            mut labeled_addresses,
+            mut exported_data,
+            ..
+        } = setup;
 
         // Run unit test
         let mut executor = self.executor.clone();
@@ -326,11 +359,14 @@ impl<'a> ContractRunner<'a> {
                     state_changeset,
                     debug,
                     breakpoints,
+                    exported_data: execution_exported_data,
                     ..
                 }) => {
                     traces.extend(execution_trace.map(|traces| (TraceKind::Execution, traces)));
                     labeled_addresses.extend(new_labels);
                     logs.extend(execution_logs);
+                    exported_data.extend(execution_exported_data);
+
                     debug_arena = debug;
                     (reverted, None, gas, stipend, coverage, state_changeset, breakpoints)
                 }
@@ -338,6 +374,7 @@ impl<'a> ContractRunner<'a> {
                     traces.extend(err.traces.map(|traces| (TraceKind::Execution, traces)));
                     labeled_addresses.extend(err.labels);
                     logs.extend(err.logs);
+                    exported_data.extend(err.exported_data);
                     debug_arena = err.debug;
                     (
                         err.reverted,
@@ -402,6 +439,7 @@ impl<'a> ContractRunner<'a> {
             labeled_addresses,
             debug: debug_arena,
             breakpoints,
+            exported_data,
         }
     }
 
@@ -645,6 +683,7 @@ impl<'a> ContractRunner<'a> {
             labeled_addresses,
             debug,
             breakpoints,
+            exported_data: Default::default(),
         }
     }
 }

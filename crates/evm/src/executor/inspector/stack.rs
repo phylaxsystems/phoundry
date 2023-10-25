@@ -4,7 +4,7 @@ use super::{
 use crate::{
     coverage::HitMaps,
     debug::DebugArena,
-    executor::{backend::DatabaseExt, inspector::CoverageCollector},
+    executor::{backend::DatabaseExt, inspector::CoverageCollector, RawExportedData},
     trace::CallTraceArena,
 };
 use alloy_primitives::{Address, Bytes, B256, U256};
@@ -194,6 +194,7 @@ pub struct InspectorData {
     pub cheatcodes: Option<Cheatcodes>,
     pub script_wallets: Vec<LocalWallet>,
     pub chisel_state: Option<(Stack, Memory, InstructionResult)>,
+    pub raw_exported_data: RawExportedData,
 }
 
 /// An inspector that calls multiple inspectors in sequence.
@@ -210,6 +211,7 @@ pub struct InspectorStack {
     pub log_collector: Option<LogCollector>,
     pub printer: Option<TracePrinter>,
     pub tracer: Option<Tracer>,
+    pub raw_exported_data: Option<crate::executor::RawExportedData>,
 }
 
 impl InspectorStack {
@@ -313,6 +315,11 @@ impl InspectorStack {
                 .cheatcodes
                 .as_ref()
                 .map(|cheatcodes| cheatcodes.script_wallets.clone())
+                .unwrap_or_default(),
+            raw_exported_data: self
+                .cheatcodes
+                .as_ref()
+                .map(|cheatcodes| cheatcodes.raw_exported_data.clone())
                 .unwrap_or_default(),
             cheatcodes: self.cheatcodes,
             chisel_state: self.chisel_state.and_then(|state| state.state),
