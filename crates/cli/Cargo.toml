@@ -17,7 +17,9 @@ foundry-evm.workspace = true
 foundry-debugger.workspace = true
 foundry-utils.workspace = true
 
-foundry-compilers = { workspace = true, default-features = false, features = ["full"] }
+foundry-compilers = { workspace = true, default-features = false, features = [
+    "full",
+] }
 
 # aws
 rusoto_core = { version = "0.48", default-features = false }
@@ -49,13 +51,20 @@ thiserror = "1"
 tokio = { version = "1", features = ["macros"] }
 tracing.workspace = true
 tracing-error = "0.2"
-tracing-subscriber = { version = "0.3", features = ["registry", "env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", features = [
+    "registry",
+    "env-filter",
+    "fmt",
+] }
 yansi = "0.5"
 
 [dev-dependencies]
 tempfile = "3.7"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "ledger", "aws", "trezor"]
 rustls = ["ethers/rustls", "rusoto_core/rustls"]
 openssl = ["ethers/openssl", "foundry-compilers/openssl"]
+ledger = []
+aws = []
+trezor = []
