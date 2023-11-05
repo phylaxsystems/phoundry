@@ -15,7 +15,11 @@ name = "forge"
 path = "bin/main.rs"
 
 [build-dependencies]
-vergen = { version = "8", default-features = false, features = ["build", "git", "git2"] }
+vergen = { version = "8", default-features = false, features = [
+    "build",
+    "git",
+    "gitcl",
+] }
 
 [dependencies]
 # lib
@@ -26,8 +30,12 @@ foundry-evm.workspace = true
 
 comfy-table = "7"
 ethers = { workspace = true, features = ["solc-full"] }
-foundry-compilers = { workspace = true, default-features = false, features = ["full"] }
-foundry-block-explorers = { workspace = true, default-features = false, features = ["foundry-compilers"] }
+foundry-compilers = { workspace = true, default-features = false, features = [
+    "full",
+] }
+foundry-block-explorers = { workspace = true, default-features = false, features = [
+    "foundry-compilers",
+] }
 eyre.workspace = true
 proptest = "1"
 rayon = "1"
@@ -77,12 +85,18 @@ globset = "0.4"
 path-slash = "0.2"
 pretty_assertions = "1"
 serial_test = "2"
-svm = { package = "svm-rs", version = "0.3", default-features = false, features = ["rustls"] }
+svm = { package = "svm-rs", version = "0.3", default-features = false, features = [
+    "rustls",
+] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [features]
 default = ["rustls"]
-rustls = ["foundry-cli/rustls", "reqwest/rustls-tls", "reqwest/rustls-tls-native-roots"]
+rustls = [
+    "foundry-cli/rustls",
+    "reqwest/rustls-tls",
+    "reqwest/rustls-tls-native-roots",
+]
 openssl = ["foundry-cli/openssl", "reqwest/default-tls"]
 
 # feature for heavy (long-running) integration tests

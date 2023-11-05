@@ -16,11 +16,19 @@ path = "src/anvil.rs"
 required-features = ["cli"]
 
 [build-dependencies]
-vergen = { version = "8", default-features = false, features = ["build", "git", "git2"] }
+vergen = { version = "8", default-features = false, features = [
+    "build",
+    "git",
+    "gitcl",
+] }
 
 [dependencies]
 # foundry internal
-anvil-core = { path = "core", features = ["fastrlp", "serde", "impersonated-tx"] }
+anvil-core = { path = "core", features = [
+    "fastrlp",
+    "serde",
+    "impersonated-tx",
+] }
 anvil-rpc = { path = "rpc" }
 anvil-server = { path = "server" }
 foundry-common.workspace = true
@@ -63,7 +71,11 @@ tempfile = "3"
 itertools.workspace = true
 
 # cli
-clap = { version = "4", features = ["derive", "env", "wrap_help"], optional = true }
+clap = { version = "4", features = [
+    "derive",
+    "env",
+    "wrap_help",
+], optional = true }
 clap_complete = { version = "4", optional = true }
 chrono.workspace = true
 auto_impl = "1"
