@@ -426,16 +426,16 @@ impl Config {
     ///
     /// See `Config::figment`
     #[track_caller]
-    pub fn load() -> Self {
-        Config::from_provider(Config::figment())
+    pub fn load(profile: Option<Profile>) -> Self {
+        Config::from_provider(Config::figment(profile))
     }
 
     /// Returns the current `Config`
     ///
     /// See `Config::figment_with_root`
     #[track_caller]
-    pub fn load_with_root(root: impl Into<PathBuf>) -> Self {
-        Config::from_provider(Config::figment_with_root(root))
+    pub fn load_with_root(root: impl Into<PathBuf>, profile: Option<Profile>) -> Self {
+        Config::from_provider(Config::figment_with_root(root, profile))
     }
 
     /// Extract a `Config` from `provider`, panicking if extraction fails.
@@ -480,7 +480,7 @@ impl Config {
     /// let config = Config::try_from(figment);
     /// ```
     pub fn try_from<T: Provider>(provider: T) -> Result<Self, ExtractConfigError> {
-        let figment = Figment::from(provider);
+        let figment = Figment::from(provider).select("simple");
         let mut config = figment.extract::<Self>().map_err(ExtractConfigError::new)?;
         config.profile = figment.profile().clone();
         Ok(config)
@@ -1083,8 +1083,8 @@ impl Config {
     ///
     /// let my_config = Config::figment().extract::<Config>();
     /// ```
-    pub fn figment() -> Figment {
-        Config::default().into()
+    pub fn figment(profile: Option<Profile>) -> Figment {
+        Config::default().to_figment(profile)
     }
 
     /// Returns the default figment enhanced with additional context extracted from the provided
@@ -1098,8 +1098,8 @@ impl Config {
     ///
     /// let my_config = Config::figment_with_root(".").extract::<Config>();
     /// ```
-    pub fn figment_with_root(root: impl Into<PathBuf>) -> Figment {
-        Self::with_root(root).into()
+    pub fn figment_with_root(root: impl Into<PathBuf>, profile: Option<Profile>) -> Figment {
+        Self::with_root(root).to_figment(profile)
     }
 
     /// Creates a new Config that adds additional context extracted from the provided root.
@@ -1176,7 +1176,7 @@ impl Config {
     where
         F: FnOnce(&Config, &mut toml_edit::Document) -> bool,
     {
-        let config = Self::load_with_root(root).sanitized();
+        let config = Self::load_with_root(root, None as Option<Profile>).sanitized();
         config.update(|doc| f(&config, doc))
     }
 
@@ -1554,10 +1554,12 @@ impl Config {
     }
 }
 
-impl From<Config> for Figment {
-    fn from(c: Config) -> Figment {
-        let profile = Config::selected_profile();
-        let mut figment = Figment::default().merge(DappHardhatDirProvider(&c.__root.0));
+impl Config {
+    /// Convert the Config into a Figment, using the provided profile if available, or "default" if
+    /// not.
+    fn to_figment(self, into_profile: Option<Profile>) -> Figment {
+        let profile = into_profile.map_or_else(|| Profile::from("default"), Into::into);
+        let mut figment = Figment::default().merge(DappHardhatDirProvider(&self.__root.0));
 
         // merge global foundry.toml file
         if let Some(global_toml) = Config::foundry_dir_toml().filter(|p| p.exists()) {
@@ -1570,7 +1572,7 @@ impl From<Config> for Figment {
         // merge local foundry.toml file
         figment = Config::merge_toml_provider(
             figment,
-            TomlFileProvider::new(Some("FOUNDRY_CONFIG"), c.__root.0.join(Config::FILE_NAME))
+            TomlFileProvider::new(Some("FOUNDRY_CONFIG"), self.__root.0.join(Config::FILE_NAME))
                 .cached(),
             profile.clone(),
         );
@@ -1616,13 +1618,13 @@ impl From<Config> for Figment {
             lib_paths: figment
                 .extract_inner::<Vec<PathBuf>>("libs")
                 .map(Cow::Owned)
-                .unwrap_or_else(|_| Cow::Borrowed(&c.libs)),
-            root: &c.__root.0,
+                .unwrap_or_else(|_| Cow::Borrowed(&self.libs)),
+            root: &self.__root.0,
             remappings: figment.extract_inner::<Vec<Remapping>>("remappings"),
         };
         let merge = figment.merge(remappings);
 
-        Figment::from(c).merge(merge).select(profile)
+        Figment::from(self).merge(merge).select(profile)
     }
 }
 
@@ -2636,7 +2638,7 @@ mod tests {
             assert_eq!(figment.profile(), "default");
 
             jail.set_env("FOUNDRY_PROFILE", "hardhat");
-            let figment: Figment = Config::hardhat().into();
+            let figment: Figment = Config::hardhat().to_figment(Some("hardhat"));
             assert_eq!(figment.profile(), "hardhat");
 
             jail.create_file(

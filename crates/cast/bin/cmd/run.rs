@@ -81,7 +81,7 @@ impl RunArgs {
     /// Note: This executes the transaction(s) as is: Cheatcodes are disabled
     pub async fn run(self) -> Result<()> {
         let figment =
-            Config::figment_with_root(find_project_root_path(None).unwrap()).merge(self.rpc);
+            Config::figment_with_root(find_project_root_path(None).unwrap(), None).merge(self.rpc);
         let evm_opts = figment.extract::<EvmOpts>()?;
         let mut config = Config::from_provider(figment).sanitized();
 

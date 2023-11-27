@@ -142,8 +142,9 @@ impl CallArgs {
         match command {
             Some(CallSubcommands::Create { code, sig, args, value }) => {
                 if trace {
-                    let figment = Config::figment_with_root(find_project_root_path(None).unwrap())
-                        .merge(eth.rpc);
+                    let figment =
+                        Config::figment_with_root(find_project_root_path(None).unwrap(), None)
+                            .merge(eth.rpc);
 
                     let evm_opts = figment.extract::<EvmOpts>()?;
 
@@ -177,8 +178,9 @@ impl CallArgs {
                 fill_tx(&mut builder, tx.value, sig, args, data).await?;
 
                 if trace {
-                    let figment = Config::figment_with_root(find_project_root_path(None).unwrap())
-                        .merge(eth.rpc);
+                    let figment =
+                        Config::figment_with_root(find_project_root_path(None).unwrap(), None)
+                            .merge(eth.rpc);
 
                     let evm_opts = figment.extract::<EvmOpts>()?;
 

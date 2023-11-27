@@ -6,7 +6,7 @@ use foundry_config::{
     figment::{
         error::Kind::InvalidType,
         value::{Dict, Map, Value},
-        Metadata, Profile, Provider,
+        Figment, Metadata, Profile, Provider,
     },
     find_project_root_path, remappings_from_env_var, Config,
 };
@@ -17,6 +17,9 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Parser, Serialize, Default)]
 #[clap(next_help_heading = "Project options")]
 pub struct ProjectPathsArgs {
+    #[clap(long)]
+    #[serde(skip)]
+    pub profile: Option<String>,
     /// The project's root path.
     ///
     /// By default root of the Git repository, if in one,
@@ -83,7 +86,24 @@ impl ProjectPathsArgs {
     }
 }
 
-foundry_config::impl_figment_convert!(ProjectPathsArgs);
+impl<'a> From<&'a ProjectPathsArgs> for Figment {
+    fn from(args: &'a ProjectPathsArgs) -> Self {
+        let profile = args.profile.clone().map(|p| p.into());
+        if let Some(root) = args.root.clone() {
+            Config::figment_with_root(root, profile)
+        } else {
+            Config::figment_with_root(find_project_root_path(None).unwrap(), profile)
+        }
+        .merge(args)
+    }
+}
+
+impl<'a> From<&'a ProjectPathsArgs> for Config {
+    fn from(args: &'a ProjectPathsArgs) -> Self {
+        let figment: Figment = args.into();
+        Config::from_provider(figment).sanitized()
+    }
+}
 
 // Make this args a `figment::Provider` so that it can be merged into the `Config`
 impl Provider for ProjectPathsArgs {
@@ -107,7 +127,11 @@ impl Provider for ProjectPathsArgs {
         if !libs.is_empty() {
             dict.insert("libs".to_string(), libs.into());
         }
-
-        Ok(Map::from([(Config::selected_profile(), dict)]))
+        let profile = if let Some(profile) = self.profile.as_ref() {
+            profile.into()
+        } else {
+            Config::selected_profile()
+        };
+        Ok(Map::from([(profile, dict)]))
     }
 }

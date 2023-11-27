@@ -135,6 +135,7 @@ impl CoreBuildArgs {
 // Loads project's figment and merges the build cli arguments into it
 impl<'a> From<&'a CoreBuildArgs> for Figment {
     fn from(args: &'a CoreBuildArgs) -> Self {
+        let profile = args.project_paths.profile.clone().map(|p| p.into());
         let figment = if let Some(ref config_path) = args.project_paths.config_path {
             if !config_path.exists() {
                 panic!("error: config-path `{}` does not exist", config_path.display())
@@ -143,9 +144,9 @@ impl<'a> From<&'a CoreBuildArgs> for Figment {
                 panic!("error: the config-path must be a path to a foundry.toml file")
             }
             let config_path = canonicalized(config_path);
-            Config::figment_with_root(config_path.parent().unwrap())
+            Config::figment_with_root(config_path.parent().unwrap(), profile)
         } else {
-            Config::figment_with_root(args.project_paths.project_root())
+            Config::figment_with_root(args.project_paths.project_root(), profile)
         };
 
         // remappings should stack

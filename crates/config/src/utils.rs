@@ -2,7 +2,7 @@
 
 use crate::Config;
 use alloy_primitives::U256;
-use figment::value::Value;
+use figment::{value::Value, Profile};
 use foundry_compilers::{
     remappings::{Remapping, RemappingError},
     EvmVersion,
@@ -23,9 +23,9 @@ pub fn load_config() -> Config {
 /// Loads the config for the current project workspace or the provided root path
 pub fn load_config_with_root(root: Option<PathBuf>) -> Config {
     if let Some(root) = root {
-        Config::load_with_root(root)
+        Config::load_with_root(root, None)
     } else {
-        Config::load_with_root(find_project_root_path(None).unwrap())
+        Config::load_with_root(find_project_root_path(None).unwrap(), None)
     }
     .sanitized()
 }

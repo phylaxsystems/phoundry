@@ -79,7 +79,7 @@ impl EstimateArgs {
     pub async fn run(self) -> Result<()> {
         let EstimateArgs { from, to, sig, args, value, rpc, etherscan, command } = self;
 
-        let figment = Figment::from(Config::figment()).merge(etherscan).merge(rpc);
+        let figment = Figment::from(Config::figment(None)).merge(etherscan).merge(rpc);
         let config = Config::from_provider(figment);
 
         let provider = utils::get_provider(&config)?;

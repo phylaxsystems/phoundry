@@ -60,9 +60,9 @@ macro_rules! impl_figment_convert {
         impl<'a> From<&'a $name> for $crate::figment::Figment {
             fn from(args: &'a $name) -> Self {
                 if let Some(root) = args.root.clone() {
-                    $crate::Config::figment_with_root(root)
+                    $crate::Config::figment_with_root(root, None)
                 } else {
-                    $crate::Config::figment_with_root($crate::find_project_root_path(None).unwrap())
+                    $crate::Config::figment_with_root($crate::find_project_root_path(None).unwrap(), None)
                 }
                 .merge(args)
             }
@@ -78,6 +78,7 @@ macro_rules! impl_figment_convert {
     ($name:ty, $start:ident $(, $more:ident)*) => {
         impl<'a> From<&'a $name> for $crate::figment::Figment {
             fn from(args: &'a $name) -> Self {
+                println!("converting {} to Figment", stringify!($name));
                 let mut figment: $crate::figment::Figment = From::from(&args.$start);
                 $ (
                   figment =  figment.merge(&args.$more);
@@ -190,8 +191,11 @@ macro_rules! impl_figment_convert_cast {
     ($name:ty) => {
         impl<'a> From<&'a $name> for $crate::figment::Figment {
             fn from(args: &'a $name) -> Self {
-                $crate::Config::figment_with_root($crate::find_project_root_path(None).unwrap())
-                    .merge(args)
+                $crate::Config::figment_with_root(
+                    $crate::find_project_root_path(None).unwrap(),
+                    None,
+                )
+                .merge(args)
             }
         }
 

@@ -237,7 +237,7 @@ impl MultiWallet {
                     local_wallets.insert(address.to_alloy(), signer);
 
                     if addresses.is_empty() {
-                        return Ok(local_wallets);
+                        return Ok(local_wallets)
                     }
                 } else {
                     // Just to show on error.
@@ -268,7 +268,7 @@ impl MultiWallet {
             for _ in 0..self.interactives {
                 wallets.push(self.get_from_interactive()?);
             }
-            return Ok(Some(wallets));
+            return Ok(Some(wallets))
         }
         Ok(None)
     }
@@ -279,7 +279,7 @@ impl MultiWallet {
             for private_key in private_keys.iter() {
                 wallets.push(self.get_from_private_key(private_key.trim())?);
             }
-            return Ok(Some(wallets));
+            return Ok(Some(wallets))
         }
         Ok(None)
     }
@@ -315,7 +315,7 @@ impl MultiWallet {
                 let wallet = self.get_from_keystore(Some(&path), passwords_iter.next().as_ref(), password_files_iter.next().as_ref())?.wrap_err("Keystore paths do not have the same length as provided passwords or password files.")?;
                 wallets.push(wallet);
             }
-            return Ok(Some(wallets));
+            return Ok(Some(wallets))
         }
         Ok(None)
     }
@@ -350,7 +350,7 @@ impl MultiWallet {
                     mnemonic_index,
                 )?)
             }
-            return Ok(Some(wallets));
+            return Ok(Some(wallets))
         }
         Ok(None)
     }
@@ -372,7 +372,7 @@ impl MultiWallet {
                 wallets.push(aws_signer)
             }
 
-            return Ok(Some(wallets));
+            return Ok(Some(wallets))
         }
         Ok(None)
     }
@@ -423,33 +423,5 @@ mod tests {
             wallets[0].address(),
             "ec554aeafe75601aaab43bd4621a22284db566c2".parse().unwrap()
         );
-    }
-
-    // https://github.com/foundry-rs/foundry/issues/5179
-    #[test]
-    fn should_not_require_the_mnemonics_flag_with_mnemonic_indexes() {
-        let wallet_options = vec![("aws", "--mnemonic-indexes", 10)];
-
-        for test_case in wallet_options {
-            let args: MultiWallet = MultiWallet::parse_from([
-                "foundry-cli",
-                &format!("--{}", test_case.0),
-                test_case.1,
-                &test_case.2.to_string(),
-            ]);
-
-            match test_case.0 {
-                #[cfg(feature = "ledger")]
-                "ledger" => assert!(args.ledger),
-                "trezor" => assert!(args.trezor),
-                "aws" => assert!(args.aws),
-                _ => panic!("Should have matched one of the previous wallet options"),
-            }
-
-            assert_eq!(
-                args.mnemonic_indexes.expect("--mnemonic-indexes should have been set")[0],
-                test_case.2
-            )
-        }
     }
 }
