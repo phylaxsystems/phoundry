@@ -74,6 +74,7 @@ impl Remappings {
 ///   - `<root>/remappings.txt` file
 ///   - `Remapping::find_many`.
 pub struct RemappingsProvider<'a> {
+    pub(crate) profile: Option<Profile>,
     /// Whether to auto detect remappings from the `lib_paths`
     pub auto_detect_remappings: bool,
     /// The lib/dependency directories to scan for remappings
@@ -205,7 +206,7 @@ impl<'a> RemappingsProvider<'a> {
             })
             .flat_map(|lib: PathBuf| {
                 // load config, of the nested lib if it exists
-                let config = Config::load_with_root(&lib, None).sanitized();
+                let config = Config::load_with_root(&lib, self.profile.clone()).sanitized();
 
                 // if the configured _src_ directory is set to something that
                 // [Remapping::find_many()] doesn't classify as a src directory (src, contracts,

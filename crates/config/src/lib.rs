@@ -1099,6 +1099,7 @@ impl Config {
     /// let my_config = Config::figment_with_root(".").extract::<Config>();
     /// ```
     pub fn figment_with_root(root: impl Into<PathBuf>, profile: Option<Profile>) -> Figment {
+        println!("profile: {:?}", profile);
         Self::with_root(root).to_figment(profile)
     }
 
@@ -1113,6 +1114,7 @@ impl Config {
     pub fn with_root(root: impl Into<PathBuf>) -> Self {
         // autodetect paths
         let root = root.into();
+        println!("root: {:?}", root);
         let paths = ProjectPathsConfig::builder().build_with_root(&root);
         let artifacts: PathBuf = paths.artifacts.file_name().unwrap().into();
         Config {
@@ -1558,7 +1560,7 @@ impl Config {
     /// Convert the Config into a Figment, using the provided profile if available, or "default" if
     /// not.
     fn to_figment(self, into_profile: Option<Profile>) -> Figment {
-        let profile = into_profile.map_or_else(|| Profile::from("default"), Into::into);
+        let profile = into_profile.clone().unwrap_or_else(|| Config::selected_profile());
         let mut figment = Figment::default().merge(DappHardhatDirProvider(&self.__root.0));
 
         // merge global foundry.toml file
@@ -1612,6 +1614,7 @@ impl Config {
         // redundant fs lookups to determine the default remappings that are eventually updated by
         // other providers, like the toml file
         let remappings = RemappingsProvider {
+            profile: into_profile,
             auto_detect_remappings: figment
                 .extract_inner::<bool>("auto_detect_remappings")
                 .unwrap_or(true),
