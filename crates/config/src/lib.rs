@@ -1099,7 +1099,6 @@ impl Config {
     /// let my_config = Config::figment_with_root(".").extract::<Config>();
     /// ```
     pub fn figment_with_root(root: impl Into<PathBuf>, profile: Option<Profile>) -> Figment {
-        println!("profile: {:?}", profile);
         Self::with_root(root).to_figment(profile)
     }
 
@@ -1114,7 +1113,6 @@ impl Config {
     pub fn with_root(root: impl Into<PathBuf>) -> Self {
         // autodetect paths
         let root = root.into();
-        println!("root: {:?}", root);
         let paths = ProjectPathsConfig::builder().build_with_root(&root);
         let artifacts: PathBuf = paths.artifacts.file_name().unwrap().into();
         Config {
