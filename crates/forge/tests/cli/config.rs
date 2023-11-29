@@ -129,7 +129,7 @@ forgetest!(
     |prj: TestProject, mut cmd: TestCommand| {
         cmd.arg("config");
         let expected =
-            Config::load_with_root(prj.root()).to_string_pretty().unwrap().trim().to_string();
+            Config::load_with_root(prj.root(), None).to_string_pretty().unwrap().trim().to_string();
         assert_eq!(expected, cmd.stdout().trim().to_string());
     }
 );
@@ -146,7 +146,7 @@ forgetest_init!(
         let foundry_toml = prj.root().join(Config::FILE_NAME);
         assert!(foundry_toml.exists());
 
-        let profile = Config::load_with_root(prj.root());
+        let profile = Config::load_with_root(prj.root(), None);
         // ensure that the auto-generated internal remapping for forge-std's ds-test exists
         assert_eq!(profile.remappings.len(), 2);
         pretty_eq!("ds-test/=lib/forge-std/lib/ds-test/src/", profile.remappings[0].to_string());
@@ -221,7 +221,7 @@ forgetest_init!(
         let foundry_toml = prj.root().join(Config::FILE_NAME);
         assert!(foundry_toml.exists());
 
-        let profile = Config::load_with_root(prj.root());
+        let profile = Config::load_with_root(prj.root(), None);
         // ensure that the auto-generated internal remapping for forge-std's ds-test exists
         assert_eq!(profile.remappings.len(), 2);
         let [r, _] = &profile.remappings[..] else { unreachable!() };
@@ -243,7 +243,7 @@ forgetest_init!(
         };
 
         install(&mut cmd, "transmissions11/solmate");
-        let profile = Config::load_with_root(prj.root());
+        let profile = Config::load_with_root(prj.root(), None);
         // remappings work
         let remappings_txt = prj.create_file(
             "remappings.txt",
@@ -281,7 +281,7 @@ forgetest_init!(
         assert!(!config.auto_detect_solc);
         assert_eq!(config.eth_rpc_url, Some(url.to_string()));
 
-        let mut config = Config::load_with_root(prj.root());
+        let mut config = Config::load_with_root(prj.root(), None);
         config.eth_rpc_url = Some("http://127.0.0.1:8545".to_string());
         config.auto_detect_solc = false;
         // write to `foundry.toml`
@@ -306,7 +306,7 @@ forgetest_init!(
         assert!(config.ffi);
 
         std::env::set_var("FOUNDRY_ETH_RPC_URL", url);
-        let figment = Config::figment_with_root(prj.root()).merge(("debug", false));
+        let figment = Config::figment_with_root(prj.root(), None).merge(("debug", false));
         let evm_opts: EvmOpts = figment.extract().unwrap();
         assert_eq!(evm_opts.fork_url, Some(url.to_string()));
         std::env::remove_var("FOUNDRY_ETH_RPC_URL");

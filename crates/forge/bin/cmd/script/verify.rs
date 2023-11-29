@@ -42,6 +42,7 @@ impl VerifyBundle {
             lib_paths: project.paths.libraries.clone(),
             hardhat: config.profile == Config::HARDHAT_PROFILE,
             config_path: if config_path.exists() { Some(config_path) } else { None },
+            profile: None,
         };
 
         VerifyBundle {

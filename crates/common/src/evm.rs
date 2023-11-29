@@ -261,7 +261,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let config = Config::from_provider(Config::figment().merge(args));
+        let config = Config::from_provider(Config::figment(None).merge(args));
         assert_eq!(config.chain_id, Some(ethers_core::types::Chain::Mainnet.into()));
 
         let env = EnvArgs::parse_from(["foundry-common", "--chain-id", "goerli"]);
@@ -277,7 +277,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let config = Config::from_provider(Config::figment().merge(args));
+        let config = Config::from_provider(Config::figment(None).merge(args));
         assert_eq!(config.memory_limit, Config::default().memory_limit);
 
         let env = EnvArgs::parse_from(["foundry-common", "--memory-limit", "100"]);

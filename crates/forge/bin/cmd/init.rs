@@ -131,7 +131,7 @@ impl InitArgs {
 
             // write foundry.toml, if it doesn't exist already
             let dest = root.join(Config::FILE_NAME);
-            let mut config = Config::load_with_root(&root);
+            let mut config = Config::load_with_root(&root, None);
             if !dest.exists() {
                 fs::write(dest, config.clone().into_basic().to_string_pretty()?)?;
             }

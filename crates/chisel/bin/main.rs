@@ -97,7 +97,7 @@ async fn main() -> eyre::Result<()> {
     let mut interrupt = false;
 
     // Load configuration
-    let (config, evm_opts) = args.load_config_and_evm_opts(None)?;
+    let (config, evm_opts) = args.load_config_and_evm_opts()?;
 
     // Create a new cli dispatcher
     let mut dispatcher = ChiselDispatcher::new(chisel::session_source::SessionSourceConfig {

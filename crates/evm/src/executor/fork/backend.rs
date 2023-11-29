@@ -763,7 +763,7 @@ mod tests {
 
         let block_num = provider.get_block_number().await.unwrap().as_u64();
 
-        let config = Config::figment();
+        let config = Config::figment(None);
         let mut evm_opts = config.extract::<EvmOpts>().unwrap();
         evm_opts.fork_block_number = Some(block_num);
 

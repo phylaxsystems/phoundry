@@ -199,10 +199,7 @@ pub trait LoadConfig {
     /// Load and sanitize the [`Config`] based on the options provided in self
     fn load_config(self) -> Config;
     /// Load and sanitize the [`Config`], as well as extract [`EvmOpts`] from self
-    fn load_config_and_evm_opts(
-        self,
-        into_profile: impl Into<Profile>,
-    ) -> Result<(Config, EvmOpts)>;
+    fn load_config_and_evm_opts(self) -> Result<(Config, EvmOpts)>;
     /// Load [`Config`] but do not sanitize. See [`Config::sanitized`] for more information
     fn load_config_unsanitized(self) -> Config;
     /// Load [`Config`] but do not sanitize. See [`Config::sanitized`] for more information.
@@ -216,10 +213,7 @@ pub trait LoadConfig {
     /// Returns an error if loading failed
     fn try_load_config_emit_warnings(self) -> Result<Config, ExtractConfigError>;
     /// Same as [`LoadConfig::load_config_and_evm_opts`] but also emits warnings generated
-    fn load_config_and_evm_opts_emit_warnings(
-        self,
-        into_profile: impl Into<Profile>,
-    ) -> Result<(Config, EvmOpts)>;
+    fn load_config_and_evm_opts_emit_warnings(self) -> Result<(Config, EvmOpts)>;
     /// Same as [`LoadConfig::load_config_unsanitized`] but also emits warnings generated
     fn load_config_unsanitized_emit_warnings(self) -> Config;
     fn try_load_config_unsanitized_emit_warnings(self) -> Result<Config, ExtractConfigError>;
@@ -238,9 +232,8 @@ where
         self.into()
     }
 
-    fn load_config_and_evm_opts(self, profile: impl Into<Profile>) -> Result<(Config, EvmOpts)> {
-        let mut figment: Figment = self.into();
-        figment = figment.select(profile.into());
+    fn load_config_and_evm_opts(self) -> Result<(Config, EvmOpts)> {
+        let figment: Figment = self.into();
         let mut evm_opts = figment.extract::<EvmOpts>().map_err(ExtractConfigError::new)?;
         let config = Config::try_from(figment)?.sanitized();
 
@@ -275,11 +268,8 @@ where
         Ok(config)
     }
 
-    fn load_config_and_evm_opts_emit_warnings(
-        self,
-        into_profile: impl Into<Profile>,
-    ) -> Result<(Config, EvmOpts)> {
-        let (config, evm_opts) = self.load_config_and_evm_opts(into_profile)?;
+    fn load_config_and_evm_opts_emit_warnings(self) -> Result<(Config, EvmOpts)> {
+        let (config, evm_opts) = self.load_config_and_evm_opts()?;
         config.__warnings.iter().for_each(|w| cli_warn!("{w}"));
         Ok((config, evm_opts))
     }

@@ -480,7 +480,7 @@ impl Config {
     /// let config = Config::try_from(figment);
     /// ```
     pub fn try_from<T: Provider>(provider: T) -> Result<Self, ExtractConfigError> {
-        let figment = Figment::from(provider).select("simple");
+        let figment = Figment::from(provider);
         let mut config = figment.extract::<Self>().map_err(ExtractConfigError::new)?;
         config.profile = figment.profile().clone();
         Ok(config)
@@ -2571,7 +2571,7 @@ mod tests {
     #[test]
     fn test_install_dir() {
         figment::Jail::expect_with(|jail| {
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.install_lib_dir(), PathBuf::from("lib"));
             jail.create_file(
                 "foundry.toml",
@@ -2580,7 +2580,7 @@ mod tests {
                 libs = ['node_modules', 'lib']
             ",
             )?;
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.install_lib_dir(), PathBuf::from("lib"));
 
             jail.create_file(
@@ -2590,7 +2590,7 @@ mod tests {
                 libs = ['custom', 'node_modules', 'lib']
             ",
             )?;
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.install_lib_dir(), PathBuf::from("custom"));
 
             Ok(())
@@ -2600,7 +2600,7 @@ mod tests {
     #[test]
     fn test_figment_is_default() {
         figment::Jail::expect_with(|_| {
-            let mut default: Config = Config::figment().extract().unwrap();
+            let mut default: Config = Config::figment(None).extract().unwrap();
             default.profile = Config::default().profile;
             assert_eq!(default, Config::default());
             Ok(())
@@ -2610,7 +2610,7 @@ mod tests {
     #[test]
     fn test_default_round_trip() {
         figment::Jail::expect_with(|_| {
-            let original = Config::figment();
+            let original = Config::figment(None);
             let roundtrip = Figment::from(Config::from_provider(&original));
             for figment in &[original, roundtrip] {
                 let config = Config::from_provider(figment);
@@ -2626,7 +2626,7 @@ mod tests {
             jail.set_env("FOUNDRY_FFI", "true");
             jail.set_env("FFI", "true");
             jail.set_env("DAPP_FFI", "true");
-            let config = Config::load();
+            let config = Config::load(None);
             assert!(!config.ffi);
 
             Ok(())
@@ -2637,11 +2637,11 @@ mod tests {
     fn test_profile_env() {
         figment::Jail::expect_with(|jail| {
             jail.set_env("FOUNDRY_PROFILE", "default");
-            let figment = Config::figment();
+            let figment = Config::figment(None);
             assert_eq!(figment.profile(), "default");
 
             jail.set_env("FOUNDRY_PROFILE", "hardhat");
-            let figment: Figment = Config::hardhat().to_figment(Some("hardhat"));
+            let figment: Figment = Config::hardhat().to_figment(None);
             assert_eq!(figment.profile(), "hardhat");
 
             jail.create_file(
@@ -2654,7 +2654,7 @@ mod tests {
             ",
             )?;
             jail.set_env("FOUNDRY_PROFILE", "local");
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.libs, vec![PathBuf::from("modules")]);
 
             Ok(())
@@ -2674,15 +2674,15 @@ mod tests {
     #[test]
     fn test_default_libs() {
         figment::Jail::expect_with(|jail| {
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.libs, vec![PathBuf::from("lib")]);
 
             fs::create_dir_all(jail.directory().join("node_modules")).unwrap();
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.libs, vec![PathBuf::from("node_modules")]);
 
             fs::create_dir_all(jail.directory().join("lib")).unwrap();
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.libs, vec![PathBuf::from("lib"), PathBuf::from("node_modules")]);
 
             Ok(())
@@ -2705,12 +2705,12 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.src, PathBuf::from("defaultsrc"));
             assert_eq!(config.libs, vec![PathBuf::from("lib"), PathBuf::from("node_modules")]);
 
             jail.set_env("FOUNDRY_PROFILE", "custom");
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert_eq!(config.src, PathBuf::from("customsrc"));
             assert_eq!(config.test, PathBuf::from("defaulttest"));
@@ -2731,7 +2731,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             let paths_config = config.project_paths();
             assert_eq!(paths_config.tests, PathBuf::from(r"mytest"));
             Ok(())
@@ -2750,7 +2750,7 @@ mod tests {
                 cache = true
             "#,
             )?;
-            let config = Config::load();
+            let config = Config::load(None);
             assert!(config.remappings.is_empty());
 
             jail.create_file(
@@ -2761,7 +2761,7 @@ mod tests {
             ",
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config.remappings,
                 vec![
@@ -2771,7 +2771,7 @@ mod tests {
             );
 
             jail.set_env("DAPP_REMAPPINGS", "ds-test=lib/ds-test/\nother/=lib/other/");
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert_eq!(
                 config.remappings,
@@ -2801,7 +2801,7 @@ mod tests {
                 cache = true
             "#,
             )?;
-            let config = Config::load();
+            let config = Config::load(None);
             assert!(config.remappings.is_empty());
 
             jail.create_file(
@@ -2812,7 +2812,7 @@ mod tests {
             ",
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config.remappings,
                 vec![
@@ -2822,7 +2822,7 @@ mod tests {
             );
 
             jail.set_env("DAPP_REMAPPINGS", "ds-test/=lib/ds-test/src/\nenv-lib/=lib/env-lib/");
-            let config = Config::load();
+            let config = Config::load(None);
 
             // Remappings should now be:
             // - ds-test from environment (lib/ds-test/src/)
@@ -2862,11 +2862,11 @@ mod tests {
             "#,
             )?;
 
-            let mut config = Config::load();
+            let mut config = Config::load(None);
             config.libs.push("libs".into());
             config.update_libs().unwrap();
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.libs, vec![PathBuf::from("node_modules"), PathBuf::from("libs"),]);
             Ok(())
         });
@@ -2886,7 +2886,7 @@ mod tests {
                 ),
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config, Config { gas_limit: gas.into(), ..Config::default() });
 
             Ok(())
@@ -2905,7 +2905,7 @@ mod tests {
             "#,
             )?;
 
-            let _config = Config::load();
+            let _config = Config::load(None);
 
             Ok(())
         });
@@ -2917,7 +2917,7 @@ mod tests {
         figment::Jail::expect_with(|jail| {
             jail.set_env("FOUNDRY_CONFIG", "this config does not exist");
 
-            let _config = Config::load();
+            let _config = Config::load(None);
 
             Ok(())
         });
@@ -2938,7 +2938,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert!(config.get_etherscan_config_with_chain(None::<u64>).unwrap().is_none());
             assert!(config
                 .get_etherscan_config_with_chain(Some(ethers_core::types::Chain::BinanceSmartChain))
@@ -2990,7 +2990,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert!(config.etherscan.clone().resolved().has_unresolved());
 
@@ -3043,7 +3043,7 @@ mod tests {
             )?;
             jail.set_env("_CONFIG_MAINNET", "https://eth-mainnet.alchemyapi.io/v2/123455");
 
-            let mut config = Config::load();
+            let mut config = Config::load(None);
             assert_eq!("http://localhost:8545", config.get_rpc_url_or_localhost_http().unwrap());
 
             config.eth_rpc_url = Some("mainnet".to_string());
@@ -3072,7 +3072,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!("http://localhost:8545", config.get_rpc_url_or_localhost_http().unwrap());
 
             Ok(())
@@ -3090,13 +3090,13 @@ mod tests {
                 polygonMumbai = "https://polygon-mumbai.g.alchemy.com/v2/${_RESOLVE_RPC_ALIAS}"
             "#,
             )?;
-            let mut config = Config::load();
+            let mut config = Config::load(None);
             config.eth_rpc_url = Some("polygonMumbai".to_string());
             assert!(config.get_rpc_url().unwrap().is_err());
 
             jail.set_env("_RESOLVE_RPC_ALIAS", "123455");
 
-            let mut config = Config::load();
+            let mut config = Config::load(None);
             config.eth_rpc_url = Some("polygonMumbai".to_string());
             assert_eq!(
                 "https://polygon-mumbai.g.alchemy.com/v2/123455",
@@ -3123,7 +3123,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert_eq!(config.get_rpc_url().unwrap().unwrap(), "https://example.com/");
 
@@ -3178,7 +3178,7 @@ mod tests {
             "#,
             )?;
 
-            let mut config = Config::load();
+            let mut config = Config::load(None);
 
             let optimism = config.get_etherscan_api_key(Some(ethers_core::types::Chain::Optimism));
             assert_eq!(optimism, Some("https://etherscan-optimism.com/".to_string()));
@@ -3206,7 +3206,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             let mumbai = config
                 .get_etherscan_config_with_chain(Some(ethers_core::types::Chain::PolygonMumbai))
@@ -3231,7 +3231,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             let mumbai = config
                 .get_etherscan_config_with_chain(Some(ethers_core::types::Chain::PolygonMumbai))
@@ -3261,7 +3261,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             let mumbai =
                 config.get_etherscan_config_with_chain(Option::<u64>::None).unwrap().unwrap();
@@ -3303,7 +3303,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config,
                 Config {
@@ -3364,7 +3364,7 @@ mod tests {
             ",
             )?;
 
-            let config = Config::load_with_root(jail.directory());
+            let config = Config::load_with_root(jail.directory(), None);
             assert_eq!(
                 config.remappings,
                 vec![Remapping::from_str("nested/=lib/nested/").unwrap().into()]
@@ -3447,7 +3447,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load_with_root(jail.directory());
+            let config = Config::load_with_root(jail.directory(), None);
 
             assert_eq!(config.fuzz.seed, Some(U256::from(1000)));
             assert_eq!(
@@ -3484,7 +3484,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.solc, Some(SolcReq::Version("0.8.12".parse().unwrap())));
 
             jail.create_file(
@@ -3495,7 +3495,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.solc, Some(SolcReq::Version("0.8.12".parse().unwrap())));
 
             jail.create_file(
@@ -3506,11 +3506,11 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.solc, Some(SolcReq::Local("path/to/local/solc".into())));
 
             jail.set_env("FOUNDRY_SOLC_VERSION", "0.6.6");
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.solc, Some(SolcReq::Version("0.6.6".parse().unwrap())));
             Ok(())
         });
@@ -3529,7 +3529,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.solc, Some(SolcReq::Version("0.8.12".parse().unwrap())));
 
             Ok(())
@@ -3544,7 +3544,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.solc, Some(SolcReq::Version("0.8.20".parse().unwrap())));
 
             Ok(())
@@ -3567,7 +3567,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config,
                 Config {
@@ -3597,7 +3597,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert_eq!(
                 config.extra_output,
@@ -3622,7 +3622,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config,
                 Config {
@@ -3634,7 +3634,7 @@ mod tests {
             );
 
             jail.set_env("FOUNDRY_SRC", r"other-src");
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config,
                 Config {
@@ -3646,7 +3646,7 @@ mod tests {
             );
 
             jail.set_env("FOUNDRY_PROFILE", "foo");
-            let val: Result<String, _> = Config::figment().extract_inner("profile");
+            let val: Result<String, _> = Config::figment(None).extract_inner("profile");
             assert!(val.is_err());
 
             Ok(())
@@ -3669,7 +3669,7 @@ mod tests {
                 src = "other-src"
             "#,
             )?;
-            let loaded = Config::load();
+            let loaded = Config::load(None);
             assert_eq!(loaded.evm_version, EvmVersion::Berlin);
             let base = loaded.into_basic();
             let default = Config::default();
@@ -3684,7 +3684,7 @@ mod tests {
                 }
             );
             jail.set_env("FOUNDRY_PROFILE", r"other");
-            let base = Config::figment().extract::<BasicConfig>().unwrap();
+            let base = Config::figment(None).extract::<BasicConfig>().unwrap();
             assert_eq!(
                 base,
                 BasicConfig {
@@ -3710,7 +3710,7 @@ mod tests {
                 dictionary_weight = 101
             ",
             )?;
-            let _config = Config::load();
+            let _config = Config::load(None);
             Ok(())
         });
     }
@@ -3738,7 +3738,7 @@ mod tests {
             )?;
 
             let invariant_default = InvariantConfig::default();
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert_ne!(config.invariant.runs, config.fuzz.runs);
             assert_eq!(config.invariant.runs, 420);
@@ -3762,7 +3762,7 @@ mod tests {
             );
 
             jail.set_env("FOUNDRY_PROFILE", "ci");
-            let ci_config = Config::load();
+            let ci_config = Config::load(None);
             assert_eq!(ci_config.fuzz.runs, 1);
             assert_eq!(ci_config.invariant.runs, 400);
             assert_eq!(ci_config.fuzz.dictionary.dictionary_weight, 5);
@@ -3795,12 +3795,12 @@ mod tests {
             ",
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.fuzz.runs, 100);
             assert_eq!(config.invariant.runs, 120);
 
             jail.set_env("FOUNDRY_PROFILE", "ci");
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.fuzz.runs, 420);
             assert_eq!(config.invariant.runs, 500);
 
@@ -3820,7 +3820,7 @@ mod tests {
             jail.set_env("DAPP_BUILD_OPTIMIZE_RUNS", 999);
             jail.set_env("DAPP_BUILD_OPTIMIZE", 0);
 
-            let config = Config::load();
+            let config = Config::load(None);
 
             assert_eq!(config.block_number, 1337);
             assert_eq!(config.sender, addr);
@@ -3841,7 +3841,7 @@ mod tests {
                 "DAPP_LIBRARIES",
                 "[src/DssSpell.sol:DssExecLib:0x8De6DDbCd5053d32292AAA0D2105A32d108484a6]",
             );
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config.libraries,
                 vec!["src/DssSpell.sol:DssExecLib:0x8De6DDbCd5053d32292AAA0D2105A32d108484a6"
@@ -3852,7 +3852,7 @@ mod tests {
                 "DAPP_LIBRARIES",
                 "src/DssSpell.sol:DssExecLib:0x8De6DDbCd5053d32292AAA0D2105A32d108484a6",
             );
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config.libraries,
                 vec!["src/DssSpell.sol:DssExecLib:0x8De6DDbCd5053d32292AAA0D2105A32d108484a6"
@@ -3863,7 +3863,7 @@ mod tests {
                 "DAPP_LIBRARIES",
                 "src/DssSpell.sol:DssExecLib:0x8De6DDbCd5053d32292AAA0D2105A32d108484a6,src/DssSpell.sol:DssExecLib:0x8De6DDbCd5053d32292AAA0D2105A32d108484a6",
             );
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config.libraries,
                 vec![
@@ -3894,7 +3894,7 @@ mod tests {
                     ]       
             ",
             )?;
-            let config = Config::load();
+            let config = Config::load(None);
 
             let libs = config.parsed_libraries().unwrap().libs;
 
@@ -3948,7 +3948,7 @@ mod tests {
             let basic = default.clone().into_basic();
             jail.create_file("foundry.toml", &basic.to_string_pretty().unwrap())?;
 
-            let mut other = Config::load();
+            let mut other = Config::load(None);
             clear_warning(&mut other);
             assert_eq!(default, other);
 
@@ -3956,7 +3956,7 @@ mod tests {
             assert_eq!(basic, other);
 
             jail.create_file("foundry.toml", &default.to_string_pretty().unwrap())?;
-            let mut other = Config::load();
+            let mut other = Config::load(None);
             clear_warning(&mut other);
             assert_eq!(default, other);
 
@@ -3974,7 +3974,7 @@ mod tests {
                 fs_permissions = [{ access = "read-write", path = "./"}]
             "#,
             )?;
-            let loaded = Config::load();
+            let loaded = Config::load(None);
 
             assert_eq!(
                 loaded.fs_permissions,
@@ -3988,7 +3988,7 @@ mod tests {
                 fs_permissions = [{ access = "none", path = "./"}]
             "#,
             )?;
-            let loaded = Config::load();
+            let loaded = Config::load(None);
             assert_eq!(loaded.fs_permissions, FsPermissions::new(vec![PathPermission::none("./")]));
 
             Ok(())
@@ -4011,7 +4011,7 @@ mod tests {
                 stackAllocation = true
             ",
             )?;
-            let mut loaded = Config::load();
+            let mut loaded = Config::load(None);
             clear_warning(&mut loaded);
             assert_eq!(
                 loaded.optimizer_details,
@@ -4028,7 +4028,7 @@ mod tests {
             let s = loaded.to_string_pretty().unwrap();
             jail.create_file("foundry.toml", &s)?;
 
-            let mut reloaded = Config::load();
+            let mut reloaded = Config::load(None);
             clear_warning(&mut reloaded);
             assert_eq!(loaded, reloaded);
 
@@ -4051,7 +4051,7 @@ mod tests {
                 timeout = 10000
             ",
             )?;
-            let mut loaded = Config::load();
+            let mut loaded = Config::load(None);
             clear_warning(&mut loaded);
             assert_eq!(
                 loaded.model_checker,
@@ -4078,7 +4078,7 @@ mod tests {
             let s = loaded.to_string_pretty().unwrap();
             jail.create_file("foundry.toml", &s)?;
 
-            let mut reloaded = Config::load();
+            let mut reloaded = Config::load(None);
             clear_warning(&mut reloaded);
             assert_eq!(loaded, reloaded);
 
@@ -4101,7 +4101,7 @@ mod tests {
                 timeout = 10000
             ",
             )?;
-            let loaded = Config::load().sanitized();
+            let loaded = Config::load(None).sanitized();
 
             // NOTE(onbjerg): We have to canonicalize the path here using dunce because figment will
             // canonicalize the jail path using the standard library. The standard library *always*
@@ -4153,7 +4153,7 @@ mod tests {
                 bracket_spacing = true
             ",
             )?;
-            let loaded = Config::load().sanitized();
+            let loaded = Config::load(None).sanitized();
             assert_eq!(
                 loaded.fmt,
                 FormatterConfig {
@@ -4180,7 +4180,7 @@ mod tests {
             ",
             )?;
 
-            let loaded = Config::load().sanitized();
+            let loaded = Config::load(None).sanitized();
             assert_eq!(
                 loaded.invariant,
                 InvariantConfig { runs: 512, depth: 10, ..Default::default() }
@@ -4208,7 +4208,7 @@ mod tests {
             jail.set_env("FOUNDRY_FUZZ_DICTIONARY_WEIGHT", "99");
             jail.set_env("FOUNDRY_INVARIANT_DEPTH", "5");
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.fmt.line_length, 95);
             assert_eq!(config.fuzz.dictionary.dictionary_weight, 99);
             assert_eq!(config.invariant.depth, 5);
@@ -4253,7 +4253,7 @@ mod tests {
                 out = 'my-out'
             ",
             )?;
-            let loaded = Config::load().sanitized();
+            let loaded = Config::load(None).sanitized();
             assert_eq!(loaded.src.file_name().unwrap(), "my-src");
             assert_eq!(loaded.out.file_name().unwrap(), "my-out");
             assert_eq!(
@@ -4404,7 +4404,7 @@ mod tests {
             "#,
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(
                 config.ignored_error_codes,
                 vec![
@@ -4429,7 +4429,7 @@ mod tests {
             ",
             )?;
 
-            let config = Config::load();
+            let config = Config::load(None);
             assert_eq!(config.optimizer_details, Some(OptimizerDetails::default()));
 
             Ok(())
