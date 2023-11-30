@@ -2,7 +2,7 @@
 
 use crate::Config;
 use alloy_primitives::U256;
-use figment::{value::Value, Profile};
+use figment::{value::Value};
 use foundry_compilers::{
     remappings::{Remapping, RemappingError},
     EvmVersion,

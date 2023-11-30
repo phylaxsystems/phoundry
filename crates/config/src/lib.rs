@@ -1558,7 +1558,7 @@ impl Config {
     /// Convert the Config into a Figment, using the provided profile if available, or "default" if
     /// not.
     fn to_figment(self, into_profile: Option<Profile>) -> Figment {
-        let profile = into_profile.clone().unwrap_or_else(|| Config::selected_profile());
+        let profile = into_profile.clone().unwrap_or_else(Config::selected_profile);
         let mut figment = Figment::default().merge(DappHardhatDirProvider(&self.__root.0));
 
         // merge global foundry.toml file

@@ -21,7 +21,7 @@ use std::{
     iter::repeat,
     sync::Arc,
 };
-use tracing::trace;
+
 
 macro_rules! get_wallets {
     ($id:ident, [ $($wallets:expr),+ ], $call:expr) => {

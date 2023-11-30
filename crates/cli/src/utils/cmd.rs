@@ -12,7 +12,7 @@ use foundry_compilers::{
 };
 use foundry_config::{
     error::ExtractConfigError,
-    figment::{Figment, Profile},
+    figment::{Figment},
     Chain as ConfigChain, Config,
 };
 use foundry_debugger::DebuggerArgs;
