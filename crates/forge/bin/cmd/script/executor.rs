@@ -22,7 +22,7 @@ use foundry_utils::types::ToEthers;
 use futures::future::join_all;
 use parking_lot::RwLock;
 use std::{collections::VecDeque, sync::Arc};
-use tracing::trace;
+use tracing::{debug, trace};
 
 /// Helper alias type for the processed result of a runner onchain simulation.
 type RunnerResult = (Option<TransactionWithMetadata>, Traces);
@@ -257,7 +257,7 @@ impl ScriptArgs {
         let sender = script_config.evm_opts.sender;
 
         if !shell::verbosity().is_silent() {
-            eprintln!("\n## Setting up ({}) EVMs.", script_config.total_rpcs.len());
+            debug!("\n## Setting up ({}) EVMs.", script_config.total_rpcs.len());
         }
 
         let futs = script_config
