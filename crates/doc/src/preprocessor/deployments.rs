@@ -41,9 +41,11 @@ impl Preprocessor for Deployments {
             .map(|x| {
                 x.map(|y| {
                     if y.file_type()?.is_dir() {
-                        Ok(y.file_name().into_string().map_err(|e| {
-                            eyre::eyre!("Failed to extract directory name: {:?}", e)
-                        })?)
+                        Ok::<std::string::String, eyre::Error>(
+                            y.file_name().into_string().map_err(|e| {
+                                eyre::eyre!("Failed to extract directory name: {:?}", e)
+                            })?,
+                        )
                     } else {
                         eyre::bail!("Not a directory.")
                     }
