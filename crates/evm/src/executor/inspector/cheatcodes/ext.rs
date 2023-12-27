@@ -570,6 +570,7 @@ pub fn apply<DB: Database>(
 ) -> Option<Result> {
     Some(match call {
         HEVMCalls::Export(inner) => export(state, &inner.0, &inner.1),
+        HEVMCalls::ImportContext(inner) => import(state, &inner.0),
         HEVMCalls::Ffi(inner) => {
             if state.config.ffi {
                 ffi(state, &inner.0)

@@ -2363,6 +2363,30 @@ pub mod hevm {
                     ],
                 ),
                 (
+                    ::std::borrow::ToOwned::to_owned("importContext"),
+                    ::std::vec![
+                        ::ethers_core::abi::ethabi::Function {
+                            name: ::std::borrow::ToOwned::to_owned("importContext"),
+                            inputs: ::std::vec![
+                                ::ethers_core::abi::ethabi::Param {
+                                    name: ::std::string::String::new(),
+                                    kind: ::ethers_core::abi::ethabi::ParamType::String,
+                                    internal_type: ::core::option::Option::None,
+                                },
+                            ],
+                            outputs: ::std::vec![
+                                ::ethers_core::abi::ethabi::Param {
+                                    name: ::std::string::String::new(),
+                                    kind: ::ethers_core::abi::ethabi::ParamType::Bytes,
+                                    internal_type: ::core::option::Option::None,
+                                },
+                            ],
+                            constant: ::core::option::Option::None,
+                            state_mutability: ::ethers_core::abi::ethabi::StateMutability::NonPayable,
+                        },
+                    ],
+                ),
+                (
                     ::std::borrow::ToOwned::to_owned("isDir"),
                     ::std::vec![
                         ::ethers_core::abi::ethabi::Function {
@@ -6367,6 +6391,15 @@ pub mod hevm {
                 .method_hash([25, 21, 83, 164], ())
                 .expect("method not found (this should never happen)")
         }
+        ///Calls the contract's `importContext` (0xe9eb17b8) function
+        pub fn import_context(
+            &self,
+            p0: ::std::string::String,
+        ) -> ::ethers_contract::builders::ContractCall<M, ::ethers_core::types::Bytes> {
+            self.0
+                .method_hash([233, 235, 23, 184], p0)
+                .expect("method not found (this should never happen)")
+        }
         ///Calls the contract's `isDir` (0x7d15d019) function
         pub fn is_dir(
             &self,
@@ -8926,6 +8959,19 @@ pub mod hevm {
     )]
     #[ethcall(name = "getRecordedLogs", abi = "getRecordedLogs()")]
     pub struct GetRecordedLogsCall;
+    ///Container type for all input parameters for the `importContext` function with signature `importContext(string)` and selector `0xe9eb17b8`
+    #[derive(
+        Clone,
+        ::ethers_contract::EthCall,
+        ::ethers_contract::EthDisplay,
+        Default,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash
+    )]
+    #[ethcall(name = "importContext", abi = "importContext(string)")]
+    pub struct ImportContextCall(pub ::std::string::String);
     ///Container type for all input parameters for the `isDir` function with signature `isDir(string)` and selector `0x7d15d019`
     #[derive(
         Clone,
@@ -10743,6 +10789,7 @@ pub mod hevm {
         GetNonce0(GetNonce0Call),
         GetNonce1(GetNonce1Call),
         GetRecordedLogs(GetRecordedLogsCall),
+        ImportContext(ImportContextCall),
         IsDir(IsDirCall),
         IsFile(IsFileCall),
         IsPersistent(IsPersistentCall),
@@ -11334,6 +11381,11 @@ pub mod hevm {
                 data,
             ) {
                 return Ok(Self::GetRecordedLogs(decoded));
+            }
+            if let Ok(decoded) = <ImportContextCall as ::ethers_core::abi::AbiDecode>::decode(
+                data,
+            ) {
+                return Ok(Self::ImportContext(decoded));
             }
             if let Ok(decoded) = <IsDirCall as ::ethers_core::abi::AbiDecode>::decode(
                 data,
@@ -12155,6 +12207,9 @@ pub mod hevm {
                 Self::GetRecordedLogs(element) => {
                     ::ethers_core::abi::AbiEncode::encode(element)
                 }
+                Self::ImportContext(element) => {
+                    ::ethers_core::abi::AbiEncode::encode(element)
+                }
                 Self::IsDir(element) => ::ethers_core::abi::AbiEncode::encode(element),
                 Self::IsFile(element) => ::ethers_core::abi::AbiEncode::encode(element),
                 Self::IsPersistent(element) => {
@@ -12559,6 +12614,7 @@ pub mod hevm {
                 Self::GetNonce0(element) => ::core::fmt::Display::fmt(element, f),
                 Self::GetNonce1(element) => ::core::fmt::Display::fmt(element, f),
                 Self::GetRecordedLogs(element) => ::core::fmt::Display::fmt(element, f),
+                Self::ImportContext(element) => ::core::fmt::Display::fmt(element, f),
                 Self::IsDir(element) => ::core::fmt::Display::fmt(element, f),
                 Self::IsFile(element) => ::core::fmt::Display::fmt(element, f),
                 Self::IsPersistent(element) => ::core::fmt::Display::fmt(element, f),
@@ -13162,6 +13218,11 @@ pub mod hevm {
     impl ::core::convert::From<GetRecordedLogsCall> for HEVMCalls {
         fn from(value: GetRecordedLogsCall) -> Self {
             Self::GetRecordedLogs(value)
+        }
+    }
+    impl ::core::convert::From<ImportContextCall> for HEVMCalls {
+        fn from(value: ImportContextCall) -> Self {
+            Self::ImportContext(value)
         }
     }
     impl ::core::convert::From<IsDirCall> for HEVMCalls {
@@ -14431,6 +14492,18 @@ pub mod hevm {
     pub struct GetRecordedLogsReturn(
         pub ::std::vec::Vec<(::std::vec::Vec<[u8; 32]>, ::ethers_core::types::Bytes)>,
     );
+    ///Container type for all return fields from the `importContext` function with signature `importContext(string)` and selector `0xe9eb17b8`
+    #[derive(
+        Clone,
+        ::ethers_contract::EthAbiType,
+        ::ethers_contract::EthAbiCodec,
+        Default,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash
+    )]
+    pub struct ImportContextReturn(pub ::ethers_core::types::Bytes);
     ///Container type for all return fields from the `isDir` function with signature `isDir(string)` and selector `0x7d15d019`
     #[derive(
         Clone,

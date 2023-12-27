@@ -43,6 +43,7 @@ pub static HEVM_ABI: Lazy<JsonAbi> = Lazy::new(|| {
     // TODO: Move to file & find a way to sync with actual HEVM.sol
     JsonAbi::parse([
 "function export(string,string)",
+"function importContext(string)(bytes)",
 "function allowCheatcodes(address)",
 "function tryFfi(string[])(tuple(int32,bytes,bytes))",
 "function ffi(string[])(bytes)",
