@@ -12,11 +12,12 @@ use foundry_evm::{
         backend::Backend, fork::CreateFork, inspector::CheatsConfig, opts::EvmOpts, Executor,
         ExecutorBuilder,
     },
-    revm,
+    revm, HashMap,
 };
 use foundry_utils::{PostLinkInput, ResolvedDependency};
 use rayon::prelude::*;
 use revm::primitives::SpecId;
+use serde_json::Value;
 use std::{
     collections::{BTreeMap, HashSet},
     iter::Iterator,
@@ -152,6 +153,7 @@ impl MultiContractRunner {
         filter: impl TestFilter,
         stream_result: Option<Sender<(String, SuiteResult)>>,
         test_options: TestOptions,
+        context_map: HashMap<String, Value>,
     ) -> BTreeMap<String, SuiteResult> {
         trace!("running all tests");
 
@@ -174,6 +176,7 @@ impl MultiContractRunner {
                             .trace(self.evm_opts.verbosity >= 3 || self.debug)
                             .debug(self.debug)
                             .coverage(self.coverage)
+                            .context(context_map.clone())
                     })
                     .spec(self.evm_spec)
                     .gas_limit(self.evm_opts.gas_limit())
