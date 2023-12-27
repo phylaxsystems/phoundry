@@ -309,10 +309,9 @@ impl CoverageArgs {
         let known_contracts = runner.known_contracts.clone();
         let filter = self.filter;
         let (tx, rx) = channel::<(String, SuiteResult)>();
-        let handle =
-            tokio::task::spawn(
-                async move { runner.test(filter, Some(tx), Default::default()).await },
-            );
+        let handle = tokio::task::spawn(async move {
+            runner.test(filter, Some(tx), Default::default(), None).await
+        });
 
         // Add hit data to the coverage report
         for (artifact_id, hits) in rx

@@ -58,7 +58,7 @@ impl TestConfig {
 
     /// Executes the test runner
     pub async fn test(&mut self) -> BTreeMap<String, SuiteResult> {
-        self.runner.test(&self.filter, None, self.opts.clone()).await
+        self.runner.test(&self.filter, None, self.opts.clone(), None).await
     }
 
     pub async fn run(&mut self) {
@@ -71,7 +71,7 @@ impl TestConfig {
     ///    * filter matched 0 test cases
     ///    * a test results deviates from the configured `should_fail` setting
     pub async fn try_run(&mut self) -> eyre::Result<()> {
-        let suite_result = self.runner.test(&self.filter, None, self.opts.clone()).await;
+        let suite_result = self.runner.test(&self.filter, None, self.opts.clone(), None).await;
         if suite_result.is_empty() {
             eyre::bail!("empty test result");
         }

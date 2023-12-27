@@ -116,7 +116,7 @@ pub struct Cheatcodes {
     pub gas_price: Option<U256>,
 
     /// The context in which the call happens
-    pub context_map: hashbrown::HashMap<String, Value>,
+    pub context_map: std::collections::HashMap<String, Value>,
 
     /// Address labels
     pub labels: BTreeMap<Address, String>,
@@ -206,7 +206,10 @@ pub struct Cheatcodes {
 impl Cheatcodes {
     /// Creates a new `Cheatcodes` with the given settings.
     #[inline]
-    pub fn new(config: Arc<CheatsConfig>, context_map: hashbrown::HashMap<String, Value>) -> Self {
+    pub fn new(
+        config: Arc<CheatsConfig>,
+        context_map: std::collections::HashMap<String, Value>,
+    ) -> Self {
         Self { config, context_map, fs_commit: true, ..Default::default() }
     }
 

@@ -341,7 +341,7 @@ impl TestArgs {
         if self.debug.is_some() {
             filter.args_mut().test_pattern = self.debug.clone();
             // Run the test
-            let results = runner.test(&filter, None, test_options).await;
+            let results = runner.test(&filter, None, test_options, None).await;
 
             Ok(TestOutcome::new(results, self.allow_failure))
         } else if self.list {
@@ -656,7 +656,7 @@ async fn test(
     }
 
     if json {
-        let results = runner.test(filter, None, test_options).await;
+        let results = runner.test(filter, None, test_options, None).await;
         println!("{}", serde_json::to_string(&results)?);
         return Ok(TestOutcome::new(results, allow_failure))
     }
@@ -673,7 +673,7 @@ async fn test(
 
     // Run tests
     let handle =
-        tokio::task::spawn(async move { runner.test(filter, Some(tx), test_options).await });
+        tokio::task::spawn(async move { runner.test(filter, Some(tx), test_options, None).await });
 
     let mut results: BTreeMap<String, SuiteResult> = BTreeMap::new();
     let mut gas_report = GasReport::new(config.gas_reports, config.gas_reports_ignore);

@@ -153,7 +153,7 @@ impl MultiContractRunner {
         filter: impl TestFilter,
         stream_result: Option<Sender<(String, SuiteResult)>>,
         test_options: TestOptions,
-        context_map: HashMap<String, Value>,
+        context_map: Option<std::collections::HashMap<String, Value>>,
     ) -> BTreeMap<String, SuiteResult> {
         trace!("running all tests");
 
@@ -176,7 +176,7 @@ impl MultiContractRunner {
                             .trace(self.evm_opts.verbosity >= 3 || self.debug)
                             .debug(self.debug)
                             .coverage(self.coverage)
-                            .context(context_map.clone())
+                            .context(context_map.clone().unwrap_or_default())
                     })
                     .spec(self.evm_spec)
                     .gas_limit(self.evm_opts.gas_limit())

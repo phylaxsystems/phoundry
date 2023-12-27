@@ -35,7 +35,7 @@ pub struct InspectorStackBuilder {
     /// in the execution environment.
     pub gas_price: Option<U256>,
     /// The context in which the test runs
-    pub context_map: HashMap<String, Value>,
+    pub context_map: std::collections::HashMap<String, Value>,
     /// The cheatcodes config.
     pub cheatcodes: Option<Arc<CheatsConfig>>,
     /// The fuzzer inspector and its state, if it exists.
@@ -84,7 +84,7 @@ impl InspectorStackBuilder {
 
     /// Enable cheatcodes with the given config.
     #[inline]
-    pub fn context(mut self, map: hashbrown::HashMap<String, Value>) -> Self {
+    pub fn context(mut self, map: std::collections::HashMap<String, Value>) -> Self {
         self.context_map = map;
         self
     }

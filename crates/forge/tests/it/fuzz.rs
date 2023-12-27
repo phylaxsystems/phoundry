@@ -16,6 +16,7 @@ async fn test_fuzz() {
                 .exclude_paths("invariant"),
             None,
             test_opts(),
+            None,
         )
         .await;
 
@@ -60,8 +61,9 @@ async fn test_fuzz_collection() {
     opts.fuzz.seed = Some(U256::from(6u32));
     runner.test_options = opts.clone();
 
-    let results =
-        runner.test(&Filter::new(".*", ".*", ".*fuzz/FuzzCollection.t.sol"), None, opts).await;
+    let results = runner
+        .test(&Filter::new(".*", ".*", ".*fuzz/FuzzCollection.t.sol"), None, opts, None)
+        .await;
 
     assert_multiple(
         &results,

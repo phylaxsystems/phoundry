@@ -20,6 +20,7 @@ async fn test_cheats_fork_revert() {
             ),
             None,
             test_opts(),
+            None,
         )
         .await;
     assert_eq!(suite_result.len(), 1);

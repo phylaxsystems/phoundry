@@ -17,7 +17,7 @@ async fn inline_config_run_fuzz() {
     let mut runner = runner().await;
     runner.test_options = opts.clone();
 
-    let result = runner.test(&filter, None, opts).await;
+    let result = runner.test(&filter, None, opts, None).await;
     let suite_result: &SuiteResult =
         result.get("inline/FuzzInlineConf.t.sol:FuzzInlineConf").unwrap();
     let test_result: &TestResult =
@@ -41,7 +41,7 @@ async fn inline_config_run_invariant() {
     let mut runner = runner().await;
     runner.test_options = opts.clone();
 
-    let result = runner.test(&filter, None, opts).await;
+    let result = runner.test(&filter, None, opts, None).await;
 
     let suite_result_1 = result.get(&format!("{ROOT}:InvariantInlineConf")).expect("Result exists");
     let suite_result_2 =

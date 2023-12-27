@@ -8,7 +8,7 @@ use std::{collections::BTreeMap, env};
 #[tokio::test(flavor = "multi_thread")]
 async fn test_core() {
     let mut runner = runner().await;
-    let results = runner.test(&Filter::new(".*", ".*", ".*core"), None, test_opts()).await;
+    let results = runner.test(&Filter::new(".*", ".*", ".*core"), None, test_opts(), None).await;
 
     assert_multiple(
         &results,
@@ -77,7 +77,7 @@ async fn test_core() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_linking() {
     let mut runner = runner().await;
-    let results = runner.test(&Filter::new(".*", ".*", ".*linking"), None, test_opts()).await;
+    let results = runner.test(&Filter::new(".*", ".*", ".*linking"), None, test_opts(), None).await;
 
     assert_multiple(
         &results,
@@ -110,7 +110,7 @@ async fn test_linking() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_logs() {
     let mut runner = runner().await;
-    let results = runner.test(&Filter::new(".*", ".*", ".*logs"), None, test_opts()).await;
+    let results = runner.test(&Filter::new(".*", ".*", ".*logs"), None, test_opts(), None).await;
 
     assert_multiple(
         &results,
@@ -673,7 +673,7 @@ async fn test_env_vars() {
 
     // test `setEnv` first, and confirm that it can correctly set environment variables,
     // so that we can use it in subsequent `env*` tests
-    runner.test(&Filter::new("testSetEnv", ".*", ".*"), None, test_opts()).await;
+    runner.test(&Filter::new("testSetEnv", ".*", ".*"), None, test_opts(), None).await;
     let env_var_key = "_foundryCheatcodeSetEnvTestKey";
     let env_var_val = "_foundryCheatcodeSetEnvTestVal";
     let res = env::var(env_var_key);
@@ -688,7 +688,12 @@ Reason: `setEnv` failed to set an environment variable `{env_var_key}={env_var_v
 async fn test_doesnt_run_abstract_contract() {
     let mut runner = runner().await;
     let results = runner
-        .test(&Filter::new(".*", ".*", ".*Abstract.t.sol".to_string().as_str()), None, test_opts())
+        .test(
+            &Filter::new(".*", ".*", ".*Abstract.t.sol".to_string().as_str()),
+            None,
+            test_opts(),
+            None,
+        )
         .await;
     assert!(results.get("core/Abstract.t.sol:AbstractTestBase").is_none());
     assert!(results.get("core/Abstract.t.sol:AbstractTest").is_some());
@@ -697,7 +702,8 @@ async fn test_doesnt_run_abstract_contract() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_trace() {
     let mut runner = tracing_runner().await;
-    let suite_result = runner.test(&Filter::new(".*", ".*", ".*trace"), None, test_opts()).await;
+    let suite_result =
+        runner.test(&Filter::new(".*", ".*", ".*trace"), None, test_opts(), None).await;
 
     // TODO: This trace test is very basic - it is probably a good candidate for snapshot
     // testing.

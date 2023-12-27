@@ -14,6 +14,7 @@ async fn test_invariant() {
             &Filter::new(".*", ".*", ".*fuzz/invariant/(target|targetAbi|common)"),
             None,
             test_opts(),
+            None,
         )
         .await;
 
@@ -101,6 +102,7 @@ async fn test_invariant_override() {
             &Filter::new(".*", ".*", ".*fuzz/invariant/common/InvariantReentrancy.t.sol"),
             None,
             opts,
+            None,
         )
         .await;
 
@@ -128,6 +130,7 @@ async fn test_invariant_storage() {
             &Filter::new(".*", ".*", ".*fuzz/invariant/storage/InvariantStorageTest.t.sol"),
             None,
             opts,
+            None,
         )
         .await;
 
@@ -160,6 +163,7 @@ async fn test_invariant_shrink() {
             &Filter::new(".*", ".*", ".*fuzz/invariant/common/InvariantInnerContract.t.sol"),
             None,
             opts,
+            None,
         )
         .await;
 
