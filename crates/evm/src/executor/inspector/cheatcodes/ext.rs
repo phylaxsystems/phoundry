@@ -556,6 +556,12 @@ fn export(state: &mut Cheatcodes, key: &str, value: &str) -> Result {
     Ok(Bytes::new())
 }
 
+fn import(state: &mut Cheatcodes, key: &str) -> Result {
+    let val = state.context_map.get(key).ok_or(fmt_err!("The key"))?;
+    let encoded = value_to_token(val)?;
+    Ok(encoded.abi_encode().into())
+}
+
 #[instrument(level = "error", name = "ext", target = "evm::cheatcodes", skip_all)]
 pub fn apply<DB: Database>(
     state: &mut Cheatcodes,

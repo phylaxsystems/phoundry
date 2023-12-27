@@ -10,6 +10,7 @@ use crate::{
 use alloy_primitives::{Address, Bytes, B256, U256};
 use ethers::{signers::LocalWallet, types::Log};
 
+use hashbrown::HashMap;
 use revm::{
     interpreter::{
         return_revert, CallInputs, CreateInputs, Gas, InstructionResult, Interpreter, Memory, Stack,
@@ -17,6 +18,7 @@ use revm::{
     primitives::{BlockEnv, Env},
     EVMData, Inspector,
 };
+use serde_json::Value;
 use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Clone, Debug, Default)]
@@ -32,6 +34,8 @@ pub struct InspectorStackBuilder {
     /// Used in the cheatcode handler to overwrite the gas price separately from the gas price
     /// in the execution environment.
     pub gas_price: Option<U256>,
+    /// The context in which the test runs
+    pub context_map: HashMap<String, Value>,
     /// The cheatcodes config.
     pub cheatcodes: Option<Arc<CheatsConfig>>,
     /// The fuzzer inspector and its state, if it exists.
@@ -75,6 +79,13 @@ impl InspectorStackBuilder {
     #[inline]
     pub fn cheatcodes(mut self, config: Arc<CheatsConfig>) -> Self {
         self.cheatcodes = Some(config);
+        self
+    }
+
+    /// Enable cheatcodes with the given config.
+    #[inline]
+    pub fn context(mut self, map: hashbrown::HashMap<String, Value>) -> Self {
+        self.context_map = map;
         self
     }
 
@@ -142,12 +153,13 @@ impl InspectorStackBuilder {
             coverage,
             print,
             chisel_state,
+            context_map,
         } = self;
         let mut stack = InspectorStack::new();
 
         // inspectors
         if let Some(config) = cheatcodes {
-            stack.set_cheatcodes(Cheatcodes::new(config));
+            stack.set_cheatcodes(Cheatcodes::new(config, context_map));
         }
         if let Some(fuzzer) = fuzzer {
             stack.set_fuzzer(fuzzer);
@@ -211,7 +223,6 @@ pub struct InspectorStack {
     pub log_collector: Option<LogCollector>,
     pub printer: Option<TracePrinter>,
     pub tracer: Option<Tracer>,
-    pub raw_exported_data: Option<crate::executor::RawExportedData>,
 }
 
 impl InspectorStack {

@@ -52,6 +52,8 @@ pub struct CheatsConfig {
     pub allowed_paths: Vec<PathBuf>,
     /// How the evm was configured by the user
     pub evm_opts: EvmOpts,
+    /// External context that should be available in the test environment
+    pub context_map: HashMap<String, Value>,
 }
 
 impl CheatsConfig {
