@@ -557,9 +557,13 @@ fn export(state: &mut Cheatcodes, key: &str, value: &str) -> Result {
 }
 
 fn import(state: &mut Cheatcodes, key: &str) -> Result {
-    let val = state.context_map.get(key).ok_or(fmt_err!("The key"))?;
+    let keys: String =
+        state.context_map.keys().map(AsRef::as_ref).collect::<Vec<&str>>().join(" | ");
+    let error_msg =
+        format!("The key {key} does not exist in the context map. The available keys are: {keys}");
+    let val = state.context_map.get(key).ok_or(fmt_err!(error_msg))?;
     let encoded = value_to_token(val)?;
-    Ok(encoded.abi_encode().into())
+    Ok(DynSolValue::Bytes(encoded.abi_encode().into()).abi_encode().into())
 }
 
 #[instrument(level = "error", name = "ext", target = "evm::cheatcodes", skip_all)]
