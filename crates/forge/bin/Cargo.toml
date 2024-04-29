@@ -1,6 +1,6 @@
 [package]
-name = "forge"
-description = "Fast and flexible Ethereum testing framework"
+name = "forge-cmd"
+description = "Forge command line interface"
 
 version.workspace = true
 edition.workspace = true
@@ -10,12 +10,10 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-[lints]
-workspace = true
-
-#[[bin]] converted to a crate in the workspace to expose code
+[lib]
+#name = "forge_cmd"
+path = "cmd/lib.rs"
 #name = "forge"
-#path = "bin/main.rs"
 
 [build-dependencies]
 vergen = { workspace = true, default-features = false, features = [
@@ -32,28 +30,31 @@ foundry-compilers = { workspace = true, features = ["full"] }
 foundry-config.workspace = true
 foundry-evm.workspace = true
 foundry-wallets.workspace = true
-foundry-linking.workspace = true
-
-ethers-contract-abigen = { workspace = true, features = ["providers"] }
-
-revm-inspectors.workspace = true
-
+#foundry-linking.workspace = true
+#
+ethers-contract-abigen.workspace = true
+#
+#revm-inspectors.workspace = true
+#
 comfy-table = "7"
 eyre.workspace = true
-proptest = "1"
-rayon.workspace = true
+#proptest = "1"
+rayon = "1"
 serde.workspace = true
 tracing.workspace = true
 yansi.workspace = true
-humantime-serde = "1.1.1"
+#humantime-serde = "1.1.1"
 
 # bin
+forge.workspace = true
 forge-doc.workspace = true
 forge-fmt.workspace = true
 forge-verify.workspace = true
 forge-script.workspace = true
 foundry-cli.workspace = true
 foundry-debugger.workspace = true
+
+soldeer.workspace = true
 
 alloy-dyn-abi.workspace = true
 alloy-json-abi.workspace = true
@@ -86,7 +87,7 @@ similar = { version = "2", features = ["inline"] }
 solang-parser.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror = "1"
-tokio = { workspace = true, features = ["time"] }
+tokio = { version = "1", features = ["time"] }
 toml = { version = "0.8", features = ["preserve_order"] }
 toml_edit = "0.22.4"
 watchexec = "2.3.2"
@@ -99,12 +100,8 @@ hyper.workspace = true
 tower-http = { workspace = true, features = ["fs"] }
 opener = "0.6"
 
-# soldeer
-soldeer.workspace = true
-
 [target.'cfg(unix)'.dependencies]
 tikv-jemallocator = { workspace = true, optional = true }
-
 
 [dev-dependencies]
 anvil.workspace = true
@@ -115,7 +112,7 @@ criterion = "0.5"
 globset = "0.4"
 paste = "1.0"
 path-slash = "0.2"
-similar-asserts.workspace = true
+#pretty_assertions.workspace = true
 svm = { package = "svm-rs", version = "0.5", default-features = false, features = [
     "rustls",
 ] }
@@ -125,7 +122,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
 alloy-signer-wallet.workspace = true
 
 [features]
-default = ["rustls", "jemalloc"]
+default = ["rustls"]
 rustls = [
     "foundry-cli/rustls",
     "foundry-wallets/rustls",
@@ -135,8 +132,7 @@ rustls = [
 openssl = ["foundry-cli/openssl", "reqwest/default-tls"]
 asm-keccak = ["alloy-primitives/asm-keccak"]
 jemalloc = ["dep:tikv-jemallocator"]
-aws-kms = ["foundry-wallets/aws-kms"]
 
-[[bench]]
-name = "test"
-harness = false
+#[[bench]]
+#name = "test"
+#harness = false

@@ -31,6 +31,7 @@ use foundry_common::{
 };
 use foundry_config::Config;
 use foundry_evm::{
+    backend::StateLookup,
     constants::DEFAULT_CREATE2_DEPLOYER,
     fork::{BlockchainDb, BlockchainDbMeta, SharedBackend},
     revm::primitives::{BlockEnv, CfgEnv, CfgEnvWithHandlerCfg, EnvWithHandlerCfg, SpecId, TxEnv},
@@ -1140,7 +1141,11 @@ latest block number: {latest_block}"
         let backend = SharedBackend::spawn_backend_thread(
             Arc::clone(&provider),
             block_chain_db.clone(),
-            Some(fork_block_number.into()),
+            fork_block_number,
+            Default::default(), //data_accesses
+            chain_id.into(),
+            StateLookup::RollAt(fork_block_number),
+            Default::default(), //code_cache
         );
 
         let config = ClientForkConfig {

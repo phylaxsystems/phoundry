@@ -52,9 +52,8 @@ impl ClientFork {
     pub async fn reset(
         &self,
         url: Option<String>,
-        block_number: impl Into<BlockId>,
+        block_number: u64,
     ) -> Result<(), BlockchainError> {
-        let block_number = block_number.into();
         {
             self.database
                 .write()
@@ -76,7 +75,7 @@ impl ClientFork {
 
         let provider = self.provider();
         let block = provider
-            .get_block(block_number, false.into())
+            .get_block(block_number.into(), false.into())
             .await?
             .ok_or(BlockchainError::BlockNotFound)?;
         let block_hash = block.header.hash.ok_or(BlockchainError::BlockNotFound)?;

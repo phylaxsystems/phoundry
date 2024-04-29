@@ -2,7 +2,6 @@
 
 use crate::revm::primitives::AccountInfo;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256, U64};
-use alloy_rpc_types::BlockId;
 use foundry_common::errors::FsPathError;
 use foundry_evm::{
     backend::{DatabaseError, DatabaseResult, MemDb, RevertSnapshotAction, StateSnapshot},
@@ -53,7 +52,7 @@ where
 /// Helper trait to reset the DB if it's forked
 #[auto_impl::auto_impl(Box)]
 pub trait MaybeForkedDatabase {
-    fn maybe_reset(&mut self, _url: Option<String>, block_number: BlockId) -> Result<(), String>;
+    fn maybe_reset(&mut self, _url: Option<String>, block_number: u64) -> Result<(), String>;
 
     fn maybe_flush_cache(&self) -> Result<(), String>;
 
@@ -250,7 +249,7 @@ impl<T: DatabaseRef<Error = DatabaseError>> MaybeFullDatabase for CacheDB<T> {
 }
 
 impl<T: DatabaseRef<Error = DatabaseError>> MaybeForkedDatabase for CacheDB<T> {
-    fn maybe_reset(&mut self, _url: Option<String>, _block_number: BlockId) -> Result<(), String> {
+    fn maybe_reset(&mut self, _url: Option<String>, _block_number: u64) -> Result<(), String> {
         Err("not supported".to_string())
     }
 

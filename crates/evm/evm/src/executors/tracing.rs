@@ -41,7 +41,7 @@ impl TracingExecutor {
         evm_opts.fork_url = Some(config.get_rpc_url_or_localhost_http()?.into_owned());
         evm_opts.fork_block_number = config.fork_block_number;
 
-        let env = evm_opts.evm_env().await?;
+        let env = evm_opts.evm_env(Default::default()).await?;
 
         let fork = evm_opts.get_fork(config, env.clone());
 
