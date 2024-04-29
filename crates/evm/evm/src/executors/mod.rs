@@ -14,7 +14,7 @@ use alloy_json_abi::Function;
 use alloy_primitives::{Address, Bytes, Log, U256};
 use alloy_sol_types::{sol, SolCall};
 use foundry_evm_core::{
-    backend::{Backend, CowBackend, DatabaseError, DatabaseExt, DatabaseResult},
+    backend::{Access, Backend, CowBackend, DatabaseError, DatabaseExt, DatabaseResult},
     constants::{
         CALLER, CHEATCODE_ADDRESS, DEFAULT_CREATE2_DEPLOYER, DEFAULT_CREATE2_DEPLOYER_CODE,
     },
@@ -406,6 +406,10 @@ impl Executor {
         debug!(%address, "deployed contract");
 
         Ok(DeployResult { raw: result, address })
+    }
+
+    pub fn drain_accesses_and_collect(&self) -> Vec<Access> {
+        self.backend.data_accesses.write().expect("Failed to obtain write lock").drain().collect()
     }
 
     /// Deploys a contract and commits the new state to the underlying database.

@@ -214,7 +214,7 @@ impl MultiContractRunner {
 
         debug!("start executing all tests in contract");
 
-        let runner = ContractRunner::new(
+        let mut runner = ContractRunner::new(
             &identifier,
             executor,
             contract,

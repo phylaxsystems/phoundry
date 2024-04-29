@@ -20,6 +20,7 @@ members = [
     "crates/evm/traces/",
     "crates/fmt/",
     "crates/forge/",
+    "crates/forge/bin",
     "crates/macros/",
     "crates/test-utils/",
 ]

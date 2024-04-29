@@ -1,6 +1,7 @@
 //! The Forge test runner.
 
 use crate::{
+    backend::Access,
     fuzz::{invariant::BasicTxDetails, BaseCounterExample},
     multi_runner::{is_matching_test, TestContract},
     result::{SuiteResult, TestKind, TestResult, TestSetup, TestStatus},
@@ -256,7 +257,7 @@ impl<'a> ContractRunner<'a> {
 
     /// Runs all tests for a contract whose names match the provided regular expression
     pub fn run_tests(
-        mut self,
+        &mut self,
         filter: &dyn TestFilter,
         test_options: &TestOptions,
         known_contracts: Arc<ContractsByArtifact>,
