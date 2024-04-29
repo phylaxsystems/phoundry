@@ -1,4 +1,4 @@
-use crate::cmd::test::TestOutcome;
+use forge::result::TestOutcome;
 use comfy_table::{
     modifiers::UTF8_ROUND_CORNERS, Attribute, Cell, CellAlignment, Color, Row, Table,
 };
