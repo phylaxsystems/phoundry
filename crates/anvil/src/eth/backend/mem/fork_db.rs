@@ -6,7 +6,6 @@ use crate::{
     revm::primitives::AccountInfo,
 };
 use alloy_primitives::{Address, B256, U256, U64};
-use alloy_rpc_types::BlockId;
 use foundry_evm::{
     backend::{DatabaseResult, RevertSnapshotAction, StateSnapshot},
     fork::{database::ForkDbSnapshot, BlockchainDb},
@@ -121,7 +120,7 @@ impl MaybeFullDatabase for ForkDbSnapshot {
 }
 
 impl MaybeForkedDatabase for ForkedDatabase {
-    fn maybe_reset(&mut self, url: Option<String>, block_number: BlockId) -> Result<(), String> {
+    fn maybe_reset(&mut self, url: Option<String>, block_number: u64) -> Result<(), String> {
         self.reset(url, block_number)
     }
 

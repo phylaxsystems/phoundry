@@ -257,8 +257,7 @@ impl MultiContractRunner {
         let _guard = span_local.enter();
 
         debug!("start executing all tests in contract");
-
-        let runner = ContractRunner {
+        let mut runner = ContractRunner {
             name: &identifier,
             contract,
             libs_to_deploy: &self.libs_to_deploy,

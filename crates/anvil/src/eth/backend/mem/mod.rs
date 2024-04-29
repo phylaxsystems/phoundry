@@ -405,7 +405,7 @@ impl Backend {
 
         if let Some(fork) = self.get_fork() {
             let block_number =
-                forking.block_number.map(BlockNumber::from).unwrap_or(BlockNumber::Latest);
+                forking.block_number.map(u64::from).unwrap();
             // reset the fork entirely and reapply the genesis config
             fork.reset(forking.json_rpc_url.clone(), block_number).await?;
             let fork_block_number = fork.block_number();

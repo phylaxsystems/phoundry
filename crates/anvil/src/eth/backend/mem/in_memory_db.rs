@@ -9,7 +9,6 @@ use crate::{
     revm::{db::DbAccount, primitives::AccountInfo},
 };
 use alloy_primitives::{Address, B256, U256, U64};
-use alloy_rpc_types::BlockId;
 use foundry_evm::{
     backend::{DatabaseResult, StateSnapshot},
     fork::BlockchainDb,
@@ -119,7 +118,7 @@ impl MaybeFullDatabase for MemDb {
 }
 
 impl MaybeForkedDatabase for MemDb {
-    fn maybe_reset(&mut self, _url: Option<String>, _block_number: BlockId) -> Result<(), String> {
+    fn maybe_reset(&mut self, _url: Option<String>, _block_number: u64) -> Result<(), String> {
         Err("not supported".to_string())
     }
 

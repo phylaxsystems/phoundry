@@ -250,7 +250,7 @@ impl<'a> ContractRunner<'a> {
 
     /// Runs all tests for a contract whose names match the provided regular expression
     pub fn run_tests(
-        mut self,
+        &mut self,
         filter: &dyn TestFilter,
         test_options: &TestOptions,
         known_contracts: ContractsByArtifact,

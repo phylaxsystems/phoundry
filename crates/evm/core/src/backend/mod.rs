@@ -3,10 +3,12 @@
 use crate::{
     constants::{CALLER, CHEATCODE_ADDRESS, DEFAULT_CREATE2_DEPLOYER, TEST_CONTRACT_ADDRESS},
     fork::{CreateFork, ForkId, MultiFork, SharedBackend},
+    opts::EvmOpts,
     snapshot::Snapshots,
     utils::configure_tx_env,
     InspectorExt,
 };
+use alloy_chains::Chain;
 use alloy_genesis::GenesisAccount;
 use alloy_primitives::{b256, keccak256, Address, B256, U256};
 use alloy_rpc_types::{Block, BlockNumberOrTag, BlockTransactions, Transaction};
@@ -23,8 +25,11 @@ use revm::{
     },
     Database, DatabaseCommit, JournaledState,
 };
+
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    sync::Arc,
     time::Instant,
 };
 
@@ -42,6 +47,15 @@ pub use in_memory_db::{EmptyDBWrapper, FoundryEvmInMemoryDB, MemDb};
 
 mod snapshot;
 pub use snapshot::{BackendSnapshot, RevertSnapshotAction, StateSnapshot};
+
+mod data_access;
+pub use data_access::{Access, AccessType, RevmDbAccess, StateLookup};
+
+mod environment_cache;
+pub use environment_cache::{BlockEnvironment, EnvironmentCache};
+
+mod code_cache;
+pub use code_cache::CodeCache;
 
 // A `revm::Database` that is used in forking mode
 type ForkDB = CacheDB<SharedBackend>;
@@ -384,7 +398,7 @@ struct _ObjectSafe(dyn DatabaseExt);
 /// **Note:** Snapshots work across fork-swaps, e.g. if fork `A` is currently active, then a
 /// snapshot is created before fork `B` is selected, then fork `A` will be the active fork again
 /// after reverting the snapshot.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 #[must_use]
 pub struct Backend {
     /// The access point for managing forks
@@ -414,7 +428,14 @@ pub struct Backend {
     active_fork_ids: Option<(LocalForkId, ForkLookupIndex)>,
     /// holds additional Backend data
     inner: BackendInner,
+    /// The data accesses made by this backend instance.
+    pub data_accesses: Arc<dashmap::DashSet<Access>>,
+
+    pub environment_cache: Arc<EnvironmentCache>,
+
+    pub code_cache: Arc<CodeCache>,
 }
+// === impl Backend ===
 
 impl Backend {
     /// Creates a new Backend with a spawned multi fork thread.
@@ -445,11 +466,22 @@ impl Backend {
             fork_init_journaled_state: inner.new_journaled_state(),
             active_fork_ids: None,
             inner,
+            data_accesses: Default::default(),
+            environment_cache: Arc::new(EnvironmentCache::default()),
+            code_cache: Arc::new(CodeCache::default()),
         };
 
         if let Some(fork) = fork {
-            let (fork_id, fork, _) =
-                backend.forks.create_fork(fork).expect("Unable to create fork");
+            let (fork_id, fork, _) = backend
+                .forks
+                .create_fork(
+                    fork,
+                    backend.environment_cache.clone(),
+                    backend.data_accesses.clone(),
+                    backend.code_cache.clone(),
+                )
+                .expect("Unable to create fork");
+
             let fork_db = ForkDB::new(fork);
             let fork_ids = backend.inner.insert_new_fork(
                 fork_id.clone(),
@@ -483,6 +515,9 @@ impl Backend {
             fork_init_journaled_state: self.inner.new_journaled_state(),
             active_fork_ids: None,
             inner: Default::default(),
+            data_accesses: Default::default(),
+            environment_cache: self.environment_cache.clone(),
+            code_cache: self.code_cache.clone(),
         }
     }
 
@@ -1029,11 +1064,27 @@ impl DatabaseExt for Backend {
 
     fn create_fork(&mut self, create_fork: CreateFork) -> eyre::Result<LocalForkId> {
         trace!("create fork");
-        let (fork_id, fork, _) = self.forks.create_fork(create_fork)?;
+
+        let (fork_id, fork, env) = self.forks.create_fork(
+            create_fork.clone(),
+            Arc::clone(&self.environment_cache),
+            Arc::clone(&self.data_accesses),
+            Arc::clone(&self.code_cache),
+        )?;
+
+        // All Create Forks roll to specific blocks as currently implemented
+        let state_lookup: StateLookup = (&create_fork).into();
+
+        self.data_accesses.insert(Access {
+            chain: env.cfg.chain_id.into(),
+            state_lookup,
+            access_type: AccessType::CreateFork(create_fork.url.to_owned()),
+        });
 
         let fork_db = ForkDB::new(fork);
         let (id, _) =
             self.inner.insert_new_fork(fork_id, fork_db, self.fork_init_journaled_state.clone());
+
         Ok(id)
     }
 
@@ -1168,8 +1219,13 @@ impl DatabaseExt for Backend {
     ) -> eyre::Result<()> {
         trace!(?id, ?block_number, "roll fork");
         let id = self.ensure_fork(id)?;
-        let (fork_id, backend, fork_env) =
-            self.forks.roll_fork(self.inner.ensure_fork_id(id).cloned()?, block_number)?;
+        let (fork_id, backend, fork_env) = self.forks.roll_fork(
+            self.inner.ensure_fork_id(id).cloned()?,
+            block_number,
+            Arc::clone(&self.environment_cache),
+            Arc::clone(&self.data_accesses),
+            Arc::clone(&self.code_cache),
+        )?;
         // this will update the local mapping
         self.inner.roll_fork(id, fork_id, backend)?;
 
@@ -1952,4 +2008,123 @@ fn apply_state_changeset(
     update_state(&mut fork.journaled_state.state, &mut fork.db, Some(persistent_accounts))?;
 
     Ok(())
+}
+
+impl Clone for Backend {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            mem_db: self.mem_db.clone(),
+            forks: self.forks.clone(),
+            data_accesses: Default::default(),
+            fork_init_journaled_state: self.fork_init_journaled_state.clone(),
+            active_fork_ids: self.active_fork_ids,
+            environment_cache: Arc::clone(&self.environment_cache),
+            code_cache: Arc::clone(&self.code_cache),
+        }
+    }
+}
+
+impl Backend {
+    /// Returns the accesses made to the database.
+    /// This function clears the accesses.
+    pub fn get_accesses(&self) -> Vec<Access> {
+        let accesses = self.data_accesses.iter().map(|v| v.key().clone()).collect::<Vec<_>>();
+        self.data_accesses.clear();
+        accesses
+    }
+
+    /// sets the latest block number for the given url
+    pub fn set_latest_block_number(&self, url: &str, block_number: u64) {
+        self.environment_cache.set_latest_block_number(url, block_number);
+    }
+
+    /// Loads the given acceses on the given chain at the given block number, using the given url
+    pub fn load_accesses(
+        &self,
+        accesses: &Vec<Access>,
+        chain: Chain,
+        current_block: u64,
+        url: String,
+    ) -> Result<(), <Self as DatabaseRef>::Error> {
+        self.set_latest_block_number(&url, current_block);
+
+        let chain_accesses = accesses.into_par_iter().filter(|access| access.chain == chain);
+
+        let results = chain_accesses.map(|access| {
+            self.clone()
+                .execute_access(access, current_block, &url)
+                .map_err(|err| DatabaseError::msg(err.to_string()))
+        });
+
+        if let Some(err) = results.find_any(|v| v.is_err()) {
+            return err;
+        }
+
+        Ok(())
+    }
+
+    /// Executes the given access on the database
+    pub fn execute_access(
+        &mut self,
+        access: &Access,
+        current_block: u64,
+        url: &str,
+    ) -> Result<(), DatabaseError> {
+        let block_num = match &access.state_lookup {
+            StateLookup::RollN(n) => ((current_block as i64) + n).max(0) as u64,
+            StateLookup::RollAt(n) => *n,
+        };
+
+        let fork_id = ForkId::new(url, block_num);
+
+        match &access.access_type {
+            AccessType::RevmDbAccess(revm_db_access) => {
+                let mut fork = match self.forks.get_fork(fork_id) {
+                    Ok(Some(fork)) => Ok(fork),
+                    Ok(None) => self
+                        .forks
+                        .create_fork(
+                            get_create_fork(url, block_num),
+                            Arc::clone(&self.environment_cache),
+                            Arc::clone(&self.data_accesses),
+                            Arc::clone(&self.code_cache),
+                        )
+                        .map(|(_, fork, _)| fork),
+                    Err(err) => Err(err),
+                }
+                .map_err(|err| DatabaseError::msg(err.to_string()))?;
+
+                revm_db_access.execute(&mut fork)?;
+            }
+            AccessType::CreateFork(url) => {
+                if let Ok(Some(_)) = self.forks.get_fork(fork_id) {
+                    return Ok(());
+                }
+                self.forks
+                    .create_fork(
+                        get_create_fork(url, block_num),
+                        Arc::clone(&self.environment_cache),
+                        Arc::clone(&self.data_accesses),
+                        Arc::clone(&self.code_cache),
+                    )
+                    .map_err(|err| DatabaseError::msg(err.to_string()))?;
+            }
+        };
+
+        Ok(())
+    }
+}
+
+fn get_create_fork(url: &str, block_num: u64) -> CreateFork {
+    CreateFork {
+        enable_caching: false,
+        url: url.to_string(),
+        evm_opts: EvmOpts {
+            fork_block_number: Some(block_num),
+            fork_url: Some(url.to_owned()),
+            ..Default::default()
+        },
+        env: Default::default(),
+    }
 }

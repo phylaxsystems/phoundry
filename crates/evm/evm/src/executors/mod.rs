@@ -14,7 +14,7 @@ use alloy_json_abi::Function;
 use alloy_primitives::{Address, Bytes, Log, U256};
 use alloy_sol_types::{sol, SolCall};
 use foundry_evm_core::{
-    backend::{Backend, CowBackend, DatabaseError, DatabaseExt, DatabaseResult},
+    backend::{Access, Backend, CowBackend, DatabaseError, DatabaseExt, DatabaseResult},
     constants::{
         CALLER, CHEATCODE_ADDRESS, CHEATCODE_CONTRACT_HASH, DEFAULT_CREATE2_DEPLOYER,
         DEFAULT_CREATE2_DEPLOYER_CODE,
@@ -478,6 +478,12 @@ impl Executor {
             return should_fail;
         }
         self.is_success(address, call_result.reverted, state_changeset, should_fail)
+    }
+
+    /// Returns the accesses made to the database.
+    /// This function clears the accesses.
+    pub fn get_accesses(&self) -> Vec<Access> {
+        self.backend.get_accesses()
     }
 
     /// Check if a call to a test contract was successful.

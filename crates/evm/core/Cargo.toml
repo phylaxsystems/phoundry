@@ -19,6 +19,7 @@ foundry-common.workspace = true
 foundry-config.workspace = true
 foundry-macros.workspace = true
 
+alloy-chains.workspace = true
 alloy-dyn-abi = { workspace = true, features = ["arbitrary", "eip712"] }
 alloy-genesis.workspace = true
 alloy-json-abi.workspace = true
@@ -63,6 +64,9 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["time", "macros"] }
 tracing.workspace = true
 url.workspace = true
+rayon = "1"
+dashmap = "5.5.3"
+quick_cache = "0.5.1"
 
 [dev-dependencies]
 foundry-test-utils.workspace = true

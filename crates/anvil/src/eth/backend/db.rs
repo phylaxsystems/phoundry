@@ -55,7 +55,7 @@ where
 /// Helper trait to reset the DB if it's forked
 #[auto_impl::auto_impl(Box)]
 pub trait MaybeForkedDatabase {
-    fn maybe_reset(&mut self, _url: Option<String>, block_number: BlockId) -> Result<(), String>;
+    fn maybe_reset(&mut self, _url: Option<String>, block_number: u64) -> Result<(), String>;
 
     fn maybe_flush_cache(&self) -> Result<(), String>;
 
@@ -254,7 +254,7 @@ impl<T: DatabaseRef<Error = DatabaseError>> MaybeFullDatabase for CacheDB<T> {
 }
 
 impl<T: DatabaseRef<Error = DatabaseError>> MaybeForkedDatabase for CacheDB<T> {
-    fn maybe_reset(&mut self, _url: Option<String>, _block_number: BlockId) -> Result<(), String> {
+    fn maybe_reset(&mut self, _url: Option<String>, _block_number: u64) -> Result<(), String> {
         Err("not supported".to_string())
     }
 
