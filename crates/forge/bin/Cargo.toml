@@ -1,6 +1,6 @@
 [package]
-name = "forge"
-description = "Fast and flexible Ethereum testing framework"
+name = "forge-cmd"
+description = "Forge command line interface"
 
 version.workspace = true
 edition.workspace = true
@@ -10,9 +10,10 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-#[[bin]]
+[lib]
+#name = "forge_cmd"
+path = "cmd/lib.rs"
 #name = "forge"
-#path = "bin/main.rs"
 
 [build-dependencies]
 vergen = { workspace = true, default-features = false, features = [
@@ -30,6 +31,7 @@ foundry-config.workspace = true
 foundry-evm.workspace = true
 foundry-wallets.workspace = true
 foundry-linking.workspace = true
+forge.workspace = true
 
 ethers-contract = { workspace = true, features = ["abigen"] }
 
@@ -129,6 +131,6 @@ openssl = ["foundry-cli/openssl", "reqwest/default-tls"]
 asm-keccak = ["alloy-primitives/asm-keccak"]
 jemalloc = ["dep:tikv-jemallocator"]
 
-[[bench]]
-name = "test"
-harness = false
+#[[bench]]
+#name = "test"
+#harness = false
