@@ -1,4 +1,4 @@
-use super::{install, test::filter::ProjectPathsAwareFilter, watch::WatchArgs};
+use super::{install, watch::WatchArgs};
 use alloy_primitives::U256;
 use clap::Parser;
 use eyre::Result;
@@ -44,7 +44,7 @@ mod filter;
 mod summary;
 use summary::TestSummaryReporter;
 
-pub use filter::FilterArgs;
+pub use filter::{FilterArgs, ProjectPathsAwareFilter};
 use forge::traces::render_trace_arena;
 
 // Loads project's figment and merges the build cli arguments into it
