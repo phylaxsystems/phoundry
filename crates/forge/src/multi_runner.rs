@@ -168,7 +168,7 @@ impl MultiContractRunner {
         })
     }
 
-    fn run_tests(
+    pub fn run_tests(
         &self,
         artifact_id: &ArtifactId,
         contract: &TestContract,
