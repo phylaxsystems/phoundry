@@ -3658,6 +3658,7 @@ dependencies = [
  "arrayvec",
  "auto_impl",
  "const-hex",
+ "dashmap",
  "derive_more",
  "eyre",
  "foundry-cheatcodes-spec",

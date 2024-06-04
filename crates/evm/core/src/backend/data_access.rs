@@ -113,7 +113,7 @@ mod test {
     fn test_basic_ref() {
         let weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<Address>().unwrap();
 
-        let mut db = get_forked_db(None);
+        let db = get_forked_db(None);
 
         let _ = db.basic_ref(weth).unwrap();
  
@@ -156,11 +156,11 @@ mod test {
             },
         ];
 
-        let mut db = get_forked_db(None);
+        let db = get_forked_db(None);
 
         assert!(db.active_fork().is_some());
 
-        let mut run = |label: &str| {
+        let run = |label: &str| {
             println!("run {label}");
             let now = std::time::Instant::now();
             db.load_accesses(

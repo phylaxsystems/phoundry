@@ -267,7 +267,7 @@ impl TestArgs {
             evm_opts.verbosity = 3;
         }
 
-        let env = evm_opts.evm_env().await?;
+        let env = evm_opts.evm_env(Default::default()).await?;
 
         // Prepare the test builder
         let should_debug = self.debug.is_some();

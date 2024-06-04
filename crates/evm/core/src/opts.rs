@@ -1,5 +1,5 @@
 use super::fork::environment;
-use crate::fork::CreateFork;
+use crate::{backend::EnvironmentCache, fork::CreateFork};
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::Block;
@@ -8,6 +8,7 @@ use foundry_common::{provider::ProviderBuilder, ALCHEMY_FREE_TIER_CUPS};
 use foundry_config::{Chain, Config};
 use revm::primitives::{BlockEnv, CfgEnv, TxEnv};
 use serde::{Deserialize, Deserializer, Serialize};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EvmOpts {
@@ -63,16 +64,18 @@ pub struct EvmOpts {
 
     /// Whether to disable block gas limit checks.
     pub disable_block_gas_limit: bool,
+
 }
+
 
 impl EvmOpts {
     /// Configures a new `revm::Env`
     ///
     /// If a `fork_url` is set, it gets configured with settings fetched from the endpoint (chain
     /// id, )
-    pub async fn evm_env(&self) -> eyre::Result<revm::primitives::Env> {
+    pub async fn evm_env(&self, env_cache: Arc<EnvironmentCache>) -> eyre::Result<revm::primitives::Env> {
         if let Some(ref fork_url) = self.fork_url {
-            Ok(self.fork_evm_env(fork_url).await?.0)
+            Ok(self.fork_evm_env(fork_url, env_cache).await?.0)
         } else {
             Ok(self.local_evm_env())
         }
@@ -83,6 +86,7 @@ impl EvmOpts {
     pub async fn fork_evm_env(
         &self,
         fork_url: impl AsRef<str>,
+        env_cache: Arc<EnvironmentCache>
     ) -> eyre::Result<(revm::primitives::Env, Block)> {
         let fork_url = fork_url.as_ref();
         let provider = ProviderBuilder::new(fork_url)
@@ -90,6 +94,8 @@ impl EvmOpts {
             .build()?;
         environment(
             &provider,
+            fork_url,
+            env_cache,
             self.memory_limit,
             self.env.gas_price.map(|v| v as u128),
             self.env.chain_id,

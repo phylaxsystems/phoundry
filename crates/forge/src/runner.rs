@@ -1,7 +1,6 @@
 //! The Forge test runner.
 
 use crate::{
-    backend::Access,
     fuzz::{invariant::BasicTxDetails, BaseCounterExample},
     multi_runner::{is_matching_test, TestContract},
     result::{SuiteResult, TestKind, TestResult, TestSetup, TestStatus},

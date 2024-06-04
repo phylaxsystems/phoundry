@@ -1,18 +1,21 @@
-use crate::utils::apply_chain_and_block_specific_env_changes;
+use crate::{backend::{BlockEnvironment, EnvironmentCache}, utils::apply_chain_and_block_specific_env_changes};
 use alloy_primitives::{Address, U256};
 use alloy_provider::{Network, Provider};
-use alloy_rpc_types::{Block, BlockNumberOrTag};
+use alloy_rpc_types::Block;
 use alloy_transport::Transport;
-use eyre::WrapErr;
 use foundry_common::NON_ARCHIVE_NODE_WARNING;
 
 use revm::primitives::{BlockEnv, CfgEnv, Env, TxEnv};
+
+use std::sync::Arc;
 
 /// Initializes a REVM block environment based on a forked
 /// ethereum provider.
 // todo(onbjerg): these bounds needed cus of the bounds in `Provider`, can simplify?
 pub async fn environment<N: Network, T: Transport + Clone, P: Provider<T, N>>(
     provider: &P,
+    fork_url: &str,
+    env_cache: Arc<EnvironmentCache>,
     memory_limit: u64,
     gas_price: Option<u128>,
     override_chain_id: Option<u64>,
@@ -23,13 +26,11 @@ pub async fn environment<N: Network, T: Transport + Clone, P: Provider<T, N>>(
     let block_number = if let Some(pin_block) = pin_block {
         pin_block
     } else {
-        provider.get_block_number().await.wrap_err("Failed to get latest block number")?
+        env_cache.get_latest_block_number(provider,fork_url).await?
     };
-    let (fork_gas_price, rpc_chain_id, block) = tokio::try_join!(
-        provider.get_gas_price(),
-        provider.get_chain_id(),
-        provider.get_block_by_number(BlockNumberOrTag::Number(block_number), false)
-    )?;
+
+    let (rpc_chain_id, BlockEnvironment { gas_price: fork_gas_price, block}) = env_cache.get_fork_info(provider, fork_url, block_number).await?;
+
     let block = if let Some(block) = block {
         block
     } else {
@@ -46,7 +47,9 @@ pub async fn environment<N: Network, T: Transport + Clone, P: Provider<T, N>>(
                 latest_block
             );
         }
-        eyre::bail!("Failed to get block for block number: {}", block_number)
+        else {
+            eyre::bail!("Failed to get block for block number: {}", block_number)
+        }
     };
 
     let mut cfg = CfgEnv::default();
