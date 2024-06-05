@@ -1,4 +1,7 @@
-use crate::fork::CreateFork;
+use crate::{
+    backend::{DatabaseError, DatabaseRef},
+    fork::{CreateFork, SharedBackend},
+};
 use alloy_chains::Chain;
 use alloy_primitives::{Address, B256, U256};
 
@@ -13,9 +16,43 @@ pub struct Access {
     pub state_lookup: StateLookup,
 }
 
+impl RevmDbAccess {
+    pub fn execute(&self, db: &mut SharedBackend) -> Result<(), DatabaseError> {
+        match self {
+            RevmDbAccess::Basic(addr) => {
+                println!("prefetching basic access {addr}");
+                db.basic_ref(*addr)?;
+            }
+            RevmDbAccess::Storage(addr, key) => {
+                db.storage_ref(*addr, *key)?;
+            }
+            RevmDbAccess::CodeByHash(hash) => {
+                db.code_by_hash_ref(*hash)?;
+            }
+            RevmDbAccess::BlockHash(block_num) => {
+                db.block_hash_ref(*block_num)?;
+            }
+        }
+        Ok(())
+    }
+    /// Converts the RevmDbAccess to an Access
+    pub fn to_access(&self, chain: Chain, state_lookup: StateLookup) -> Access {
+        Access { access_type: AccessType::RevmDbAccess(self.clone()), chain, state_lookup }
+    }
+}
+
 /// Enum to represent the different types of evm data accesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub enum AccessType {
+    /// Access to a block hash by the block number
+    RevmDbAccess(RevmDbAccess),
+    /// Create a fork with the given url
+    CreateFork(String),
+}
+
+/// Enum to represent the different types of evm data accesses
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+pub enum RevmDbAccess {
     /// Access to a storage slot
     Storage(Address, U256),
     /// Access to a basic account
@@ -34,7 +71,6 @@ pub enum StateLookup {
     //RollTransaction(B256),
 }
 
-
 impl Default for StateLookup {
     fn default() -> Self {
         Self::RollN(0) //default to latest block
@@ -43,7 +79,7 @@ impl Default for StateLookup {
 
 impl From<&CreateFork> for StateLookup {
     fn from(create_fork: &CreateFork) -> Self {
-        create_fork.evm_opts.fork_block_number.map(|b| StateLookup::RollAt(b)).unwrap_or_default()
+        create_fork.evm_opts.fork_block_number.map(StateLookup::RollAt).unwrap_or_default()
     }
 }
 
@@ -60,12 +96,8 @@ mod test {
         fork::CreateFork,
         opts::EvmOpts,
     };
-    use revm::{
-        primitives::Env,
-        DatabaseRef,
-    };
+    use revm::{primitives::Env, DatabaseRef};
     const ENDPOINT: &str = "https://eth.llamarpc.com";
-
 
     fn get_forked_db(url: Option<String>) -> Backend {
         let create_fork = CreateFork {
@@ -91,7 +123,6 @@ mod test {
 
         assert_eq!(db.fork_access_metadata.len(), 1);
         assert_eq!(db.fork_access_metadata.values().next().unwrap().1, StateLookup::RollN(0));
-
     }
 
     #[test]
@@ -116,15 +147,15 @@ mod test {
         let db = get_forked_db(None);
 
         let _ = db.basic_ref(weth).unwrap();
- 
+
         let expected_access = Access {
-            access_type: AccessType::Basic(weth.clone()),
+            access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth.clone())),
             chain: Chain::default(),
             state_lookup: StateLookup::RollN(0),
         };
 
         assert_eq!(
-            db.drain_accesses_and_collect(),
+            db.data_accesses.write().unwrap().drain().collect::<Vec<_>>(),
             vec![expected_access]
         );
     }
@@ -135,22 +166,22 @@ mod test {
 
         let data_accesses = vec![
             Access {
-                access_type: AccessType::Basic(weth),
+                access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth.clone())),
                 chain: Chain::default(),
                 state_lookup: StateLookup::RollN(0),
             },
             Access {
-                access_type: AccessType::Storage(weth, U256::ZERO),
+                access_type: AccessType::RevmDbAccess(RevmDbAccess::Storage(weth, U256::ZERO)),
                 chain: Chain::default(),
                 state_lookup: StateLookup::RollN(5),
             },
             Access {
-                access_type: AccessType::Storage(weth, U256::ZERO),
+                access_type: AccessType::RevmDbAccess(RevmDbAccess::Storage(weth, U256::ZERO)),
                 chain: Chain::default(),
                 state_lookup: StateLookup::RollN(0),
             },
             Access {
-                access_type: AccessType::Basic(weth),
+                access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth)),
                 chain: Chain::default(),
                 state_lookup: StateLookup::RollAt(10_000_000),
             },
@@ -176,6 +207,4 @@ mod test {
         run("a");
         run("b");
     }
-
 }
-

@@ -408,8 +408,11 @@ impl Executor {
         Ok(DeployResult { raw: result, address })
     }
 
-    pub fn drain_accesses_and_collect(&self) -> Vec<Access> {
-        self.backend.data_accesses.write().expect("Failed to obtain write lock").drain().collect()
+    pub fn get_accesses(&self) -> Vec<Access> {
+        let accesses =
+            self.backend.data_accesses.iter().map(|v| v.key().clone()).collect::<Vec<_>>();
+        self.backend.data_accesses.clear();
+        accesses
     }
 
     /// Deploys a contract and commits the new state to the underlying database.

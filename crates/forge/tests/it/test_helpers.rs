@@ -249,7 +249,8 @@ impl ForgeTestData {
         opts.env.chain_id = None; // clear chain id so the correct one gets fetched from the RPC
         opts.fork_url = Some(rpc.to_string());
 
-        let env = opts.evm_env(Default::default()).await.expect("Could not instantiate fork environment");
+        let env =
+            opts.evm_env(Default::default()).await.expect("Could not instantiate fork environment");
         let fork = opts.get_fork(&Default::default(), env.clone());
 
         self.base_runner()
