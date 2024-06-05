@@ -20,7 +20,7 @@ use futures::{
 use revm::primitives::Env;
 use std::{
     collections::HashMap,
-    fmt::{self, Write},
+    fmt,
     pin::Pin,
     sync::{
         atomic::AtomicUsize,
@@ -37,14 +37,8 @@ pub struct ForkId(pub String);
 
 impl ForkId {
     /// Returns the identifier for a Fork from a URL and block number.
-    pub fn new(url: &str, num: Option<u64>) -> Self {
-        let mut id = url.to_string();
-        id.push('@');
-        match num {
-            Some(n) => write!(id, "{n:#x}").unwrap(),
-            None => id.push_str("latest"),
-        }
-        ForkId(id)
+    pub fn new(url: &str, num: u64) -> Self {
+        ForkId(format!("{url}@{num:#}"))
     }
 
     /// Returns the identifier of the fork.
@@ -265,7 +259,12 @@ impl MultiForkHandler {
         env_cache: Arc<EnvironmentCache>,
         data_accesses: Arc<dashmap::DashSet<Access>>,
     ) {
-        let fork_id = ForkId::new(&fork.url, fork.evm_opts.fork_block_number);
+        let block_number = fork.evm_opts.fork_block_number.unwrap_or_else(|| {
+            env_cache
+                .get_latest_block_number(&fork.url).expect("failed to get latest block number")
+        });
+
+        let fork_id = ForkId::new(&fork.url, block_number);
         trace!(?fork_id, "created new forkId");
 
         // there could already be a task for the requested fork in progress
@@ -535,7 +534,7 @@ async fn create_fork(
         (&(fork)).into(),
     );
     let fork = CreatedFork::new(fork, backend);
-    let fork_id = ForkId::new(&fork.opts.url, number.into());
+    let fork_id = ForkId::new(&fork.opts.url, number);
 
     Ok((fork_id, fork, handler))
 }

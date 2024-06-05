@@ -1147,7 +1147,7 @@ latest block number: {latest_block}"
             Some(fork_block_number.into()),
             Default::default(), //data_accesses
             chain_id.into(),
-            StateLookup::RollAt(fork_block_number.into()),
+            StateLookup::RollAt(fork_block_number),
         );
 
         let config = ClientForkConfig {

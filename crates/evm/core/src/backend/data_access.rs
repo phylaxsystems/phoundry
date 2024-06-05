@@ -17,10 +17,10 @@ pub struct Access {
 }
 
 impl RevmDbAccess {
+    /// Executes the RevmDbAccess against the SharedBackend
     pub fn execute(&self, db: &mut SharedBackend) -> Result<(), DatabaseError> {
         match self {
             RevmDbAccess::Basic(addr) => {
-                println!("prefetching basic access {addr}");
                 db.basic_ref(*addr)?;
             }
             RevmDbAccess::Storage(addr, key) => {
@@ -36,8 +36,8 @@ impl RevmDbAccess {
         Ok(())
     }
     /// Converts the RevmDbAccess to an Access
-    pub fn to_access(&self, chain: Chain, state_lookup: StateLookup) -> Access {
-        Access { access_type: AccessType::RevmDbAccess(self.clone()), chain, state_lookup }
+    pub fn to_access(self, chain: Chain, state_lookup: StateLookup) -> Access {
+        Access { access_type: AccessType::RevmDbAccess(self), chain, state_lookup }
     }
 }
 
@@ -114,15 +114,18 @@ mod test {
         let mut db = Backend::spawn(None);
         let create_fork = CreateFork {
             enable_caching: false,
-            url: "https://eth.llamarpc.com".to_string(),
+            url: ENDPOINT.to_string(),
             env: Env::default(),
             evm_opts: EvmOpts::default(),
         };
 
         db.create_fork(create_fork).unwrap();
 
-        assert_eq!(db.fork_access_metadata.len(), 1);
-        assert_eq!(db.fork_access_metadata.values().next().unwrap().1, StateLookup::RollN(0));
+        db.data_accesses.contains(&Access {
+            access_type: AccessType::CreateFork(ENDPOINT.to_string()),
+            chain: Chain::default(),
+            state_lookup: StateLookup::RollN(0),
+        });
     }
 
     #[test]
@@ -137,8 +140,11 @@ mod test {
 
         db.create_fork(create_fork).unwrap();
 
-        assert_eq!(db.fork_access_metadata.len(), 1);
-        assert_eq!(db.fork_access_metadata.values().next().unwrap().1, StateLookup::RollAt(1));
+        db.data_accesses.contains(&Access {
+            access_type: AccessType::CreateFork(ENDPOINT.to_string()),
+            chain: Chain::default(),
+            state_lookup: StateLookup::RollAt(1),
+        });
     }
     #[test]
     fn test_basic_ref() {
@@ -154,10 +160,7 @@ mod test {
             state_lookup: StateLookup::RollN(0),
         };
 
-        assert_eq!(
-            db.data_accesses.write().unwrap().drain().collect::<Vec<_>>(),
-            vec![expected_access]
-        );
+        assert_eq!(db.get_accesses(), vec![expected_access]);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

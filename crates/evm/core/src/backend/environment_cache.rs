@@ -1,16 +1,27 @@
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::{Block, BlockNumberOrTag};
 use alloy_transport::Transport;
+use quick_cache::sync::Cache;
 use dashmap::DashMap;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug)]
 pub struct EnvironmentCache {
     /// A map of fork url -> chain id
     chain_ids_by_fork_url: DashMap<String, u64>,
     /// A map of fork url -> latest block number
     latest_block_map: DashMap<String, u64>,
     /// A map of url & block number -> block environment
-    block_env_map: DashMap<(String, u64), BlockEnvironment>,
+    block_env_map: Cache<(String, u64), BlockEnvironment>,
+}
+
+impl Default for EnvironmentCache {
+    fn default() -> Self {
+        Self {
+            chain_ids_by_fork_url: DashMap::new(),
+            latest_block_map: DashMap::new(),
+            block_env_map: Cache::new(500),
+        }
+    }
 }
 
 /// Cached Data for a block
@@ -69,20 +80,12 @@ impl EnvironmentCache {
         }
     }
 
-    /// Fetches the latest block number for the given fork url
-    pub async fn get_latest_block_number<N: Network, T: Transport + Clone, P: Provider<T, N>>(
-        &self,
-        provider: &P,
-        fork_url: &str,
-    ) -> eyre::Result<u64> {
-        if let Some(block_number) = self.latest_block_map.get(fork_url) {
-            return Ok(*block_number);
-        }
-        let block_number = provider.get_block_number().await?;
-        self.set_latest_block_number(fork_url, block_number);
-        Ok(block_number)
+    /// Gets the latest block number for the given fork url
+    pub fn get_latest_block_number(&self, fork_url: &str) -> Option<u64> {
+        self.latest_block_map.get(fork_url).map(|block_number| *block_number)
     }
 
+    /// Sets the latest block number for the given fork url
     pub fn set_latest_block_number(&self, fork_url: &str, block_number: u64) {
         self.latest_block_map.insert(fork_url.to_string(), block_number);
     }
@@ -100,3 +103,4 @@ impl EnvironmentCache {
         )
     }
 }
+

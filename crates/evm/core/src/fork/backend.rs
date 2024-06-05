@@ -752,7 +752,7 @@ mod tests {
 
         let db = BlockchainDb::new(meta, None);
         let backend =
-            SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None, Default::default())
+            SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None, Default::default(), Default::default(), Default::default())
                 .await;
 
         // some rng contract from etherscan

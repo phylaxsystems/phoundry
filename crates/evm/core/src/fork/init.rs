@@ -43,7 +43,7 @@ pub async fn environment<N: Network, T: Transport + Clone, P: Provider<T, N>>(
     let block_number = if let Some(pin_block) = pin_block {
         pin_block
     } else {
-        env_cache.get_latest_block_number(&provider, &fork_url).await?
+        env_cache.get_latest_block_number(&fork_url).expect("latest block for url not set")
     };
 
     let (rpc_chain_id, BlockEnvironment { gas_price: fork_gas_price, block }) =

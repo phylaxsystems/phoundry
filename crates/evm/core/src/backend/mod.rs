@@ -1977,6 +1977,14 @@ impl Clone for Backend {
 }
 
 impl Backend {
+    /// Returns the accesses made to the database.
+    /// This function clears the accesses.
+    pub fn get_accesses(&self) -> Vec<Access> {
+        let accesses = self.data_accesses.iter().map(|v| v.key().clone()).collect::<Vec<_>>();
+        self.data_accesses.clear();
+        accesses
+    }
+
     /// Loads the given acceses on the given chain at the given block number, using the given url
     pub fn load_accesses(
         &self,
@@ -2014,9 +2022,11 @@ impl Backend {
             StateLookup::RollAt(n) => *n,
         };
 
+        let fork_id = ForkId::new(url, block_num);
+
         match &access.access_type {
             AccessType::RevmDbAccess(revm_db_access) => {
-                let mut fork = match self.forks.get_fork(ForkId::new(url, Some(block_num))) {
+                let mut fork = match self.forks.get_fork(fork_id) {
                     Ok(Some(fork)) => Ok(fork),
                     Ok(None) => self
                         .forks
@@ -2033,10 +2043,8 @@ impl Backend {
                 revm_db_access.execute(&mut fork)?;
             }
             AccessType::CreateFork(url) => {
-                println!("Creating fork at block {}", block_num);
-                if let Ok(Some(_)) = self.forks.get_fork(ForkId::new(url.as_str(), Some(block_num)))
+                if let Ok(Some(_)) = self.forks.get_fork(fork_id)
                 {
-                    println!("Fork already exists");
                     return Ok(());
                 }
                 self.forks

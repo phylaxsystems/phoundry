@@ -408,11 +408,10 @@ impl Executor {
         Ok(DeployResult { raw: result, address })
     }
 
+    /// Returns the accesses made to the database.
+    /// This function clears the accesses.
     pub fn get_accesses(&self) -> Vec<Access> {
-        let accesses =
-            self.backend.data_accesses.iter().map(|v| v.key().clone()).collect::<Vec<_>>();
-        self.backend.data_accesses.clear();
-        accesses
+        self.backend.get_accesses()
     }
 
     /// Deploys a contract and commits the new state to the underlying database.

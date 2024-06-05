@@ -283,7 +283,7 @@ mod tests {
         };
         let db = BlockchainDb::new(meta, None);
 
-        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None, Default::default(), Default::default(), Default::default()).await;
 
         let mut db = ForkedDatabase::new(backend, db);
         let address = Address::random();
