@@ -304,7 +304,7 @@ impl CoverageArgs {
         let verbosity = evm_opts.verbosity;
 
         // Build the contract runner
-        let env = evm_opts.evm_env().await?;
+        let env = evm_opts.evm_env(Default::default()).await?;
         let runner = MultiContractRunnerBuilder::new(config.clone())
             .initial_balance(evm_opts.initial_balance)
             .evm_spec(config.evm_spec_id())

@@ -28,7 +28,7 @@ use revm::{
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    sync::RwLock,
+    sync::Arc,
     time::Instant,
 };
 
@@ -48,7 +48,10 @@ mod snapshot;
 pub use snapshot::{BackendSnapshot, RevertSnapshotAction, StateSnapshot};
 
 mod data_access;
-pub use data_access::{Access, AccessType, StateLookup};
+pub use data_access::{Access, AccessType, RevmDbAccess, StateLookup};
+
+mod environment_cache;
+pub use environment_cache::{BlockEnvironment, EnvironmentCache};
 
 // A `revm::Database` that is used in forking mode
 type ForkDB = CacheDB<SharedBackend>;
@@ -421,12 +424,10 @@ pub struct Backend {
     /// holds additional Backend data
     inner: BackendInner,
     /// The data accesses made by this backend instance.
-    /// RwLock is used for interior mutability.
-    pub data_accesses: RwLock<HashSet<Access>>,
-    /// The statelookup data for each fork
-    fork_access_metadata: HashMap<ForkId, (Chain, StateLookup)>,
-}
+    pub data_accesses: Arc<dashmap::DashSet<Access>>,
 
+    pub environment_cache: Arc<EnvironmentCache>,
+}
 // === impl Backend ===
 
 impl Backend {
@@ -454,17 +455,14 @@ impl Backend {
             active_fork_ids: None,
             inner,
             data_accesses: Default::default(),
-            fork_access_metadata: Default::default(),
+            environment_cache: Arc::new(EnvironmentCache::default()),
         };
 
         if let Some(fork) = fork {
-            let state_lookup = (&fork).into();
-            let (fork_id, fork, env) =
-                backend.forks.create_fork(fork).expect("Unable to create fork");
-
-            backend
-                .fork_access_metadata
-                .insert(fork_id.clone(), (env.cfg.chain_id.into(), state_lookup));
+            let (fork_id, fork, _) = backend
+                .forks
+                .create_fork(fork, backend.environment_cache.clone(), backend.data_accesses.clone())
+                .expect("Unable to create fork");
 
             let fork_db = ForkDB::new(fork);
             let fork_ids = backend.inner.insert_new_fork(
@@ -500,7 +498,7 @@ impl Backend {
             active_fork_ids: None,
             inner: Default::default(),
             data_accesses: Default::default(),
-            fork_access_metadata: Default::default(),
+            environment_cache: self.environment_cache.clone(),
         }
     }
 
@@ -1039,11 +1037,20 @@ impl DatabaseExt for Backend {
     fn create_fork(&mut self, create_fork: CreateFork) -> eyre::Result<LocalForkId> {
         trace!("create fork");
 
-        let state_lookup = (&create_fork).into();
+        let (fork_id, fork, env) = self.forks.create_fork(
+            create_fork.clone(),
+            Arc::clone(&self.environment_cache),
+            Arc::clone(&self.data_accesses),
+        )?;
 
-        let (fork_id, fork, env) = self.forks.create_fork(create_fork)?;
+        // All Create Forks roll to specific blocks as currently implemented
+        let state_lookup: StateLookup = (&create_fork).into();
 
-        self.fork_access_metadata.insert(fork_id.clone(), (env.cfg.chain_id.into(), state_lookup));
+        self.data_accesses.insert(Access {
+            chain: env.cfg.chain_id.into(),
+            state_lookup,
+            access_type: AccessType::CreateFork(create_fork.url.to_owned()),
+        });
 
         let fork_db = ForkDB::new(fork);
         let (id, _) =
@@ -1183,8 +1190,12 @@ impl DatabaseExt for Backend {
     ) -> eyre::Result<()> {
         trace!(?id, ?block_number, "roll fork");
         let id = self.ensure_fork(id)?;
-        let (fork_id, backend, fork_env) =
-            self.forks.roll_fork(self.inner.ensure_fork_id(id).cloned()?, block_number)?;
+        let (fork_id, backend, fork_env) = self.forks.roll_fork(
+            self.inner.ensure_fork_id(id).cloned()?,
+            block_number,
+            Arc::clone(&self.environment_cache),
+            Arc::clone(&self.data_accesses),
+        )?;
         // this will update the local mapping
         self.inner.roll_fork(id, fork_id, backend)?;
 
@@ -1443,7 +1454,6 @@ impl DatabaseRef for Backend {
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         if let Some(db) = self.active_fork_db() {
-            record_data_access(AccessType::Basic(address), self)?;
             db.basic_ref(address)
         } else {
             Ok(self.mem_db.basic_ref(address)?)
@@ -1452,7 +1462,6 @@ impl DatabaseRef for Backend {
 
     fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
         if let Some(db) = self.active_fork_db() {
-            record_data_access(AccessType::CodeByHash(code_hash), self)?;
             db.code_by_hash_ref(code_hash)
         } else {
             Ok(self.mem_db.code_by_hash_ref(code_hash)?)
@@ -1461,7 +1470,6 @@ impl DatabaseRef for Backend {
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         if let Some(db) = self.active_fork_db() {
-            record_data_access(AccessType::Storage(address, index), self)?;
             DatabaseRef::storage_ref(db, address, index)
         } else {
             Ok(DatabaseRef::storage_ref(&self.mem_db, address, index)?)
@@ -1470,34 +1478,11 @@ impl DatabaseRef for Backend {
 
     fn block_hash_ref(&self, number: U256) -> Result<B256, Self::Error> {
         if let Some(db) = self.active_fork_db() {
-            record_data_access(AccessType::BlockHash(number), self)?;
             db.block_hash_ref(number)
         } else {
             Ok(self.mem_db.block_hash_ref(number)?)
         }
     }
-}
-
-fn record_data_access(access_type: AccessType, db: &Backend) -> Result<(), DatabaseError> {
-    let fork_id = db
-        .active_fork_id()
-        .ok_or(DatabaseError::msg("No active fork id, but active fork"))
-        .and_then(|id| {
-            db.ensure_fork_id(id).map_err(|_| DatabaseError::msg("No fork id for active fork"))
-        })?;
-
-    let (chain, state_lookup) = db
-        .fork_access_metadata
-        .get(&fork_id)
-        .ok_or(DatabaseError::msg("No fork_access_metadata for active fork"))?
-        .clone();
-
-    let mut data_accesses =
-        db.data_accesses.write().map_err(|_| DatabaseError::msg("Failed to obtain write lock"))?;
-
-    data_accesses.insert(Access { chain, state_lookup, access_type });
-
-    Ok(())
 }
 
 impl DatabaseCommit for Backend {
@@ -1983,19 +1968,26 @@ impl Clone for Backend {
             inner: self.inner.clone(),
             mem_db: self.mem_db.clone(),
             forks: self.forks.clone(),
-            fork_access_metadata: self.fork_access_metadata.clone(),
-            data_accesses: RwLock::new(HashSet::new()),
+            data_accesses: Default::default(),
             fork_init_journaled_state: self.fork_init_journaled_state.clone(),
             active_fork_ids: self.active_fork_ids,
+            environment_cache: Arc::clone(&self.environment_cache),
         }
     }
 }
 
 impl Backend {
-    /// Returns the accesses collected during the execution by removing them without cloning or
-    /// reallocating
-    pub fn drain_accesses_and_collect(&self) -> Vec<Access> {
-        self.data_accesses.write().expect("Failed to obtain write lock").drain().collect()
+    /// Returns the accesses made to the database.
+    /// This function clears the accesses.
+    pub fn get_accesses(&self) -> Vec<Access> {
+        let accesses = self.data_accesses.iter().map(|v| v.key().clone()).collect::<Vec<_>>();
+        self.data_accesses.clear();
+        accesses
+    }
+
+    /// sets the latest block number for the given url
+    pub fn set_latest_block_number(&self, url: &str, block_number: u64) {
+        self.environment_cache.set_latest_block_number(url, block_number);
     }
 
     /// Loads the given acceses on the given chain at the given block number, using the given url
@@ -2005,78 +1997,83 @@ impl Backend {
         chain: Chain,
         current_block: u64,
         url: String,
-    ) -> Result<(), Vec<DatabaseError>> {
-        let create_fork = CreateFork {
-            enable_caching: false,
-            url,
-            env: Env::default(),
-            evm_opts: EvmOpts::default(),
-        };
+    ) -> Result<(), <Self as DatabaseRef>::Error> {
+        self.set_latest_block_number(&url, current_block);
 
-        let chain_accesses = accesses
-            .iter()
-            .filter(|access| access.chain == chain)
-            .collect::<Vec<_>>()
-            .into_par_iter();
+        let chain_accesses = accesses.into_par_iter().filter(|access| access.chain == chain);
 
         let results = chain_accesses.map(|access| {
-            let block_num = match &access.state_lookup {
-                StateLookup::RollN(n) => ((current_block as i64) + n).max(0) as u64,
-                StateLookup::RollAt(n) => *n,
-            };
-
-            let fork =
-                match self.forks.get_fork(ForkId::new(create_fork.url.as_str(), Some(block_num))) {
-                    Ok(Some(fork)) => Ok(fork),
-                    _ => self
-                        .forks
-                        .create_fork(CreateFork {
-                            evm_opts: EvmOpts {
-                                fork_block_number: Some(block_num),
-                                ..Default::default()
-                            },
-                            ..create_fork.clone()
-                        })
-                        .map(|(_, fork, _)| fork)
-                        .map_err(|err| DatabaseError::msg(format!("{err:#?}"))),
-                }?;
-
-            execute::<SharedBackend, DatabaseError>(&fork, access)?;
-
-            Ok(())
+            self.clone()
+                .execute_access(access, current_block, &url)
+                .map_err(|err| DatabaseError::msg(err.to_string()))
         });
 
-        let errors = results.filter_map(|r| r.err()).collect::<Vec<_>>();
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors)
+        if let Some(err) = results.find_any(|v| v.is_err()) {
+            return err;
         }
+
+        Ok(())
+    }
+
+    /// Executes the given access on the database
+    pub fn execute_access(
+        &mut self,
+        access: &Access,
+        current_block: u64,
+        url: &str,
+    ) -> Result<(), DatabaseError> {
+        let block_num = match &access.state_lookup {
+            StateLookup::RollN(n) => ((current_block as i64) + n).max(0) as u64,
+            StateLookup::RollAt(n) => *n,
+        };
+
+        let fork_id = ForkId::new(url, block_num);
+
+        match &access.access_type {
+            AccessType::RevmDbAccess(revm_db_access) => {
+                let mut fork = match self.forks.get_fork(fork_id) {
+                    Ok(Some(fork)) => Ok(fork),
+                    Ok(None) => self
+                        .forks
+                        .create_fork(
+                            get_create_fork(url, block_num),
+                            Arc::clone(&self.environment_cache),
+                            Arc::clone(&self.data_accesses),
+                        )
+                        .map(|(_, fork, _)| fork),
+                    Err(err) => Err(err),
+                }
+                .map_err(|err| DatabaseError::msg(err.to_string()))?;
+
+                revm_db_access.execute(&mut fork)?;
+            }
+            AccessType::CreateFork(url) => {
+                if let Ok(Some(_)) = self.forks.get_fork(fork_id) {
+                    return Ok(());
+                }
+                self.forks
+                    .create_fork(
+                        get_create_fork(url, block_num),
+                        Arc::clone(&self.environment_cache),
+                        Arc::clone(&self.data_accesses),
+                    )
+                    .map_err(|err| DatabaseError::msg(err.to_string()))?;
+            }
+        };
+
+        Ok(())
     }
 }
 
-/// Executes the given access on the database
-fn execute<Db: DatabaseRef, E: std::convert::From<<Db as revm::DatabaseRef>::Error>>(
-    db: &Db,
-    access: &Access,
-) -> Result<(), E>
-where
-    <Db as revm::DatabaseRef>::Error: std::fmt::Debug,
-{
-    match &access.access_type {
-        AccessType::Basic(addr) => {
-            db.basic_ref(*addr)?;
-        }
-        AccessType::Storage(addr, key) => {
-            db.storage_ref(*addr, *key)?;
-        }
-        AccessType::CodeByHash(hash) => {
-            db.code_by_hash_ref(*hash)?;
-        }
-        AccessType::BlockHash(block_num) => {
-            db.block_hash_ref(*block_num)?;
-        }
-    };
-    Ok(())
+fn get_create_fork(url: &str, block_num: u64) -> CreateFork {
+    CreateFork {
+        enable_caching: false,
+        url: url.to_string(),
+        evm_opts: EvmOpts {
+            fork_block_number: Some(block_num),
+            fork_url: Some(url.to_owned()),
+            ..Default::default()
+        },
+        env: Default::default(),
+    }
 }

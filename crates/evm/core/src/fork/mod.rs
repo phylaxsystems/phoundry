@@ -5,7 +5,7 @@ mod backend;
 pub use backend::{BackendHandler, SharedBackend};
 
 mod init;
-pub use init::environment;
+pub use init::{environment, EnvironmentArgs};
 
 mod cache;
 pub use cache::{BlockchainDb, BlockchainDbMeta, JsonBlockCacheDB, MemDb};

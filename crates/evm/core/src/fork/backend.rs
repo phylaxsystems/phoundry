@@ -1,8 +1,9 @@
 //! Smart caching and deduplication of requests when using a forking provider
 use crate::{
-    backend::{DatabaseError, DatabaseResult},
+    backend::{Access, AccessType, DatabaseError, DatabaseResult, RevmDbAccess, StateLookup},
     fork::{cache::FlushJsonBlockCacheDB, BlockchainDb},
 };
+use alloy_chains::Chain;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{network::AnyNetwork, Provider};
 use alloy_rpc_types::{Block, BlockId, Transaction, WithOtherFields};
@@ -515,6 +516,12 @@ pub struct SharedBackend {
     /// There is only one instance of the type, so as soon as the last `SharedBackend` is deleted,
     /// `FlushJsonBlockCacheDB` is also deleted and the cache is flushed.
     cache: Arc<FlushJsonBlockCacheDB>,
+
+    chain: Chain,
+
+    state_lookup: StateLookup,
+
+    data_accesses: Arc<dashmap::DashSet<Access>>,
 }
 
 impl SharedBackend {
@@ -529,12 +536,16 @@ impl SharedBackend {
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
+        data_accesses: Arc<dashmap::DashSet<Access>>,
+        chain: Chain,
+        state_lookup: StateLookup,
     ) -> Self
     where
         T: Transport + Clone + Unpin,
         P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
     {
-        let (shared, handler) = Self::new(provider, db, pin_block);
+        let (shared, handler) =
+            Self::new(provider, db, pin_block, data_accesses, chain, state_lookup);
         // spawn the provider handler to a task
         trace!(target: "backendhandler", "spawning Backendhandler task");
         tokio::spawn(handler);
@@ -547,12 +558,16 @@ impl SharedBackend {
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
+        data_accesses: Arc<dashmap::DashSet<Access>>,
+        chain: Chain,
+        state_lookup: StateLookup,
     ) -> Self
     where
         T: Transport + Clone + Unpin,
         P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
     {
-        let (shared, handler) = Self::new(provider, db, pin_block);
+        let (shared, handler) =
+            Self::new(provider, db, pin_block, data_accesses, chain, state_lookup);
 
         // spawn a light-weight thread with a thread-local async runtime just for
         // sending and receiving data from the remote client
@@ -577,6 +592,9 @@ impl SharedBackend {
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
+        data_accesses: Arc<dashmap::DashSet<Access>>,
+        chain: Chain,
+        state_lookup: StateLookup,
     ) -> (Self, BackendHandler<T, P>)
     where
         T: Transport + Clone + Unpin,
@@ -585,7 +603,7 @@ impl SharedBackend {
         let (backend, backend_rx) = channel(1);
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
         let handler = BackendHandler::new(provider, db, backend_rx, pin_block);
-        (Self { backend, cache }, handler)
+        (Self { backend, cache, data_accesses, chain, state_lookup }, handler)
     }
 
     /// Updates the pinned block to fetch data from
@@ -646,12 +664,22 @@ impl SharedBackend {
         self.cache.0.flush();
     }
 }
+impl SharedBackend {
+    fn record_revm_data_access(&self, revm_access_type: RevmDbAccess) {
+        self.data_accesses.insert(Access {
+            chain: self.chain,
+            state_lookup: self.state_lookup.clone(),
+            access_type: AccessType::RevmDbAccess(revm_access_type),
+        });
+    }
+}
 
 impl DatabaseRef for SharedBackend {
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         trace!(target: "sharedbackend", %address, "request basic");
+        self.record_revm_data_access(RevmDbAccess::Basic(address));
         self.do_get_basic(address).map_err(|err| {
             error!(target: "sharedbackend", %err, %address, "Failed to send/recv `basic`");
             if err.is_possibly_non_archive_node_error() {
@@ -667,6 +695,7 @@ impl DatabaseRef for SharedBackend {
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         trace!(target: "sharedbackend", "request storage {:?} at {:?}", address, index);
+        self.record_revm_data_access(RevmDbAccess::Storage(address, index));
         self.do_get_storage(address, index).map_err(|err| {
             error!(target: "sharedbackend", %err, %address, %index, "Failed to send/recv `storage`");
             if err.is_possibly_non_archive_node_error() {
@@ -680,6 +709,7 @@ impl DatabaseRef for SharedBackend {
         if number > U256::from(u64::MAX) {
             return Ok(KECCAK_EMPTY);
         }
+        self.record_revm_data_access(RevmDbAccess::BlockHash(number));
         let number: U256 = number;
         let number = number.to();
         trace!(target: "sharedbackend", "request block hash for number {:?}", number);
@@ -719,7 +749,15 @@ mod tests {
         };
 
         let db = BlockchainDb::new(meta, None);
-        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+        let backend = SharedBackend::spawn_backend(
+            Arc::new(provider),
+            db.clone(),
+            None,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        )
+        .await;
 
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
@@ -771,7 +809,7 @@ mod tests {
         let mut evm_opts = config.extract::<EvmOpts>().unwrap();
         evm_opts.fork_block_number = Some(block_num);
 
-        let (env, _block) = evm_opts.fork_evm_env(endpoint).await.unwrap();
+        let (env, _block) = evm_opts.fork_evm_env(endpoint, Default::default()).await.unwrap();
 
         let fork = CreateFork {
             enable_caching: true,

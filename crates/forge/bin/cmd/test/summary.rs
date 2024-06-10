@@ -1,7 +1,7 @@
-use forge::result::TestOutcome;
 use comfy_table::{
     modifiers::UTF8_ROUND_CORNERS, Attribute, Cell, CellAlignment, Color, Row, Table,
 };
+use forge::result::TestOutcome;
 
 /// A simple summary reporter that prints the test results in a table.
 pub struct TestSummaryReporter {
