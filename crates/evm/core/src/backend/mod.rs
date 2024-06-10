@@ -1985,6 +1985,11 @@ impl Backend {
         accesses
     }
 
+    /// sets the latest block number for the given url
+    pub fn set_latest_block_number(&self, url: &str, block_number: u64) {
+        self.environment_cache.set_latest_block_number(url, block_number);
+    }
+
     /// Loads the given acceses on the given chain at the given block number, using the given url
     pub fn load_accesses(
         &self,
@@ -1993,7 +1998,7 @@ impl Backend {
         current_block: u64,
         url: String,
     ) -> Result<(), <Self as DatabaseRef>::Error> {
-        self.environment_cache.set_latest_block_number(&url, current_block);
+        self.set_latest_block_number(&url, current_block);
 
         let chain_accesses = accesses.into_par_iter().filter(|access| access.chain == chain);
 
@@ -2043,8 +2048,7 @@ impl Backend {
                 revm_db_access.execute(&mut fork)?;
             }
             AccessType::CreateFork(url) => {
-                if let Ok(Some(_)) = self.forks.get_fork(fork_id)
-                {
+                if let Ok(Some(_)) = self.forks.get_fork(fork_id) {
                     return Ok(());
                 }
                 self.forks

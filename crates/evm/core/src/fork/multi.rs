@@ -192,7 +192,7 @@ enum Request {
 
 enum ForkTask {
     /// Contains the future that will establish a new fork
-    Create(CreateFuture, ForkId, CreateSender, Vec<CreateSender>),
+    Create(CreateFuture, String, Option<u64>, CreateSender, Vec<CreateSender>),
 }
 
 /// The type that manages connections in the background
@@ -240,11 +240,15 @@ impl MultiForkHandler {
     }
 
     /// Returns the list of additional senders of a matching task for the given id, if any.
-    fn find_in_progress_task(&mut self, id: &ForkId) -> Option<&mut Vec<CreateSender>> {
+    fn find_in_progress_task(
+        &mut self,
+        url: &str,
+        block_number: Option<u64>,
+    ) -> Option<&mut Vec<CreateSender>> {
         for task in self.pending_tasks.iter_mut() {
             #[allow(irrefutable_let_patterns)]
-            if let ForkTask::Create(_, in_progress, _, additional) = task {
-                if in_progress == id {
+            if let ForkTask::Create(_, in_progress_url, in_progress_block, _, additional) = task {
+                if in_progress_url == url && *in_progress_block == block_number {
                     return Some(additional);
                 }
             }
@@ -259,23 +263,26 @@ impl MultiForkHandler {
         env_cache: Arc<EnvironmentCache>,
         data_accesses: Arc<dashmap::DashSet<Access>>,
     ) {
-        let block_number = fork.evm_opts.fork_block_number.unwrap_or_else(|| {
-            env_cache
-                .get_latest_block_number(&fork.url).expect("failed to get latest block number")
-        });
+        let block_number_opt = fork.evm_opts.fork_block_number;
 
-        let fork_id = ForkId::new(&fork.url, block_number);
-        trace!(?fork_id, "created new forkId");
+        let fork_url = fork.url.clone();
+        trace!(?fork_url, fork_block=?block_number_opt, "created new forkId");
 
         // there could already be a task for the requested fork in progress
-        if let Some(in_progress) = self.find_in_progress_task(&fork_id) {
+        if let Some(in_progress) = self.find_in_progress_task(&fork.url, block_number_opt) {
             in_progress.push(sender);
             return;
         }
 
         // need to create a new fork
         let task = Box::pin(create_fork(fork, env_cache, data_accesses));
-        self.pending_tasks.push(ForkTask::Create(task, fork_id, sender, Vec::new()));
+        self.pending_tasks.push(ForkTask::Create(
+            task,
+            fork_url,
+            block_number_opt,
+            sender,
+            Vec::new(),
+        ));
     }
 
     fn insert_new_fork(
@@ -360,7 +367,7 @@ impl Future for MultiForkHandler {
         for n in (0..pin.pending_tasks.len()).rev() {
             let task = pin.pending_tasks.swap_remove(n);
             match task {
-                ForkTask::Create(mut fut, id, sender, additional_senders) => {
+                ForkTask::Create(mut fut, url, block, sender, additional_senders) => {
                     if let Poll::Ready(resp) = fut.poll_unpin(cx) {
                         match resp {
                             Ok((fork_id, fork, handler)) => {
@@ -386,7 +393,8 @@ impl Future for MultiForkHandler {
                     } else {
                         pin.pending_tasks.push(ForkTask::Create(
                             fut,
-                            id,
+                            url,
+                            block,
                             sender,
                             additional_senders,
                         ));

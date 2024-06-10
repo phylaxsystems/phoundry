@@ -109,17 +109,9 @@ mod test {
         Backend::spawn(Some(create_fork))
     }
 
-    #[test]
-    fn test_create_fork_latest() {
-        let mut db = Backend::spawn(None);
-        let create_fork = CreateFork {
-            enable_caching: false,
-            url: ENDPOINT.to_string(),
-            env: Env::default(),
-            evm_opts: EvmOpts::default(),
-        };
-
-        db.create_fork(create_fork).unwrap();
+    #[tokio::test]
+    async fn test_create_fork_latest() {
+        let db = get_forked_db(None);
 
         db.data_accesses.contains(&Access {
             access_type: AccessType::CreateFork(ENDPOINT.to_string()),
@@ -197,13 +189,7 @@ mod test {
         let run = |label: &str| {
             println!("run {label}");
             let now = std::time::Instant::now();
-            db.load_accesses(
-                &data_accesses,
-                Chain::default(),
-                69,
-                "https://eth.llamarpc.com".to_string(),
-            )
-            .unwrap();
+            db.load_accesses(&data_accesses, Chain::default(), 69, ENDPOINT.to_string()).unwrap();
             println!("{}: {:?}", label, now.elapsed());
         };
 

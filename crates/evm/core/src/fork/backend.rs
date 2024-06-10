@@ -142,10 +142,8 @@ where
                 trace!(target: "backendhandler", "received request basic address={:?}", addr);
                 let acc = self.db.accounts().read().get(&addr).cloned();
                 if let Some(basic) = acc {
-                    println!("basic found for address: {:?}", addr);
                     let _ = sender.send(Ok(basic));
                 } else {
-                    println!("basic not found for address: {:?}", addr);
                     self.request_account(addr, sender);
                 }
             }
@@ -751,9 +749,15 @@ mod tests {
         };
 
         let db = BlockchainDb::new(meta, None);
-        let backend =
-            SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None, Default::default(), Default::default(), Default::default())
-                .await;
+        let backend = SharedBackend::spawn_backend(
+            Arc::new(provider),
+            db.clone(),
+            None,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        )
+        .await;
 
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
