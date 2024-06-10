@@ -1968,7 +1968,7 @@ impl Clone for Backend {
             inner: self.inner.clone(),
             mem_db: self.mem_db.clone(),
             forks: self.forks.clone(),
-            data_accesses: Arc::clone(&self.data_accesses),
+            data_accesses: Default::default(),
             fork_init_journaled_state: self.fork_init_journaled_state.clone(),
             active_fork_ids: self.active_fork_ids,
             environment_cache: Arc::clone(&self.environment_cache),
