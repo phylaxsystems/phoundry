@@ -1,18 +1,8 @@
-use alloy_chains::Chain;
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::{Block, BlockNumberOrTag};
 use alloy_transport::Transport;
 use dashmap::DashMap;
 use quick_cache::sync::Cache;
-use revm::primitives::{Address, Bytecode};
-
-#[allow(dead_code)]
-struct AccountCodeCache {
-    /// Account with  code and the earliest block it had code.
-    pub with_code: Cache<(Address, Chain), (u64, Bytecode)>,
-    /// Account with no code and the latest block it had no code.
-    pub no_code: Cache<(Address, Chain), u64>,
-}
 
 #[derive(Debug)]
 pub struct EnvironmentCache {
@@ -29,7 +19,7 @@ impl Default for EnvironmentCache {
         Self {
             chain_ids_by_fork_url: DashMap::new(),
             latest_block_map: DashMap::new(),
-            block_env_map: Cache::new(500),
+            block_env_map: Cache::new(1000),
         }
     }
 }

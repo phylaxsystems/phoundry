@@ -53,6 +53,9 @@ pub use data_access::{Access, AccessType, RevmDbAccess, StateLookup};
 mod environment_cache;
 pub use environment_cache::{BlockEnvironment, EnvironmentCache};
 
+mod code_cache;
+pub use code_cache::CodeCache;
+
 // A `revm::Database` that is used in forking mode
 type ForkDB = CacheDB<SharedBackend>;
 
@@ -427,6 +430,8 @@ pub struct Backend {
     pub data_accesses: Arc<dashmap::DashSet<Access>>,
 
     pub environment_cache: Arc<EnvironmentCache>,
+
+    pub code_cache: Arc<CodeCache>,
 }
 // === impl Backend ===
 
@@ -456,12 +461,18 @@ impl Backend {
             inner,
             data_accesses: Default::default(),
             environment_cache: Arc::new(EnvironmentCache::default()),
+            code_cache: Arc::new(CodeCache::default()),
         };
 
         if let Some(fork) = fork {
             let (fork_id, fork, _) = backend
                 .forks
-                .create_fork(fork, backend.environment_cache.clone(), backend.data_accesses.clone())
+                .create_fork(
+                    fork,
+                    backend.environment_cache.clone(),
+                    backend.data_accesses.clone(),
+                    backend.code_cache.clone(),
+                )
                 .expect("Unable to create fork");
 
             let fork_db = ForkDB::new(fork);
@@ -499,6 +510,7 @@ impl Backend {
             inner: Default::default(),
             data_accesses: Default::default(),
             environment_cache: self.environment_cache.clone(),
+            code_cache: self.code_cache.clone(),
         }
     }
 
@@ -1041,6 +1053,7 @@ impl DatabaseExt for Backend {
             create_fork.clone(),
             Arc::clone(&self.environment_cache),
             Arc::clone(&self.data_accesses),
+            Arc::clone(&self.code_cache),
         )?;
 
         // All Create Forks roll to specific blocks as currently implemented
@@ -1195,6 +1208,7 @@ impl DatabaseExt for Backend {
             block_number,
             Arc::clone(&self.environment_cache),
             Arc::clone(&self.data_accesses),
+            Arc::clone(&self.code_cache),
         )?;
         // this will update the local mapping
         self.inner.roll_fork(id, fork_id, backend)?;
@@ -1972,6 +1986,7 @@ impl Clone for Backend {
             fork_init_journaled_state: self.fork_init_journaled_state.clone(),
             active_fork_ids: self.active_fork_ids,
             environment_cache: Arc::clone(&self.environment_cache),
+            code_cache: Arc::clone(&self.code_cache),
         }
     }
 }
@@ -2039,6 +2054,7 @@ impl Backend {
                             get_create_fork(url, block_num),
                             Arc::clone(&self.environment_cache),
                             Arc::clone(&self.data_accesses),
+                            Arc::clone(&self.code_cache),
                         )
                         .map(|(_, fork, _)| fork),
                     Err(err) => Err(err),
@@ -2056,6 +2072,7 @@ impl Backend {
                         get_create_fork(url, block_num),
                         Arc::clone(&self.environment_cache),
                         Arc::clone(&self.data_accesses),
+                        Arc::clone(&self.code_cache),
                     )
                     .map_err(|err| DatabaseError::msg(err.to_string()))?;
             }

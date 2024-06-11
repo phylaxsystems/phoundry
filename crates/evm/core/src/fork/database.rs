@@ -6,7 +6,6 @@ use crate::{
     snapshot::Snapshots,
 };
 use alloy_primitives::{Address, B256, U256};
-use alloy_rpc_types::BlockId;
 use parking_lot::Mutex;
 use revm::{
     db::{CacheDB, DatabaseRef},
@@ -65,11 +64,7 @@ impl ForkedDatabase {
     }
 
     /// Reset the fork to a fresh forked state, and optionally update the fork config
-    pub fn reset(
-        &mut self,
-        _url: Option<String>,
-        block_number: impl Into<BlockId>,
-    ) -> Result<(), String> {
+    pub fn reset(&mut self, _url: Option<String>, block_number: u64) -> Result<(), String> {
         self.backend.set_pinned_block(block_number).map_err(|err| err.to_string())?;
 
         // TODO need to find a way to update generic provider via url
@@ -286,7 +281,8 @@ mod tests {
         let backend = SharedBackend::spawn_backend(
             Arc::new(provider),
             db.clone(),
-            None,
+            0,
+            Default::default(),
             Default::default(),
             Default::default(),
             Default::default(),

@@ -4,7 +4,7 @@
 //! concurrently active pairs at once.
 
 use crate::{
-    backend::{Access, EnvironmentCache},
+    backend::{Access, CodeCache, EnvironmentCache},
     fork::{BackendHandler, BlockchainDb, BlockchainDbMeta, CreateFork, SharedBackend},
 };
 use foundry_common::provider::{
@@ -109,10 +109,11 @@ impl MultiFork {
         fork: CreateFork,
         env_cache: Arc<EnvironmentCache>,
         data_accesses: Arc<dashmap::DashSet<Access>>,
+        code_cache: Arc<CodeCache>,
     ) -> eyre::Result<(ForkId, SharedBackend, Env)> {
         trace!("Creating new fork, url={}, block={:?}", fork.url, fork.evm_opts.fork_block_number);
         let (sender, rx) = oneshot_channel();
-        let req = Request::CreateFork(Box::new(fork), sender, env_cache, data_accesses);
+        let req = Request::CreateFork(Box::new(fork), sender, env_cache, data_accesses, code_cache);
         self.handler.clone().try_send(req).map_err(|e| eyre::eyre!("{:?}", e))?;
         rx.recv()?
     }
@@ -126,10 +127,11 @@ impl MultiFork {
         block: u64,
         env_cache: Arc<EnvironmentCache>,
         data_accesses: Arc<dashmap::DashSet<Access>>,
+        code_cache: Arc<CodeCache>,
     ) -> eyre::Result<(ForkId, SharedBackend, Env)> {
         trace!(?fork, ?block, "rolling fork");
         let (sender, rx) = oneshot_channel();
-        let req = Request::RollFork(fork, block, sender, env_cache, data_accesses);
+        let req = Request::RollFork(fork, block, sender, env_cache, data_accesses, code_cache);
         self.handler.clone().try_send(req).map_err(|e| eyre::eyre!("{:?}", e))?;
         rx.recv()?
     }
@@ -177,11 +179,24 @@ type GetEnvSender = OneshotSender<Option<Env>>;
 #[derive(Debug)]
 enum Request {
     /// Creates a new ForkBackend
-    CreateFork(Box<CreateFork>, CreateSender, Arc<EnvironmentCache>, Arc<dashmap::DashSet<Access>>),
+    CreateFork(
+        Box<CreateFork>,
+        CreateSender,
+        Arc<EnvironmentCache>,
+        Arc<dashmap::DashSet<Access>>,
+        Arc<CodeCache>,
+    ),
     /// Returns the Fork backend for the `ForkId` if it exists
     GetFork(ForkId, OneshotSender<Option<SharedBackend>>),
     /// Adjusts the block that's being forked, by creating a new fork at the new block
-    RollFork(ForkId, u64, CreateSender, Arc<EnvironmentCache>, Arc<dashmap::DashSet<Access>>),
+    RollFork(
+        ForkId,
+        u64,
+        CreateSender,
+        Arc<EnvironmentCache>,
+        Arc<dashmap::DashSet<Access>>,
+        Arc<CodeCache>,
+    ),
     /// Returns the environment of the fork
     GetEnv(ForkId, GetEnvSender),
     /// Shutdowns the entire `MultiForkHandler`, see `ShutDownMultiFork`
@@ -262,6 +277,7 @@ impl MultiForkHandler {
         sender: CreateSender,
         env_cache: Arc<EnvironmentCache>,
         data_accesses: Arc<dashmap::DashSet<Access>>,
+        code_cache: Arc<CodeCache>,
     ) {
         let block_number_opt = fork.evm_opts.fork_block_number;
 
@@ -275,7 +291,7 @@ impl MultiForkHandler {
         }
 
         // need to create a new fork
-        let task = Box::pin(create_fork(fork, env_cache, data_accesses));
+        let task = Box::pin(create_fork(fork, env_cache, data_accesses, code_cache));
         self.pending_tasks.push(ForkTask::Create(
             task,
             fork_url,
@@ -305,19 +321,19 @@ impl MultiForkHandler {
 
     fn on_request(&mut self, req: Request) {
         match req {
-            Request::CreateFork(fork, sender, env_cache, data_accesses) => {
-                self.create_fork(*fork, sender, env_cache, data_accesses)
+            Request::CreateFork(fork, sender, env_cache, data_accesses, code_cache) => {
+                self.create_fork(*fork, sender, env_cache, data_accesses, code_cache)
             }
             Request::GetFork(fork_id, sender) => {
                 let fork = self.forks.get(&fork_id).map(|f| f.backend.clone());
                 let _ = sender.send(fork);
             }
-            Request::RollFork(fork_id, block, sender, env_cache, data_accesses) => {
+            Request::RollFork(fork_id, block, sender, env_cache, data_accesses, code_cache) => {
                 if let Some(fork) = self.forks.get(&fork_id) {
                     trace!(target: "fork::multi", "rolling {} to {}", fork_id, block);
                     let mut opts = fork.opts.clone();
                     opts.evm_opts.fork_block_number = Some(block);
-                    self.create_fork(opts, sender, env_cache, data_accesses)
+                    self.create_fork(opts, sender, env_cache, data_accesses, code_cache)
                 } else {
                     let _ = sender.send(Err(eyre::eyre!("No matching fork exits for {}", fork_id)));
                 }
@@ -506,6 +522,7 @@ async fn create_fork(
     mut fork: CreateFork,
     env_cache: Arc<EnvironmentCache>,
     data_accesses: Arc<dashmap::DashSet<Access>>,
+    code_cache: Arc<CodeCache>,
 ) -> eyre::Result<(ForkId, CreatedFork, Handler)> {
     let provider = Arc::new(
         ProviderBuilder::new(fork.url.as_str())
@@ -536,10 +553,11 @@ async fn create_fork(
     let (backend, handler) = SharedBackend::new(
         provider,
         db,
-        Some(number.into()),
+        number,
         data_accesses,
         fork.env.cfg.chain_id.into(),
         (&(fork)).into(),
+        code_cache,
     );
     let fork = CreatedFork::new(fork, backend);
     let fork_id = ForkId::new(&fork.opts.url, number);

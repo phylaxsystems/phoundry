@@ -1,6 +1,8 @@
 //! Smart caching and deduplication of requests when using a forking provider
 use crate::{
-    backend::{Access, AccessType, DatabaseError, DatabaseResult, RevmDbAccess, StateLookup},
+    backend::{
+        Access, AccessType, CodeCache, DatabaseError, DatabaseResult, RevmDbAccess, StateLookup,
+    },
     fork::{cache::FlushJsonBlockCacheDB, BlockchainDb},
 };
 use alloy_chains::Chain;
@@ -65,7 +67,7 @@ enum ProviderRequest<Err> {
 #[derive(Debug)]
 enum BackendRequest {
     /// Fetch the account info
-    Basic(Address, AccountInfoSender),
+    Basic(Address, Chain, Arc<CodeCache>, AccountInfoSender),
     /// Fetch a storage slot
     Storage(Address, U256, StorageSender),
     /// Fetch a block hash
@@ -75,7 +77,7 @@ enum BackendRequest {
     /// Fetch a transaction
     Transaction(B256, TransactionSender),
     /// Sets the pinned block to fetch data from
-    SetPinnedBlock(BlockId),
+    SetPinnedBlock(u64),
 }
 
 /// Handles an internal provider and listens for requests.
@@ -101,8 +103,7 @@ pub struct BackendHandler<T, P> {
     /// unprocessed queued requests
     queued_requests: VecDeque<BackendRequest>,
     /// The block to fetch data from.
-    // This is an `Option` so that we can have less code churn in the functions below
-    block_id: Option<BlockId>,
+    block_number: u64,
 }
 
 impl<T, P> BackendHandler<T, P>
@@ -110,12 +111,7 @@ where
     T: Transport + Clone,
     P: Provider<T, AnyNetwork> + Clone + Unpin + 'static,
 {
-    fn new(
-        provider: P,
-        db: BlockchainDb,
-        rx: Receiver<BackendRequest>,
-        block_id: Option<BlockId>,
-    ) -> Self {
+    fn new(provider: P, db: BlockchainDb, rx: Receiver<BackendRequest>, block_number: u64) -> Self {
         Self {
             provider,
             db,
@@ -125,7 +121,7 @@ where
             block_requests: Default::default(),
             queued_requests: Default::default(),
             incoming: rx,
-            block_id,
+            block_number,
             transport: PhantomData,
         }
     }
@@ -138,13 +134,13 @@ where
     /// progress (e.g. another Sender just requested the same account)
     fn on_request(&mut self, req: BackendRequest) {
         match req {
-            BackendRequest::Basic(addr, sender) => {
+            BackendRequest::Basic(addr, chain, code_cache, sender) => {
                 trace!(target: "backendhandler", "received request basic address={:?}", addr);
                 let acc = self.db.accounts().read().get(&addr).cloned();
                 if let Some(basic) = acc {
                     let _ = sender.send(Ok(basic));
                 } else {
-                    self.request_account(addr, sender);
+                    self.request_account(addr, chain, code_cache, sender);
                 }
             }
             BackendRequest::BlockHash(number, sender) => {
@@ -172,8 +168,8 @@ where
                     self.request_account_storage(addr, idx, sender);
                 }
             }
-            BackendRequest::SetPinnedBlock(block_id) => {
-                self.block_id = Some(block_id);
+            BackendRequest::SetPinnedBlock(block_number) => {
+                self.block_number = block_number;
             }
         }
     }
@@ -188,7 +184,7 @@ where
                 trace!(target: "backendhandler", %address, %idx, "preparing storage request");
                 entry.insert(vec![listener]);
                 let provider = self.provider.clone();
-                let block_id = self.block_id.unwrap_or(BlockId::latest());
+                let block_id = self.block_number.into();
                 let fut = Box::pin(async move {
                     let storage =
                         provider.get_storage_at(address, idx, block_id).await.map_err(Into::into);
@@ -200,14 +196,22 @@ where
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
+    fn get_account_req(
+        &self,
+        address: Address,
+        chain: Chain,
+        code_cache: Arc<CodeCache>,
+    ) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
         let provider = self.provider.clone();
-        let block_id = self.block_id.unwrap_or(BlockId::latest());
+
+        let block_id = self.block_number.into();
+        let block_number = self.block_number;
+
         let fut = Box::pin(async move {
             let balance = provider.get_balance(address, block_id);
             let nonce = provider.get_transaction_count(address, block_id);
-            let code = provider.get_code_at(address, block_id);
+            let code = code_cache.get_code(&provider, address, chain, block_number);
             let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
             (resp, address)
         });
@@ -215,14 +219,20 @@ where
     }
 
     /// process a request for an account
-    fn request_account(&mut self, address: Address, listener: AccountInfoSender) {
+    fn request_account(
+        &mut self,
+        address: Address,
+        chain: Chain,
+        code_cache: Arc<CodeCache>,
+        listener: AccountInfoSender,
+    ) {
         match self.account_requests.entry(address) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().push(listener);
             }
             Entry::Vacant(entry) => {
                 entry.insert(vec![listener]);
-                self.pending_requests.push(self.get_account_req(address));
+                self.pending_requests.push(self.get_account_req(address, chain, code_cache));
             }
         }
     }
@@ -517,11 +527,17 @@ pub struct SharedBackend {
     /// `FlushJsonBlockCacheDB` is also deleted and the cache is flushed.
     cache: Arc<FlushJsonBlockCacheDB>,
 
+    /// The Chain the backend is operating on
     chain: Chain,
 
+    /// The StateLookup to use
     state_lookup: StateLookup,
 
+    /// Shared set of data accesses that have been made
     data_accesses: Arc<dashmap::DashSet<Access>>,
+
+    /// The code cache
+    code_cache: Arc<CodeCache>,
 }
 
 impl SharedBackend {
@@ -535,17 +551,18 @@ impl SharedBackend {
     pub async fn spawn_backend<T, P>(
         provider: P,
         db: BlockchainDb,
-        pin_block: Option<BlockId>,
+        pin_block: u64,
         data_accesses: Arc<dashmap::DashSet<Access>>,
         chain: Chain,
         state_lookup: StateLookup,
+        code_cache: Arc<CodeCache>,
     ) -> Self
     where
         T: Transport + Clone + Unpin,
         P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
     {
         let (shared, handler) =
-            Self::new(provider, db, pin_block, data_accesses, chain, state_lookup);
+            Self::new(provider, db, pin_block, data_accesses, chain, state_lookup, code_cache);
         // spawn the provider handler to a task
         trace!(target: "backendhandler", "spawning Backendhandler task");
         tokio::spawn(handler);
@@ -557,17 +574,18 @@ impl SharedBackend {
     pub fn spawn_backend_thread<T, P>(
         provider: P,
         db: BlockchainDb,
-        pin_block: Option<BlockId>,
+        pin_block: u64,
         data_accesses: Arc<dashmap::DashSet<Access>>,
         chain: Chain,
         state_lookup: StateLookup,
+        code_cache: Arc<CodeCache>,
     ) -> Self
     where
         T: Transport + Clone + Unpin,
         P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
     {
         let (shared, handler) =
-            Self::new(provider, db, pin_block, data_accesses, chain, state_lookup);
+            Self::new(provider, db, pin_block, data_accesses, chain, state_lookup, code_cache);
 
         // spawn a light-weight thread with a thread-local async runtime just for
         // sending and receiving data from the remote client
@@ -591,10 +609,11 @@ impl SharedBackend {
     pub fn new<T, P>(
         provider: P,
         db: BlockchainDb,
-        pin_block: Option<BlockId>,
+        pin_block: u64,
         data_accesses: Arc<dashmap::DashSet<Access>>,
         chain: Chain,
         state_lookup: StateLookup,
+        code_cache: Arc<CodeCache>,
     ) -> (Self, BackendHandler<T, P>)
     where
         T: Transport + Clone + Unpin,
@@ -603,12 +622,12 @@ impl SharedBackend {
         let (backend, backend_rx) = channel(1);
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
         let handler = BackendHandler::new(provider, db, backend_rx, pin_block);
-        (Self { backend, cache, data_accesses, chain, state_lookup }, handler)
+        (Self { backend, cache, data_accesses, chain, state_lookup, code_cache }, handler)
     }
 
     /// Updates the pinned block to fetch data from
-    pub fn set_pinned_block(&self, block: impl Into<BlockId>) -> eyre::Result<()> {
-        let req = BackendRequest::SetPinnedBlock(block.into());
+    pub fn set_pinned_block(&self, block_number: u64) -> eyre::Result<()> {
+        let req = BackendRequest::SetPinnedBlock(block_number);
         self.backend.clone().try_send(req).map_err(|e| eyre::eyre!("{:?}", e))
     }
 
@@ -635,7 +654,7 @@ impl SharedBackend {
     fn do_get_basic(&self, address: Address) -> DatabaseResult<Option<AccountInfo>> {
         tokio::task::block_in_place(|| {
             let (sender, rx) = oneshot_channel();
-            let req = BackendRequest::Basic(address, sender);
+            let req = BackendRequest::Basic(address, self.chain, self.code_cache.clone(), sender);
             self.backend.clone().try_send(req)?;
             rx.recv()?.map(Some)
         })
@@ -752,7 +771,8 @@ mod tests {
         let backend = SharedBackend::spawn_backend(
             Arc::new(provider),
             db.clone(),
-            None,
+            0,
+            Default::default(),
             Default::default(),
             Default::default(),
             Default::default(),
