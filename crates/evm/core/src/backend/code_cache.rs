@@ -6,13 +6,17 @@ use revm::primitives::{Address, Bytes};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct CodeDetected {
+    /// The block number at which the code was detected.
     block_number: u64,
+    /// The code at that block.
     code: Bytes,
 }
 
 #[derive(Debug, Default, Clone)]
 struct CodeHistory {
+    /// The block number at which the code was first detected. with the code at that block.
     code_first_detected_at: Option<CodeDetected>,
+    /// The block number at which the eoa was last detected.
     eoa_last_detected_at: Option<u64>,
 }
 
@@ -93,8 +97,8 @@ impl CodeCache {
     }
 }
 
-#[tokio::test]
-async fn test_check_code_cache() {
+#[test]
+fn test_check_code_cache() {
     let cache = CodeCache::default();
     let address = Address::from([1; 20]);
     let chain = Chain::mainnet();
@@ -122,8 +126,8 @@ async fn test_check_code_cache() {
     assert_eq!(cache.check_cache(address, chain, block_number + 1), None);
 }
 
-#[tokio::test]
-async fn test_cache_code() {
+#[test]
+fn test_cache_code() {
     let cache = CodeCache::default();
     let address = Address::from([1; 20]);
     let chain = Chain::mainnet();
@@ -144,6 +148,3 @@ async fn test_cache_code() {
     cache.cache_code(address, chain, block_number, code.clone());
     assert_eq!(cache.0.get(&(address, chain)).unwrap().eoa_last_detected_at, Some(block_number));
 }
-
-#[tokio::test]
-async fn test_get_code() {}
