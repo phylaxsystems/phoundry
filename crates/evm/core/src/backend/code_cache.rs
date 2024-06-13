@@ -4,24 +4,27 @@ use alloy_transport::{Transport, TransportResult};
 use quick_cache::sync::Cache;
 use revm::primitives::{Address, Bytes};
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-struct CodeDetected {
-    /// The block number at which the code was detected.
-    block_number: u64,
-    /// The code at that block.
-    code: Bytes,
-}
+/// Type alias for a block number.
+type BlockNumber = u64;
 
+/// Struct for cacheing code history of an account for a chain.
+/// This is used for returning the correct code for a given block number, under the assumption that
+/// code is immutable.
 #[derive(Debug, Default, Clone)]
-struct CodeHistory {
-    /// The block number at which the code was first detected. with the code at that block.
-    code_first_detected_at: Option<CodeDetected>,
-    /// The block number at which the eoa was last detected.
-    eoa_last_detected_at: Option<u64>,
+struct CodeCacheEntry {
+    /// The earliest block number at which code was detected by a get_code request, along with the
+    /// code. None if there has not been a get_code request that returned code for this address
+    /// on this chain.
+    code_detected: Option<(BlockNumber, Bytes)>,
+    /// The latest block number at which no code was detected by a get_code request.
+    /// None if there has not been a get_code request that returned no code for this address on
+    /// this chain.
+    no_code_detected_block_number: Option<BlockNumber>,
 }
 
+/// Struct for cacheing code history of an account for a chain.
 #[derive(Debug)]
-pub struct CodeCache(Cache<(Address, Chain), CodeHistory>);
+pub struct CodeCache(Cache<(Address, Chain), CodeCacheEntry>);
 
 impl Default for CodeCache {
     fn default() -> Self {
@@ -37,7 +40,7 @@ impl CodeCache {
         provider: &P,
         address: Address,
         chain: Chain,
-        block_number: u64,
+        block_number: BlockNumber,
     ) -> TransportResult<Bytes> {
         if let Some(code) = self.check_cache(address, chain, block_number) {
             return Ok(code);
@@ -56,20 +59,23 @@ impl CodeCache {
     /// If the account had code at the time of the block or earlier, it had code at the time of the
     /// block. If the account had no code at the time of the block or later, it had no code at
     /// the time of the block.
-    fn check_cache(&self, address: Address, chain: Chain, block_number: u64) -> Option<Bytes> {
-        if let Some(CodeHistory { code_first_detected_at, eoa_last_detected_at }) =
+    fn check_cache(
+        &self,
+        address: Address,
+        chain: Chain,
+        block_number: BlockNumber,
+    ) -> Option<Bytes> {
+        if let Some(CodeCacheEntry { code_detected, no_code_detected_block_number }) =
             self.0.get(&(address, chain))
         {
-            if let Some(CodeDetected { block_number: code_first_detected_at, code }) =
-                code_first_detected_at
-            {
-                if code_first_detected_at <= block_number {
+            if let Some((code_detected, code)) = code_detected {
+                if code_detected <= block_number {
                     return Some(code.clone());
                 }
             }
 
-            if let Some(eoa_last_detected_at) = eoa_last_detected_at {
-                if eoa_last_detected_at >= block_number {
+            if let Some(no_code_detected_block_number) = no_code_detected_block_number {
+                if no_code_detected_block_number >= block_number {
                     return Some(Bytes::new());
                 }
             }
@@ -79,15 +85,17 @@ impl CodeCache {
     }
 
     /// Cache the code of an account at a specific block.
-    fn cache_code(&self, address: Address, chain: Chain, block_number: u64, code: Bytes) {
-        let entry: CodeHistory = self
+    fn cache_code(&self, address: Address, chain: Chain, block_number: BlockNumber, code: Bytes) {
+        let entry: CodeCacheEntry = self
             .0
-            .get_or_insert_with(&(address, chain), || Ok::<CodeHistory, ()>(CodeHistory::default()))
+            .get_or_insert_with(&(address, chain), || {
+                Ok::<CodeCacheEntry, ()>(CodeCacheEntry::default())
+            })
             .map(|mut history| {
                 if code.is_empty() {
-                    history.eoa_last_detected_at = Some(block_number);
+                    history.no_code_detected_block_number = Some(block_number);
                 } else {
-                    history.code_first_detected_at = Some(CodeDetected { block_number, code });
+                    history.code_detected = Some((block_number, code));
                 }
                 history
             })
@@ -136,15 +144,15 @@ fn test_cache_code() {
     let code = Bytes::from(vec![1, 2, 3]);
 
     cache.cache_code(address, chain, block_number, code.clone());
-    assert!(cache.0.get(&(address, chain)).unwrap().eoa_last_detected_at.is_none());
-    assert_eq!(
-        cache.0.get(&(address, chain)).unwrap().code_first_detected_at,
-        Some(CodeDetected { block_number, code })
-    );
+    assert!(cache.0.get(&(address, chain)).unwrap().no_code_detected_block_number.is_none());
+    assert_eq!(cache.0.get(&(address, chain)).unwrap().code_detected, Some((block_number, code)));
 
     let code = Bytes::new();
     let block_number = block_number - 10;
 
     cache.cache_code(address, chain, block_number, code.clone());
-    assert_eq!(cache.0.get(&(address, chain)).unwrap().eoa_last_detected_at, Some(block_number));
+    assert_eq!(
+        cache.0.get(&(address, chain)).unwrap().no_code_detected_block_number,
+        Some(block_number)
+    );
 }
