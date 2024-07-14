@@ -1078,7 +1078,7 @@ impl DatabaseExt for Backend {
         self.data_accesses.insert(Access {
             chain: env.cfg.chain_id.into(),
             state_lookup,
-            access_type: AccessType::CreateFork(create_fork.url.to_owned()),
+            access_type: AccessType::CreateFork(create_fork.url),
         });
 
         let fork_db = ForkDB::new(fork);

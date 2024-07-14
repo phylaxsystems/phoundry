@@ -20,16 +20,16 @@ impl RevmDbAccess {
     /// Executes the RevmDbAccess against the SharedBackend
     pub fn execute(&self, db: &mut SharedBackend) -> Result<(), DatabaseError> {
         match self {
-            RevmDbAccess::Basic(addr) => {
+            Self::Basic(addr) => {
                 db.basic_ref(*addr)?;
             }
-            RevmDbAccess::Storage(addr, key) => {
+            Self::Storage(addr, key) => {
                 db.storage_ref(*addr, *key)?;
             }
-            RevmDbAccess::CodeByHash(hash) => {
+            Self::CodeByHash(hash) => {
                 db.code_by_hash_ref(*hash)?;
             }
-            RevmDbAccess::BlockHash(block_num) => {
+            Self::BlockHash(block_num) => {
                 db.block_hash_ref(*block_num)?;
             }
         }

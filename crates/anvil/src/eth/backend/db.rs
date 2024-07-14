@@ -3,7 +3,6 @@
 use crate::revm::primitives::AccountInfo;
 use alloy_consensus::Header;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256, U64};
-use alloy_rpc_types::BlockId;
 use anvil_core::eth::{block::Block, transaction::TypedTransaction};
 use foundry_common::errors::FsPathError;
 use foundry_evm::{

@@ -38,7 +38,7 @@ pub struct ForkId(pub String);
 impl ForkId {
     /// Returns the identifier for a Fork from a URL and block number.
     pub fn new(url: &str, num: u64) -> Self {
-        ForkId(format!("{url}@{num:#}"))
+        Self(format!("{url}@{num:#}"))
     }
 
     /// Returns the identifier of the fork.

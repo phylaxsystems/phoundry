@@ -70,7 +70,7 @@ impl CodeCache {
         {
             if let Some((code_detected, code)) = code_detected {
                 if code_detected <= block_number {
-                    return Some(code.clone());
+                    return Some(code);
                 }
             }
 
