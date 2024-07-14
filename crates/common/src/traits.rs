@@ -44,6 +44,12 @@ pub trait TestFunctionExt {
         matches!(self.test_function_kind(), TestFunctionKind::UnitTest { .. })
     }
 
+    /// Returns `true` if this function is a unit test.
+    #[inline]
+     fn is_assertion(&self) -> bool {
+        matches!(self.test_function_kind(), TestFunctionKind::Assertion { .. })
+    }
+
     /// Returns `true` if this function is a fuzz test.
     fn is_fuzz_test(&self) -> bool {
         self.test_function_kind().is_fuzz_test()
@@ -117,6 +123,8 @@ pub enum TestFunctionKind {
     Fixture,
     /// Unknown kind.
     Unknown,
+    /// Assertion for the phylax hack prevention.
+    Assertion,
 }
 
 impl TestFunctionKind {
@@ -154,6 +162,7 @@ impl TestFunctionKind {
             Self::AfterInvariant => "afterInvariant",
             Self::Fixture => "fixture",
             Self::Unknown => "unknown",
+            Self::Assertion => "assert",
         }
     }
 
@@ -179,6 +188,12 @@ impl TestFunctionKind {
     #[inline]
     pub fn is_unit_test(&self) -> bool {
         matches!(self, Self::UnitTest { .. })
+    }
+
+    /// Returns `true` if this function is a unit test.
+    #[inline]
+    pub fn is_assertion(&self) -> bool {
+        matches!(self, Self::Assertion { .. })
     }
 
     /// Returns `true` if this function is a fuzz test.
