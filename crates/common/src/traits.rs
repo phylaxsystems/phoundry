@@ -146,6 +146,7 @@ impl TestFunctionKind {
             _ if name.eq_ignore_ascii_case("setup") => Self::Setup,
             _ if name.eq_ignore_ascii_case("afterinvariant") => Self::AfterInvariant,
             _ if name.starts_with("fixture") => Self::Fixture,
+            _ if name.starts_with("assert") => Self::Assertion,
             _ => Self::Unknown,
         }
     }
