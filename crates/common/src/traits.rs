@@ -146,6 +146,7 @@ impl TestFunctionKind {
             _ if name.eq_ignore_ascii_case("setup") => Self::Setup,
             _ if name.eq_ignore_ascii_case("afterinvariant") => Self::AfterInvariant,
             _ if name.starts_with("fixture") => Self::Fixture,
+            _ if name.starts_with("assert") => Self::Assertion,
             _ => Self::Unknown,
         }
     }
@@ -175,7 +176,7 @@ impl TestFunctionKind {
     /// Returns `true` if this function is a unit, fuzz, or invariant test.
     #[inline]
     pub const fn is_any_test(&self) -> bool {
-        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest)
+        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest | Self::Assertion)
     }
 
     /// Returns `true` if this function is a test that should fail.
