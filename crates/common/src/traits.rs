@@ -175,7 +175,7 @@ impl TestFunctionKind {
     /// Returns `true` if this function is a unit, fuzz, or invariant test.
     #[inline]
     pub const fn is_any_test(&self) -> bool {
-        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest)
+        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest | Self::Assertion)
     }
 
     /// Returns `true` if this function is a test that should fail.
