@@ -211,7 +211,7 @@ impl<'a> ContractRunner<'a> {
     /// current test.
     fn fuzz_fixtures(&mut self, address: Address) -> FuzzFixtures {
         let mut fixtures = HashMap::new();
-        let fixture_functions = self.contract.abi.functions().filter(|func| func.is_fixture());
+        let fixture_functions = self.contract.abi.functions().filter(|func| func.name.is_fixture());
         for func in fixture_functions {
             if func.inputs.is_empty() {
                 // Read fixtures declared as functions.
@@ -308,7 +308,7 @@ impl<'a> ContractRunner<'a> {
         });
 
         // Invariant testing requires tracing to figure out what contracts were created.
-        let has_invariants = self.contract.abi.functions().any(|func| func.is_invariant_test());
+        let has_invariants = self.contract.abi.functions().any(|func| func.name.is_invariant_test());
         let tmp_tracing =
             self.executor.inspector().tracer.is_none() && has_invariants && call_setup;
         if tmp_tracing {
@@ -400,7 +400,7 @@ impl<'a> ContractRunner<'a> {
                     TestFunctionKind::Assertion => {
                         self.run_assertion(func, setup)
                     }
-                    _ => unreachable!(),
+                    _ => unreachable!()
                 };
 
                 res.duration = start.elapsed();
