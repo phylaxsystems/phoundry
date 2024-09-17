@@ -74,6 +74,10 @@ pub trait TestFunctionExt {
     fn tfe_as_str(&self) -> &str;
     #[doc(hidden)]
     fn tfe_has_inputs(&self) -> bool;
+    #[doc(hidden)]
+    fn tfe_is_valid_assertion_signature(&self) -> bool;
+    #[doc(hidden)]
+    fn tfe_is_from_string(&self) -> bool;
 }
 
 impl TestFunctionExt for Function {
@@ -83,6 +87,17 @@ impl TestFunctionExt for Function {
 
     fn tfe_has_inputs(&self) -> bool {
         !self.inputs.is_empty()
+    }
+
+    fn tfe_is_valid_assertion_signature(&self) -> bool {
+        self.inputs.is_empty()
+        && self.outputs.len() == 1
+        && self.outputs.iter().all(|output| 
+            output.ty.eq("bool"))
+    }
+
+    fn tfe_is_from_string(&self) -> bool {
+        false
     }
 }
 
@@ -94,6 +109,14 @@ impl TestFunctionExt for String {
     fn tfe_has_inputs(&self) -> bool {
         false
     }
+
+    fn tfe_is_valid_assertion_signature(&self) -> bool {
+        false
+    }
+
+    fn tfe_is_from_string(&self) -> bool {
+        true
+    }
 }
 
 impl TestFunctionExt for str {
@@ -101,8 +124,16 @@ impl TestFunctionExt for str {
         self
     }
 
+    fn tfe_is_valid_assertion_signature(&self) -> bool {
+        false
+    }
+
     fn tfe_has_inputs(&self) -> bool {
         false
+    }
+
+    fn tfe_is_from_string(&self) -> bool {
+        true
     }
 }
 
