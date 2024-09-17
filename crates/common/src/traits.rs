@@ -4,6 +4,35 @@ use alloy_json_abi::Function;
 use alloy_primitives::Bytes;
 use alloy_sol_types::SolError;
 use std::{fmt, path::Path};
+use tracing::warn;
+
+/// List of functions included with Foundry that are prefixed with 'assert' but are not intended to be used as assertions.
+static FOUNDRY_ASSERTION_FN_NAMES: &[&str] = &[
+    "assertEqCallExternal",
+    "assertApproxEqAbs",
+    "assertApproxEqAbsDecimal",
+    "assertApproxEqRel",
+    "assertApproxEqRelDecimal",
+    "assertEq",
+    "assertEqDecimal",
+    "assertFalse",
+    "assertGe",
+    "assertGeDecimal",
+    "assertGt",
+    "assertGtDecimal",
+    "assertLe",
+    "assertLeDecimal",
+    "assertLt",
+    "assertLtDecimal",
+    "assertNotEq",
+    "assertNotEqDecimal",
+    "assertTrue",
+    "assertionError",
+    "assertApproxEqAbs",
+    "assertApproxEqAbsDecimal",
+    "assertApproxEqRel",
+    "assertApproxEqRelDecimal",
+];
 
 /// Test filter.
 pub trait TestFilter: Send + Sync {
@@ -21,7 +50,7 @@ pub trait TestFilter: Send + Sync {
 pub trait TestFunctionExt {
     /// Returns the kind of test function.
     fn test_function_kind(&self) -> TestFunctionKind {
-        TestFunctionKind::classify(self.tfe_as_str(), self.tfe_has_inputs())
+        TestFunctionKind::classify(self.tfe_as_str(), self.tfe_has_inputs(), self.tfe_is_valid_assertion_signature(), self.tfe_is_from_string())
     }
 
     /// Returns `true` if this function is a `setUp` function.
@@ -161,7 +190,7 @@ pub enum TestFunctionKind {
 impl TestFunctionKind {
     /// Classify a function.
     #[inline]
-    pub fn classify(name: &str, has_inputs: bool) -> Self {
+    pub fn classify(name: &str, has_inputs: bool, is_valid_assertion: bool, from_string: bool) -> Self {
         match () {
             _ if name.starts_with("test") => {
                 let should_fail = name.starts_with("testFail");
@@ -177,7 +206,13 @@ impl TestFunctionKind {
             _ if name.eq_ignore_ascii_case("setup") => Self::Setup,
             _ if name.eq_ignore_ascii_case("afterinvariant") => Self::AfterInvariant,
             _ if name.starts_with("fixture") => Self::Fixture,
-            _ if name.starts_with("assert") => Self::Assertion,
+            _ if name.starts_with("assert") && (is_valid_assertion || from_string) => Self::Assertion,
+            _ if name.starts_with("assert") && !is_valid_assertion && !from_string => {
+                if !FOUNDRY_ASSERTION_FN_NAMES.contains(&name) {
+                    warn!("There was an function prefixed with 'assert' that did not have a valid input or return type: {}", name);
+                }
+                Self::Unknown
+            },
             _ => Self::Unknown,
         }
     }
