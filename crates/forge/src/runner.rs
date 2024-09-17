@@ -397,6 +397,9 @@ impl<'a> ContractRunner<'a> {
                             identified_contracts.as_ref().unwrap(),
                         )
                     }
+                    TestFunctionKind::Assertion => {
+                        self.run_assertion(func, setup)
+                    }
                     _ => unreachable!(),
                 };
 
@@ -443,6 +446,40 @@ impl<'a> ContractRunner<'a> {
         let success =
             self.executor.is_raw_call_mut_success(address, &mut raw_call_result, should_fail);
         test_result.single_result(success, reason, raw_call_result)
+    }
+
+    /// Runs a single assertion.
+    ///
+    /// Calls the given functions and returns the `TestResult`.
+    ///
+    /// State modifications are not committed to the evm database but discarded after the call,
+    /// similar to `eth_call`.
+    pub fn run_assertion(
+        &self,
+        func: &Function,
+        setup: TestSetup,
+    ) -> TestResult {
+        let address = setup.address;
+        let test_result = TestResult::new(setup);
+
+        // Run assertion test
+        let (mut raw_call_result, reason) = match self.executor.call(
+            self.sender,
+            address,
+            func,
+            &[],
+            U256::ZERO,
+            Some(self.revert_decoder),
+        ) {
+            Ok(res) => (res.raw, None),
+            Err(EvmError::Execution(err)) => (err.raw, Some(err.reason)),
+            Err(EvmError::SkipError) => return test_result.single_skip(),
+            Err(err) => return test_result.assertion_fail(err),
+        };
+
+        let success = 
+            self.executor.is_raw_call_mut_success(address, &mut raw_call_result, false);
+        test_result.assertion_result(success, reason, raw_call_result)
     }
 
     #[allow(clippy::too_many_arguments)]
