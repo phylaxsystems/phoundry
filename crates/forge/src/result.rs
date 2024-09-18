@@ -7,7 +7,6 @@ use crate::{
 };
 use alloy_primitives::{Address, Log, U256};
 use eyre::Report;
-use forge_fmt::solang_ext::AstEq;
 use foundry_common::{evm::Breakpoints, get_contract_name, get_file_name, shell};
 use foundry_evm::{
     coverage::HitMaps,
@@ -18,7 +17,7 @@ use foundry_evm::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap}, fmt::{self, Write}, io::Read, time::Duration, u128
+    collections::{BTreeMap, HashMap}, fmt::{self, Write}, time::Duration,
 };
 use yansi::Paint;
 
@@ -506,20 +505,20 @@ impl TestResult {
             let bytes = output.into_data();
             match U256::try_from_be_slice(&bytes as &[u8]) {
                 None => {
-                    AssertionOutcomeKind::UnknownReturn
+                    AlertOutcomeKind::UnknownReturn
                 },
                 Some(val) => {
                     if val.leading_zeros() == 255 {
-                        AssertionOutcomeKind::Success
+                        AlertOutcomeKind::Success
                     } else if val.is_zero() {
-                        AssertionOutcomeKind::Failure
+                        AlertOutcomeKind::Failure
                     } else {
-                        AssertionOutcomeKind::UnknownReturn
+                        AlertOutcomeKind::UnknownReturn
                     }
                 }
             }
         } else {
-            AssertionOutcomeKind::UnknownReturn
+            AlertOutcomeKind::UnknownReturn
         };
 
         self.kind =
@@ -544,7 +543,7 @@ impl TestResult {
     pub fn alert_fail(mut self, err: EvmError) -> Self {
         self.status = TestStatus::Failure;
         self.reason = Some(err.to_string());
-        self.kind = TestKind::Assertion { gas: 0, outcome: AssertionOutcomeKind::Revert };
+        self.kind = TestKind::Alert { gas: 0, outcome: AlertOutcomeKind::Revert };
         self
     }
 
@@ -701,7 +700,7 @@ impl TestKindReport {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum AssertionOutcomeKind {
+pub enum AlertOutcomeKind {
     Success,
     Revert,
     UnknownReturn,
@@ -714,7 +713,7 @@ pub enum TestKind {
     /// An alert test result.
     Alert { 
         gas: u64,
-        outcome: AssertionOutcomeKind,
+        outcome: AlertOutcomeKind,
     },
     /// A unit test.
     Unit { gas: u64 },
