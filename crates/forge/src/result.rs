@@ -509,7 +509,6 @@ impl TestResult {
         // Record logs, labels, traces and merge coverages.
         self.logs.extend(raw_call_result.logs);
         self.labeled_addresses.extend(raw_call_result.labels);
-        self.traces.extend(raw_call_result.traces.map(|traces| (TraceKind::Execution, traces)));
         self.merge_coverages(raw_call_result.coverage);
 
         self.status = match success {
@@ -518,10 +517,7 @@ impl TestResult {
         };
         self.reason = reason;
         self.decoded_logs = decode_console_logs(&self.logs);
-        self.debug = raw_call_result.debug;
-        self.breakpoints = raw_call_result.cheatcodes.map(|c| c.breakpoints).unwrap_or_default();
         self.duration = Duration::default();
-        self.gas_report_traces = Vec::new();
         self
     }
 
