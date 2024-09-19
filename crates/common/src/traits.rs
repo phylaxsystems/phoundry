@@ -4,6 +4,7 @@ use alloy_json_abi::Function;
 use alloy_primitives::Bytes;
 use alloy_sol_types::SolError;
 use std::{fmt, path::Path};
+use tracing::warn;
 
 /// Test filter.
 pub trait TestFilter: Send + Sync {
@@ -21,7 +22,7 @@ pub trait TestFilter: Send + Sync {
 pub trait TestFunctionExt {
     /// Returns the kind of test function.
     fn test_function_kind(&self) -> TestFunctionKind {
-        TestFunctionKind::classify(self.tfe_as_str(), self.tfe_has_inputs())
+        TestFunctionKind::classify(self.tfe_as_str(), self.tfe_has_inputs(), self.tfe_is_valid_alert_signature(), self.tfe_is_from_string())
     }
 
     /// Returns `true` if this function is a `setUp` function.
@@ -44,10 +45,10 @@ pub trait TestFunctionExt {
         matches!(self.test_function_kind(), TestFunctionKind::UnitTest { .. })
     }
 
-    /// Returns `true` if this function is an assertion test.
+    /// Returns `true` if this function is an alert test.
     #[inline]
-     fn is_assertion(&self) -> bool {
-        matches!(self.test_function_kind(), TestFunctionKind::Assertion { .. })
+     fn is_alert(&self) -> bool {
+        matches!(self.test_function_kind(), TestFunctionKind::Alert { .. })
     }
 
     /// Returns `true` if this function is a fuzz test.
@@ -74,6 +75,10 @@ pub trait TestFunctionExt {
     fn tfe_as_str(&self) -> &str;
     #[doc(hidden)]
     fn tfe_has_inputs(&self) -> bool;
+    #[doc(hidden)]
+    fn tfe_is_valid_alert_signature(&self) -> bool;
+    #[doc(hidden)]
+    fn tfe_is_from_string(&self) -> bool;
 }
 
 impl TestFunctionExt for Function {
@@ -83,6 +88,17 @@ impl TestFunctionExt for Function {
 
     fn tfe_has_inputs(&self) -> bool {
         !self.inputs.is_empty()
+    }
+
+    fn tfe_is_valid_alert_signature(&self) -> bool {
+        self.inputs.is_empty()
+        && self.outputs.len() == 1
+        && self.outputs.iter().all(|output| 
+            output.ty.eq("bool"))
+    }
+
+    fn tfe_is_from_string(&self) -> bool {
+        false
     }
 }
 
@@ -94,6 +110,14 @@ impl TestFunctionExt for String {
     fn tfe_has_inputs(&self) -> bool {
         false
     }
+
+    fn tfe_is_valid_alert_signature(&self) -> bool {
+        false
+    }
+
+    fn tfe_is_from_string(&self) -> bool {
+        true
+    }
 }
 
 impl TestFunctionExt for str {
@@ -101,8 +125,16 @@ impl TestFunctionExt for str {
         self
     }
 
+    fn tfe_is_valid_alert_signature(&self) -> bool {
+        false
+    }
+
     fn tfe_has_inputs(&self) -> bool {
         false
+    }
+
+    fn tfe_is_from_string(&self) -> bool {
+        true
     }
 }
 
@@ -123,14 +155,14 @@ pub enum TestFunctionKind {
     Fixture,
     /// Unknown kind.
     Unknown,
-    /// Assertion for the phylax hack prevention.
-    Assertion,
+    /// Alert for Phylax Monitoring.
+    Alert,
 }
 
 impl TestFunctionKind {
     /// Classify a function.
     #[inline]
-    pub fn classify(name: &str, has_inputs: bool) -> Self {
+    pub fn classify(name: &str, has_inputs: bool, is_valid_alert: bool, from_string: bool) -> Self {
         match () {
             _ if name.starts_with("test") => {
                 let should_fail = name.starts_with("testFail");
@@ -146,7 +178,11 @@ impl TestFunctionKind {
             _ if name.eq_ignore_ascii_case("setup") => Self::Setup,
             _ if name.eq_ignore_ascii_case("afterinvariant") => Self::AfterInvariant,
             _ if name.starts_with("fixture") => Self::Fixture,
-            _ if name.starts_with("assert") => Self::Assertion,
+            _ if name.starts_with("alert") && (is_valid_alert || from_string) => Self::Alert,
+            _ if name.starts_with("alert") && !is_valid_alert && !from_string => {
+                warn!("There was an function prefixed with 'alert' that did not have a valid input or return type: {}", name);
+                Self::Unknown
+            },
             _ => Self::Unknown,
         }
     }
@@ -163,7 +199,7 @@ impl TestFunctionKind {
             Self::AfterInvariant => "afterInvariant",
             Self::Fixture => "fixture",
             Self::Unknown => "unknown",
-            Self::Assertion => "assert",
+            Self::Alert => "alert",
         }
     }
 
@@ -176,7 +212,7 @@ impl TestFunctionKind {
     /// Returns `true` if this function is a unit, fuzz, or invariant test.
     #[inline]
     pub const fn is_any_test(&self) -> bool {
-        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest | Self::Assertion)
+        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest | Self::Alert)
     }
 
     /// Returns `true` if this function is a test that should fail.
@@ -191,10 +227,10 @@ impl TestFunctionKind {
         matches!(self, Self::UnitTest { .. })
     }
 
-    /// Returns `true` if this function is a unit test.
+    /// Returns `true` if this function is a alert test.
     #[inline]
-    pub fn is_assertion(&self) -> bool {
-        matches!(self, Self::Assertion { .. })
+    pub fn is_alert(&self) -> bool {
+        matches!(self, Self::Alert { .. })
     }
 
     /// Returns `true` if this function is a fuzz test.

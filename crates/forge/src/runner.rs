@@ -211,7 +211,7 @@ impl<'a> ContractRunner<'a> {
     /// current test.
     fn fuzz_fixtures(&mut self, address: Address) -> FuzzFixtures {
         let mut fixtures = HashMap::new();
-        let fixture_functions = self.contract.abi.functions().filter(|func| func.is_fixture());
+        let fixture_functions = self.contract.abi.functions().filter(|func| func.name.is_fixture());
         for func in fixture_functions {
             if func.inputs.is_empty() {
                 // Read fixtures declared as functions.
@@ -308,7 +308,7 @@ impl<'a> ContractRunner<'a> {
         });
 
         // Invariant testing requires tracing to figure out what contracts were created.
-        let has_invariants = self.contract.abi.functions().any(|func| func.is_invariant_test());
+        let has_invariants = self.contract.abi.functions().any(|func| func.name.is_invariant_test());
         let tmp_tracing =
             self.executor.inspector().tracer.is_none() && has_invariants && call_setup;
         if tmp_tracing {
@@ -397,10 +397,10 @@ impl<'a> ContractRunner<'a> {
                             identified_contracts.as_ref().unwrap(),
                         )
                     }
-                    TestFunctionKind::Assertion => {
-                        self.run_assertion(func, setup)
+                    TestFunctionKind::Alert => {
+                        self.run_alert(func, setup)
                     }
-                    _ => unreachable!(),
+                    _ => unreachable!()
                 };
 
                 res.duration = start.elapsed();
@@ -448,13 +448,13 @@ impl<'a> ContractRunner<'a> {
         test_result.single_result(success, reason, raw_call_result)
     }
 
-    /// Runs a single assertion.
+    /// Runs a single alert test.
     ///
     /// Calls the given functions and returns the `TestResult`.
     ///
     /// State modifications are not committed to the evm database but discarded after the call,
     /// similar to `eth_call`.
-    pub fn run_assertion(
+    pub fn run_alert(
         &self,
         func: &Function,
         setup: TestSetup,
@@ -462,7 +462,7 @@ impl<'a> ContractRunner<'a> {
         let address = setup.address;
         let test_result = TestResult::new(setup);
 
-        // Run assertion test
+        // Run alert test
         let (mut raw_call_result, reason) = match self.executor.call(
             self.sender,
             address,
@@ -474,12 +474,12 @@ impl<'a> ContractRunner<'a> {
             Ok(res) => (res.raw, None),
             Err(EvmError::Execution(err)) => (err.raw, Some(err.reason)),
             Err(EvmError::SkipError) => return test_result.single_skip(),
-            Err(err) => return test_result.assertion_fail(err),
+            Err(err) => return test_result.alert_fail(err),
         };
 
         let success = 
             self.executor.is_raw_call_mut_success(address, &mut raw_call_result, false);
-        test_result.assertion_result(success, reason, raw_call_result)
+        test_result.alert_result(success, reason, raw_call_result)
     }
 
     #[allow(clippy::too_many_arguments)]
