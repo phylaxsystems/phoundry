@@ -400,7 +400,7 @@ impl<'a> ContractRunner<'a> {
                     TestFunctionKind::Alert => {
                         self.run_alert(func, setup)
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 };
 
                 res.duration = start.elapsed();

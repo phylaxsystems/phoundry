@@ -5,7 +5,7 @@ use crate::{
     fuzz::{BaseCounterExample, FuzzedCases},
     gas_report::GasReport,
 };
-use alloy_primitives::{Address, Log};
+use alloy_primitives::{Address, Log, U256};
 use eyre::Report;
 use foundry_common::{evm::Breakpoints, get_contract_name, get_file_name, shell};
 use foundry_evm::{
@@ -17,9 +17,7 @@ use foundry_evm::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::{self, Write},
-    time::Duration,
+    collections::{BTreeMap, HashMap}, fmt::{self, Write}, time::Duration,
 };
 use yansi::Paint;
 
@@ -503,8 +501,28 @@ impl TestResult {
         reason: Option<String>,
         raw_call_result: RawCallResult,
     ) -> Self {
+        let outcome_kind = if let Some(output) = raw_call_result.out {
+            let bytes = output.into_data();
+            match U256::try_from_be_slice(&bytes as &[u8]) {
+                None => {
+                    AlertOutcomeKind::UnknownReturn
+                },
+                Some(val) => {
+                    if val.leading_zeros() == 255 {
+                        AlertOutcomeKind::Success
+                    } else if val.is_zero() {
+                        AlertOutcomeKind::Failure
+                    } else {
+                        AlertOutcomeKind::UnknownReturn
+                    }
+                }
+            }
+        } else {
+            AlertOutcomeKind::UnknownReturn
+        };
+
         self.kind =
-            TestKind::Alert { gas: raw_call_result.gas_used.wrapping_sub(raw_call_result.stipend) };
+            TestKind::Alert { gas: raw_call_result.gas_used.wrapping_sub(raw_call_result.stipend), outcome: outcome_kind };
 
         // Record logs, labels, traces and merge coverages.
         self.logs.extend(raw_call_result.logs);
@@ -525,6 +543,7 @@ impl TestResult {
     pub fn alert_fail(mut self, err: EvmError) -> Self {
         self.status = TestStatus::Failure;
         self.reason = Some(err.to_string());
+        self.kind = TestKind::Alert { gas: 0, outcome: AlertOutcomeKind::Revert };
         self
     }
 
@@ -653,7 +672,7 @@ impl fmt::Display for TestKindReport {
             Self::Unit { gas } => {
                 write!(f, "(gas: {gas})")
             }
-            Self::Alert { gas } => {
+            Self::Alert { gas, .. } => {
                 write!(f, "(gas: {gas})")
             }
             Self::Fuzz { runs, mean_gas, median_gas } => {
@@ -680,12 +699,21 @@ impl TestKindReport {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum AlertOutcomeKind {
+    Success,
+    Revert,
+    UnknownReturn,
+    Failure,
+}
+
 /// Various types of tests
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TestKind {
     /// An alert test result.
     Alert { 
         gas: u64,
+        outcome: AlertOutcomeKind,
     },
     /// A unit test.
     Unit { gas: u64 },
@@ -711,7 +739,7 @@ impl TestKind {
     /// The gas consumed by this test
     pub fn report(&self) -> TestKindReport {
         match *self {
-            Self::Alert { gas } => TestKindReport::Unit { gas },
+            Self::Alert { gas, .. } => TestKindReport::Unit { gas },
             Self::Unit { gas } => TestKindReport::Unit { gas },
             Self::Fuzz { first_case: _, runs, mean_gas, median_gas } => {
                 TestKindReport::Fuzz { runs, mean_gas, median_gas }
