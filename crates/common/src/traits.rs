@@ -44,7 +44,7 @@ pub trait TestFunctionExt {
         matches!(self.test_function_kind(), TestFunctionKind::UnitTest { .. })
     }
 
-    /// Returns `true` if this function is a unit test.
+    /// Returns `true` if this function is an assertion test.
     #[inline]
      fn is_assertion(&self) -> bool {
         matches!(self.test_function_kind(), TestFunctionKind::Assertion { .. })

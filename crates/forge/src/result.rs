@@ -451,7 +451,7 @@ impl TestResult {
         }
     }
 
-    /// Returns the skipped result for single test (used in skipped fuzz test too).
+    /// Returns the skipped result for single test (used in skipped fuzz and assertion tests too).
     pub fn single_skip(mut self) -> Self {
         self.status = TestStatus::Skipped;
         self.decoded_logs = decode_console_logs(&self.logs);
@@ -492,6 +492,39 @@ impl TestResult {
         self.breakpoints = raw_call_result.cheatcodes.map(|c| c.breakpoints).unwrap_or_default();
         self.duration = Duration::default();
         self.gas_report_traces = Vec::new();
+        self
+    }
+
+    /// Returns the result for single test. Merges execution results (logs, labeled addresses,
+    /// traces and coverages) in initial setup results.
+    pub fn assertion_result(
+        mut self,
+        success: bool,
+        reason: Option<String>,
+        raw_call_result: RawCallResult,
+    ) -> Self {
+        self.kind =
+            TestKind::Assertion { gas: raw_call_result.gas_used.wrapping_sub(raw_call_result.stipend) };
+
+        // Record logs, labels, traces and merge coverages.
+        self.logs.extend(raw_call_result.logs);
+        self.labeled_addresses.extend(raw_call_result.labels);
+        self.merge_coverages(raw_call_result.coverage);
+
+        self.status = match success {
+            true => TestStatus::Success,
+            false => TestStatus::Failure,
+        };
+        self.reason = reason;
+        self.decoded_logs = decode_console_logs(&self.logs);
+        self.duration = Duration::default();
+        self
+    }
+
+    /// Returns the failed result with reason for an assertion.
+    pub fn assertion_fail(mut self, err: EvmError) -> Self {
+        self.status = TestStatus::Failure;
+        self.reason = Some(err.to_string());
         self
     }
 
@@ -608,6 +641,7 @@ impl TestResult {
 /// Data report by a test.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TestKindReport {
+    Assertion { gas: u64 },
     Unit { gas: u64 },
     Fuzz { runs: usize, mean_gas: u64, median_gas: u64 },
     Invariant { runs: usize, calls: usize, reverts: usize },
@@ -617,6 +651,9 @@ impl fmt::Display for TestKindReport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::Unit { gas } => {
+                write!(f, "(gas: {gas})")
+            }
+            Self::Assertion { gas } => {
                 write!(f, "(gas: {gas})")
             }
             Self::Fuzz { runs, mean_gas, median_gas } => {
@@ -634,6 +671,7 @@ impl TestKindReport {
     pub fn gas(&self) -> u64 {
         match *self {
             Self::Unit { gas } => gas,
+            Self::Assertion { gas } => gas,
             // We use the median for comparisons
             Self::Fuzz { median_gas, .. } => median_gas,
             // We return 0 since it's not applicable
@@ -645,6 +683,10 @@ impl TestKindReport {
 /// Various types of tests
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TestKind {
+    /// An assertion test result.
+    Assertion { 
+        gas: u64,
+    },
     /// A unit test.
     Unit { gas: u64 },
     /// A fuzz test.
@@ -669,6 +711,7 @@ impl TestKind {
     /// The gas consumed by this test
     pub fn report(&self) -> TestKindReport {
         match *self {
+            Self::Assertion { gas } => TestKindReport::Unit { gas },
             Self::Unit { gas } => TestKindReport::Unit { gas },
             Self::Fuzz { first_case: _, runs, mean_gas, median_gas } => {
                 TestKindReport::Fuzz { runs, mean_gas, median_gas }
