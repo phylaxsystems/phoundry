@@ -68,6 +68,7 @@ alloy-serde.workspace = true
 alloy-signer.workspace = true
 alloy-sol-macro-expander = { workspace = true, features = ["json"] }
 alloy-sol-macro-input.workspace = true
+alloy-sol-types.workspace = true
 alloy-transport.workspace = true
 
 async-trait.workspace = true
