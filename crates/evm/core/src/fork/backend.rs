@@ -214,7 +214,6 @@ where
         let block_number = self.block_number;
 
         let fut = Box::pin(async move {
-         
             let code = code_cache.get_code(&provider, address, chain, block_number);
             let balance = provider.get_balance(address).block_id(block_id).into_future();
             let nonce = provider.get_transaction_count(address).block_id(block_id).into_future();
