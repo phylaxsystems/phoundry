@@ -503,6 +503,21 @@ impl TestResult {
         }
     }
 
+    /// Creates a failed test setup result.
+    pub fn setup_success(setup: TestSetup, duration: Duration) -> Self {
+        Self {
+            status: TestStatus::Success,
+            reason: setup.reason,
+            decoded_logs: decode_console_logs(&setup.logs),
+            logs: setup.logs,
+            traces: setup.traces,
+            coverage: setup.coverage,
+            labeled_addresses: setup.labeled_addresses,
+            duration,
+            ..Default::default()
+        }
+    }
+
     /// Returns the skipped result for single test (used in skipped fuzz and alert tests too).
     pub fn single_skip(mut self) -> Self {
         self.status = TestStatus::Skipped;
