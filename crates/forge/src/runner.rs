@@ -256,7 +256,7 @@ impl<'a> ContractRunner<'a> {
         }
         FuzzFixtures::new(fixtures)
     }
-  
+
     /// Runs just the setuo functions for the contract.
     pub fn run_setups(&mut self, start: &Instant) -> Result<SetupOutput, SuiteResult> {
         let mut warnings = Vec::new();
@@ -339,11 +339,18 @@ impl<'a> ContractRunner<'a> {
 
     pub fn run_only_setups(&mut self, start: &Instant) -> SuiteResult {
         let setup_result = self.run_setups(start);
-        let output_suite = match setup_result {
-            Ok(output) => SuiteResult::new(start.elapsed(), BTreeMap::from_iter(vec![("setUp()".to_string(), TestResult::setup_success(output.setup, start.elapsed()))]), output.warnings),
+
+        match setup_result {
+            Ok(output) => SuiteResult::new(
+                start.elapsed(),
+                BTreeMap::from_iter(vec![(
+                    "setUp()".to_string(),
+                    TestResult::setup_success(output.setup, start.elapsed()),
+                )]),
+                output.warnings,
+            ),
             Err(err) => err,
-        };
-        output_suite
+        }
     }
 
     /// Runs all tests for a contract whose names match the provided regular expression
@@ -355,12 +362,12 @@ impl<'a> ContractRunner<'a> {
     ) -> SuiteResult {
         let start = Instant::now();
 
-        let SetupOutput { setup, warnings, call_after_invariant, has_invariants } = 
-        match self.run_setups(&start) {
-            Ok(setup) => setup,
-            Err(err) => return err,
-        };
-        
+        let SetupOutput { setup, warnings, call_after_invariant, has_invariants } =
+            match self.run_setups(&start) {
+                Ok(setup) => setup,
+                Err(err) => return err,
+            };
+
         // Filter out functions sequentially since it's very fast and there is no need to do it
         // in parallel.
         let find_timer = Instant::now();
@@ -497,15 +504,9 @@ impl<'a> ContractRunner<'a> {
             Some(self.revert_decoder),
         ) {
             Ok(res) => (res.raw, None),
-            Err(EvmError::Execution(err)) => {
-                (err.raw, Some(err.reason))
-            }
-            Err(EvmError::SkipError) => {
-                return test_result.single_skip()
-            }
-            Err(err) => {
-                return test_result.alert_fail(err)
-            }
+            Err(EvmError::Execution(err)) => (err.raw, Some(err.reason)),
+            Err(EvmError::SkipError) => return test_result.single_skip(),
+            Err(err) => return test_result.alert_fail(err),
         };
 
         let success = self.executor.is_raw_call_mut_success(address, &mut raw_call_result, false);

@@ -150,7 +150,7 @@ fn test_cache_code() {
     let code = Bytes::new();
     let block_number = block_number - 10;
 
-    cache.cache_code(address, chain, block_number, code.clone());
+    cache.cache_code(address, chain, block_number, code);
     assert_eq!(
         cache.0.get(&(address, chain)).unwrap().no_code_detected_block_number,
         Some(block_number)
