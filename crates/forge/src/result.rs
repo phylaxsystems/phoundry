@@ -5,7 +5,8 @@ use crate::{
     fuzz::{BaseCounterExample, FuzzedCases},
     gas_report::GasReport,
 };
-use alloy_primitives::{Address, Log, U256};
+use alloy_primitives::{Address, Log};
+use alloy_sol_types::{sol, sol_data::Bool, SolType};
 use eyre::Report;
 use foundry_common::{evm::Breakpoints, get_contract_name, get_file_name, shell};
 use foundry_evm::{
@@ -17,7 +18,9 @@ use foundry_evm::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap}, fmt::{self, Write}, time::Duration,
+    collections::{BTreeMap, HashMap},
+    fmt::{self, Write},
+    time::Duration,
 };
 use yansi::Paint;
 
@@ -335,6 +338,57 @@ impl TestStatus {
     }
 }
 
+sol! {
+    enum NotificationSeverity {
+        Info,
+        Warning,
+        Critical
+    }
+
+    struct NotificationMessage {
+        string summary;
+        string description;
+        NotificationSeverity severity;
+        (string,string)[] labels;
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NotificationMessageOverride {
+    pub summary: String,
+    pub description: String,
+    pub severity: NotificationSeverityOverride,
+    pub labels: Vec<(String, String)>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum NotificationSeverityOverride {
+    Info,
+    Warning,
+    Critical,
+}
+
+impl From<NotificationMessage> for NotificationMessageOverride {
+    fn from(msg: NotificationMessage) -> Self {
+        Self {
+            summary: msg.summary,
+            description: msg.description,
+            severity: msg.severity.into(),
+            labels: msg.labels,
+        }
+    }
+}
+
+impl From<NotificationSeverity> for NotificationSeverityOverride {
+    fn from(severity: NotificationSeverity) -> Self {
+        match severity {
+            NotificationSeverity::Info => Self::Info,
+            NotificationSeverity::Warning => Self::Warning,
+            NotificationSeverity::Critical | NotificationSeverity::__Invalid => Self::Critical,
+        }
+    }
+}
+
 /// The result of an executed test.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TestResult {
@@ -503,26 +557,40 @@ impl TestResult {
     ) -> Self {
         let outcome_kind = if let Some(output) = raw_call_result.out {
             let bytes = output.into_data();
-            match U256::try_from_be_slice(&bytes as &[u8]) {
-                None => {
-                    AlertOutcomeKind::UnknownReturn
-                },
-                Some(val) => {
-                    if val.leading_zeros() == 255 {
-                        AlertOutcomeKind::Success
-                    } else if val.is_zero() {
-                        AlertOutcomeKind::Failure
-                    } else {
-                        AlertOutcomeKind::UnknownReturn
-                    }
+
+            if let Ok(decoded_bool) = Bool::abi_decode(&bytes as &[u8], true) {
+                if decoded_bool {
+                    AlertOutcomeKind::Success(None)
+                } else {
+                    AlertOutcomeKind::Failure(None)
                 }
+            } else if let Ok((decoded_bool, notif_msg)) =
+                <(Bool, NotificationMessage) as SolType>::abi_decode_params(&bytes as &[u8], true)
+            {
+                if decoded_bool {
+                    AlertOutcomeKind::Success(Some(notif_msg.into()))
+                } else {
+                    AlertOutcomeKind::Failure(Some(notif_msg.into()))
+                }
+            } else if let Ok((notif_msg, decoded_bool)) =
+                <(NotificationMessage, Bool) as SolType>::abi_decode_params(&bytes as &[u8], true)
+            {
+                if decoded_bool {
+                    AlertOutcomeKind::Success(Some(notif_msg.into()))
+                } else {
+                    AlertOutcomeKind::Failure(Some(notif_msg.into()))
+                }
+            } else {
+                AlertOutcomeKind::UnknownReturn
             }
         } else {
             AlertOutcomeKind::UnknownReturn
         };
 
-        self.kind =
-            TestKind::Alert { gas: raw_call_result.gas_used.wrapping_sub(raw_call_result.stipend), outcome: outcome_kind };
+        self.kind = TestKind::Alert {
+            gas: raw_call_result.gas_used.wrapping_sub(raw_call_result.stipend),
+            outcome: outcome_kind,
+        };
 
         // Record logs, labels, traces and merge coverages.
         self.logs.extend(raw_call_result.logs);
@@ -701,20 +769,17 @@ impl TestKindReport {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AlertOutcomeKind {
-    Success,
+    Success(Option<NotificationMessageOverride>),
     Revert,
     UnknownReturn,
-    Failure,
+    Failure(Option<NotificationMessageOverride>),
 }
 
 /// Various types of tests
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum TestKind {
     /// An alert test result.
-    Alert { 
-        gas: u64,
-        outcome: AlertOutcomeKind,
-    },
+    Alert { gas: u64, outcome: AlertOutcomeKind },
     /// A unit test.
     Unit { gas: u64 },
     /// A fuzz test.

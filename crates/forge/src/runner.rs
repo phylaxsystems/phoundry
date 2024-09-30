@@ -308,7 +308,8 @@ impl<'a> ContractRunner<'a> {
         });
 
         // Invariant testing requires tracing to figure out what contracts were created.
-        let has_invariants = self.contract.abi.functions().any(|func| func.name.is_invariant_test());
+        let has_invariants =
+            self.contract.abi.functions().any(|func| func.name.is_invariant_test());
         let tmp_tracing =
             self.executor.inspector().tracer.is_none() && has_invariants && call_setup;
         if tmp_tracing {
@@ -397,9 +398,7 @@ impl<'a> ContractRunner<'a> {
                             identified_contracts.as_ref().unwrap(),
                         )
                     }
-                    TestFunctionKind::Alert => {
-                        self.run_alert(func, setup)
-                    }
+                    TestFunctionKind::Alert => self.run_alert(func, setup),
                     _ => unreachable!(),
                 };
 
@@ -454,11 +453,7 @@ impl<'a> ContractRunner<'a> {
     ///
     /// State modifications are not committed to the evm database but discarded after the call,
     /// similar to `eth_call`.
-    pub fn run_alert(
-        &self,
-        func: &Function,
-        setup: TestSetup,
-    ) -> TestResult {
+    pub fn run_alert(&self, func: &Function, setup: TestSetup) -> TestResult {
         let address = setup.address;
         let test_result = TestResult::new(setup);
 
@@ -477,8 +472,7 @@ impl<'a> ContractRunner<'a> {
             Err(err) => return test_result.alert_fail(err),
         };
 
-        let success = 
-            self.executor.is_raw_call_mut_success(address, &mut raw_call_result, false);
+        let success = self.executor.is_raw_call_mut_success(address, &mut raw_call_result, false);
         test_result.alert_result(success, reason, raw_call_result)
     }
 

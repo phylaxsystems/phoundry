@@ -22,7 +22,12 @@ pub trait TestFilter: Send + Sync {
 pub trait TestFunctionExt {
     /// Returns the kind of test function.
     fn test_function_kind(&self) -> TestFunctionKind {
-        TestFunctionKind::classify(self.tfe_as_str(), self.tfe_has_inputs(), self.tfe_is_valid_alert_signature(), self.tfe_is_from_string())
+        TestFunctionKind::classify(
+            self.tfe_as_str(),
+            self.tfe_has_inputs(),
+            self.tfe_is_valid_alert_signature(),
+            self.tfe_is_from_string(),
+        )
     }
 
     /// Returns `true` if this function is a `setUp` function.
@@ -47,7 +52,7 @@ pub trait TestFunctionExt {
 
     /// Returns `true` if this function is an alert test.
     #[inline]
-     fn is_alert(&self) -> bool {
+    fn is_alert(&self) -> bool {
         matches!(self.test_function_kind(), TestFunctionKind::Alert { .. })
     }
 
@@ -91,10 +96,13 @@ impl TestFunctionExt for Function {
     }
 
     fn tfe_is_valid_alert_signature(&self) -> bool {
-        self.inputs.is_empty()
-        && self.outputs.len() == 1
-        && self.outputs.iter().all(|output| 
-            output.ty.eq("bool"))
+        self.inputs.is_empty() &&
+            (self.outputs.len() == 1 && self.outputs.iter().all(|output| output.ty.eq("bool"))) ||
+            (self.outputs.len() == 2 &&
+                self.outputs.iter().any(|output| output.selector_type().eq("bool")) &&
+                self.outputs.iter().any(|output| {
+                    output.selector_type().eq("(string,string,uint8,(string,string)[])")
+                }))
     }
 
     fn tfe_is_from_string(&self) -> bool {
@@ -182,7 +190,7 @@ impl TestFunctionKind {
             _ if name.starts_with("alert") && !is_valid_alert && !from_string => {
                 warn!("There was an function prefixed with 'alert' that did not have a valid input or return type: {}", name);
                 Self::Unknown
-            },
+            }
             _ => Self::Unknown,
         }
     }
@@ -212,7 +220,10 @@ impl TestFunctionKind {
     /// Returns `true` if this function is a unit, fuzz, or invariant test.
     #[inline]
     pub const fn is_any_test(&self) -> bool {
-        matches!(self, Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest | Self::Alert)
+        matches!(
+            self,
+            Self::UnitTest { .. } | Self::FuzzTest { .. } | Self::InvariantTest | Self::Alert
+        )
     }
 
     /// Returns `true` if this function is a test that should fail.
