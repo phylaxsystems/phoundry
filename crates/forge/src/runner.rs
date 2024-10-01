@@ -76,6 +76,14 @@ pub struct ContractRunner<'a> {
     pub span: tracing::Span,
 }
 
+/// Intermediate output of the setup function.
+pub struct SetupOutput {
+    pub setup: TestSetup,
+    pub warnings: Vec<String>,
+    pub call_after_invariant: bool,
+    pub has_invariants: bool,
+}
+
 impl<'a> ContractRunner<'a> {
     /// Deploys the test contract inside the runner from the sending account, and optionally runs
     /// the `setUp` function on the test contract.
@@ -101,6 +109,7 @@ impl<'a> ContractRunner<'a> {
 
         let mut logs = Vec::new();
         let mut traces = Vec::with_capacity(self.libs_to_deploy.len());
+        self.debug = true;
         for code in self.libs_to_deploy.iter() {
             match self.executor.deploy(
                 LIBRARY_DEPLOYER,
@@ -248,20 +257,15 @@ impl<'a> ContractRunner<'a> {
         FuzzFixtures::new(fixtures)
     }
 
-    /// Runs all tests for a contract whose names match the provided regular expression
-    pub fn run_tests(
-        &mut self,
-        filter: &dyn TestFilter,
-        test_options: &TestOptions,
-        known_contracts: ContractsByArtifact,
-    ) -> SuiteResult {
-        let start = Instant::now();
+    /// Runs just the setuo functions for the contract.
+    pub fn run_setups(&mut self, start: &Instant) -> Result<SetupOutput, SuiteResult> {
         let mut warnings = Vec::new();
 
         // Check if `setUp` function with valid signature declared.
         let setup_fns: Vec<_> =
             self.contract.abi.functions().filter(|func| func.name.is_setup()).collect();
         let call_setup = setup_fns.len() == 1 && setup_fns[0].name == "setUp";
+
         // There is a single miss-cased `setUp` function, so we add a warning
         for &setup_fn in setup_fns.iter() {
             if setup_fn.name != "setUp" {
@@ -273,12 +277,12 @@ impl<'a> ContractRunner<'a> {
         }
         // There are multiple setUp function, so we return a single test result for `setUp`
         if setup_fns.len() > 1 {
-            return SuiteResult::new(
+            return Err(SuiteResult::new(
                 start.elapsed(),
                 [("setUp()".to_string(), TestResult::fail("multiple setUp functions".to_string()))]
                     .into(),
                 warnings,
-            )
+            ))
         }
 
         // Check if `afterInvariant` function with valid signature declared.
@@ -286,7 +290,7 @@ impl<'a> ContractRunner<'a> {
             self.contract.abi.functions().filter(|func| func.name.is_after_invariant()).collect();
         if after_invariant_fns.len() > 1 {
             // Return a single test result failure if multiple functions declared.
-            return SuiteResult::new(
+            return Err(SuiteResult::new(
                 start.elapsed(),
                 [(
                     "afterInvariant()".to_string(),
@@ -294,7 +298,7 @@ impl<'a> ContractRunner<'a> {
                 )]
                 .into(),
                 warnings,
-            )
+            ))
         }
         let call_after_invariant = after_invariant_fns.first().map_or(false, |after_invariant_fn| {
             let match_sig = after_invariant_fn.name == "afterInvariant";
@@ -324,12 +328,45 @@ impl<'a> ContractRunner<'a> {
 
         if setup.reason.is_some() {
             // The setup failed, so we return a single test result for `setUp`
-            return SuiteResult::new(
+            return Err(SuiteResult::new(
                 start.elapsed(),
                 [("setUp()".to_string(), TestResult::setup_fail(setup))].into(),
                 warnings,
-            )
+            ))
         }
+        Ok(SetupOutput { setup, warnings, call_after_invariant, has_invariants })
+    }
+
+    pub fn run_only_setups(&mut self, start: &Instant) -> SuiteResult {
+        let setup_result = self.run_setups(start);
+
+        match setup_result {
+            Ok(output) => SuiteResult::new(
+                start.elapsed(),
+                BTreeMap::from_iter(vec![(
+                    "setUp()".to_string(),
+                    TestResult::setup_success(output.setup, start.elapsed()),
+                )]),
+                output.warnings,
+            ),
+            Err(err) => err,
+        }
+    }
+
+    /// Runs all tests for a contract whose names match the provided regular expression
+    pub fn run_tests(
+        &mut self,
+        filter: &dyn TestFilter,
+        test_options: &TestOptions,
+        known_contracts: ContractsByArtifact,
+    ) -> SuiteResult {
+        let start = Instant::now();
+
+        let SetupOutput { setup, warnings, call_after_invariant, has_invariants } =
+            match self.run_setups(&start) {
+                Ok(setup) => setup,
+                Err(err) => return err,
+            };
 
         // Filter out functions sequentially since it's very fast and there is no need to do it
         // in parallel.

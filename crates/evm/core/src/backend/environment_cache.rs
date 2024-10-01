@@ -128,7 +128,7 @@ mod tests {
         let fork_url = fork_url();
         let good_provider = ProviderBuilder::new(&fork_url).build().unwrap();
 
-        let bad_provider = ProviderBuilder::new(&FAKE_FORK_URL).build().unwrap();
+        let bad_provider = ProviderBuilder::new(FAKE_FORK_URL).build().unwrap();
 
         let environment_cache = EnvironmentCache::default();
 
@@ -147,7 +147,7 @@ mod tests {
         let fork_url = fork_url();
         let good_provider = ProviderBuilder::new(&fork_url).build().unwrap();
 
-        let bad_provider = ProviderBuilder::new(&FAKE_FORK_URL).build().unwrap();
+        let bad_provider = ProviderBuilder::new(FAKE_FORK_URL).build().unwrap();
 
         let environment_cache = EnvironmentCache::default();
 
@@ -194,7 +194,7 @@ mod tests {
         let fork_url = fork_url();
         let good_provider = ProviderBuilder::new(&fork_url).build().unwrap();
 
-        let bad_provider = ProviderBuilder::new(&FAKE_FORK_URL).build().unwrap();
+        let bad_provider = ProviderBuilder::new(FAKE_FORK_URL).build().unwrap();
 
         let cache = EnvironmentCache::default();
 

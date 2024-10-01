@@ -147,7 +147,7 @@ mod test {
         let _ = db.basic_ref(weth).unwrap();
 
         let expected_access = Access {
-            access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth.clone())),
+            access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth)),
             chain: Chain::default(),
             state_lookup: StateLookup::RollN(0),
         };
@@ -161,7 +161,7 @@ mod test {
 
         let data_accesses = vec![
             Access {
-                access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth.clone())),
+                access_type: AccessType::RevmDbAccess(RevmDbAccess::Basic(weth)),
                 chain: Chain::default(),
                 state_lookup: StateLookup::RollN(0),
             },
