@@ -600,6 +600,19 @@ interface Vm {
     #[cheatcode(group = Evm, safety = Unsafe)]
     function selectFork(uint256 forkId) external;
 
+    /// Roll back to a specific block number in the active fork. A Phylax introduced cheatcode.
+    #[cheatcode(group = Evm, safety = Unsafe)] 
+    function rollForkAt(uint256 blockNumber) external;
+    /// Roll back to a specific block number in the fork with the given ID. A Phylax introduced cheatcode.
+    #[cheatcode(group = Evm, safety = Unsafe)] 
+	function rollForkAt(uint256 forkId, uint256 blockNumber) external;
+    /// Rolls back a certain number of blocks in the past, allowing for fast caching that results in faster testing runs. A Phylax introduced cheatcode.
+    #[cheatcode(group = Evm, safety = Unsafe)] 
+	function rollForkBack(uint256 blocksInThePast) external;
+    /// Rolls back a certain number of blocks in the past in the fork with the given ID, allowing for fast caching that results in faster testing runs. A Phylax introduced cheatcode.
+    #[cheatcode(group = Evm, safety = Unsafe)] 
+	function rollForkBack(uint256 forkId, uint256 blocksInThePast) external;
+
     /// Fetches the given transaction from the active fork and executes it on the current state.
     #[cheatcode(group = Evm, safety = Unsafe)]
     function transact(bytes32 txHash) external;

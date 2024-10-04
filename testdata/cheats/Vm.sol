@@ -340,6 +340,10 @@ interface Vm {
     function revokePersistent(address account) external;
     function revokePersistent(address[] calldata accounts) external;
     function roll(uint256 newHeight) external;
+    function rollForkAt(uint256 blockNumber) external;
+    function rollForkAt(uint256 forkId, uint256 blockNumber) external;
+    function rollForkBack(uint256 blocksInThePast) external;
+    function rollForkBack(uint256 forkId, uint256 blocksInThePast) external;
     function rollFork(uint256 blockNumber) external;
     function rollFork(bytes32 txHash) external;
     function rollFork(uint256 forkId, uint256 blockNumber) external;
