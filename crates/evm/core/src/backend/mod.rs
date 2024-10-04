@@ -183,6 +183,7 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         &mut self,
         id: Option<LocalForkId>,
         block_number: u64,
+        state_lookup: StateLookup,
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
@@ -199,6 +200,38 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         &mut self,
         id: Option<LocalForkId>,
         transaction: B256,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()>;
+
+    /// Updates the fork to given transaction hash
+    ///
+    /// This will essentially create a new fork at the block this transaction was mined and replays
+    /// all transactions up until the given transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if not matching fork was found.
+    fn roll_fork_at(
+        &mut self,
+        id: Option<LocalForkId>,
+        target_block_number: u64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()>;
+
+    /// Updates the fork to given transaction hash
+    ///
+    /// This will essentially create a new fork at the block this transaction was mined and replays
+    /// all transactions up until the given transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if not matching fork was found.
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        roll_back_block_count: i64,
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
@@ -1214,6 +1247,7 @@ impl DatabaseExt for Backend {
         &mut self,
         id: Option<LocalForkId>,
         block_number: u64,
+        state_lookup: StateLookup,
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()> {
@@ -1222,6 +1256,7 @@ impl DatabaseExt for Backend {
         let (fork_id, backend, fork_env) = self.forks.roll_fork(
             self.inner.ensure_fork_id(id).cloned()?,
             block_number,
+            state_lookup,
             Arc::clone(&self.environment_cache),
             Arc::clone(&self.data_accesses),
             Arc::clone(&self.code_cache),
@@ -1293,7 +1328,7 @@ impl DatabaseExt for Backend {
             self.get_block_number_and_block_for_transaction(id, transaction)?;
 
         // roll the fork to the transaction's block or latest if it's pending
-        self.roll_fork(Some(id), fork_block, env, journaled_state)?;
+        self.roll_fork(Some(id), fork_block, StateLookup::RollN(0), env, journaled_state)?;
 
         update_env_block(env, fork_block, &block);
 
@@ -1305,7 +1340,42 @@ impl DatabaseExt for Backend {
         Ok(())
     }
 
-    fn transact<I: InspectorExt<Self>>(
+    fn roll_fork_at(
+        &mut self,
+        id: Option<LocalForkId>,
+        block_number: u64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        trace!(?id, ?block_number, "roll fork at block");
+        let id = self.ensure_fork(id)?;
+
+        self.roll_fork(Some(id), block_number, StateLookup::RollAt(block_number), env, journaled_state)?;
+        let active_fork_url = self.active_fork_url().unwrap();
+        let accesses = self.get_accesses();
+        self.load_accesses(&accesses, env.cfg.chain_id.into(), block_number, active_fork_url.clone())?;
+        Ok(())
+    }
+
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        roll_back_block_count: i64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        let id = self.ensure_fork(id)?;
+        let fork_id = self.ensure_fork_id(id)?;
+        let active_fork_url = self.forks.get_fork_url(fork_id.clone())?.unwrap();
+        let block_number: u64 = env.block.number.to();
+        trace!(?id, ?roll_back_block_count, ?fork_id, current_block=?env.block.number, "roll fork back by N blocks");
+        self.roll_fork(Some(id), block_number, StateLookup::RollN(roll_back_block_count), env, journaled_state)?;
+        let accesses = self.get_accesses();
+        self.load_accesses(&accesses, env.cfg.chain_id.into(), block_number, active_fork_url)?;
+        Ok(())
+    }
+
+    fn transact<I: InspectorExt<Self>> (
         &mut self,
         maybe_id: Option<LocalForkId>,
         transaction: B256,
