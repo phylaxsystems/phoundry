@@ -204,10 +204,9 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
 
-    /// Updates the fork to given transaction hash
+    /// Updates the fork to a specific block number, and optimistically loads storage from previous blocks if they are cached. A Phylax introduced cheatcode.
     ///
-    /// This will essentially create a new fork at the block this transaction was mined and replays
-    /// all transactions up until the given transaction.
+    /// This will create a new fork at the block and attempts to load cached storage from previous blocks.
     ///
     /// # Errors
     ///
@@ -220,10 +219,9 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
 
-    /// Updates the fork to given transaction hash
+    /// Updates the fork to the N number of blocks before the current block, and optimistically loads storage from those previous blocks. A Phylax introduced cheatcode.
     ///
-    /// This will essentially create a new fork at the block this transaction was mined and replays
-    /// all transactions up until the given transaction.
+    /// This will create a new fork at the block N numbers from the current block on the forkand attempts to load cached storage from previous blocks.
     ///
     /// # Errors
     ///
