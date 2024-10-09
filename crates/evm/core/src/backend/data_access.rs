@@ -130,7 +130,7 @@ mod test {
             evm_opts: EvmOpts { fork_block_number: Some(1), ..Default::default() },
         };
 
-        db.create_fork(create_fork).unwrap();
+        db.create_fork(create_fork, StateLookup::RollAt(1)).unwrap();
 
         db.data_accesses.contains(&Access {
             access_type: AccessType::CreateFork(ENDPOINT.to_string()),

@@ -125,8 +125,9 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         fork: CreateFork,
         env: &mut Env,
         journaled_state: &mut JournaledState,
+        state_lookup: StateLookup,
     ) -> eyre::Result<LocalForkId> {
-        let id = self.create_fork(fork)?;
+        let id = self.create_fork(fork, state_lookup)?;
         self.select_fork(id, env, journaled_state)?;
         Ok(id)
     }
@@ -147,7 +148,7 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
     }
 
     /// Creates a new fork but does _not_ select it
-    fn create_fork(&mut self, fork: CreateFork) -> eyre::Result<LocalForkId>;
+    fn create_fork(&mut self, fork: CreateFork, state_lookup: StateLookup) -> eyre::Result<LocalForkId>;
 
     /// Creates a new fork but does _not_ select it
     fn create_fork_at_transaction(
@@ -510,6 +511,7 @@ impl Backend {
                     backend.environment_cache.clone(),
                     backend.data_accesses.clone(),
                     backend.code_cache.clone(),
+                    StateLookup::RollN(0),
                 )
                 .expect("Unable to create fork");
 
@@ -1093,7 +1095,7 @@ impl DatabaseExt for Backend {
         self.inner.snapshots.clear()
     }
 
-    fn create_fork(&mut self, create_fork: CreateFork) -> eyre::Result<LocalForkId> {
+    fn create_fork(&mut self, create_fork: CreateFork, state_lookup: StateLookup) -> eyre::Result<LocalForkId> {
         trace!("create fork");
 
         let (fork_id, fork, env) = self.forks.create_fork(
@@ -1101,10 +1103,9 @@ impl DatabaseExt for Backend {
             Arc::clone(&self.environment_cache),
             Arc::clone(&self.data_accesses),
             Arc::clone(&self.code_cache),
+            state_lookup.clone(),
         )?;
 
-        // All Create Forks roll to specific blocks as currently implemented
-        let state_lookup: StateLookup = (&create_fork).into();
 
         self.data_accesses.insert(Access {
             chain: env.cfg.chain_id.into(),
@@ -1125,7 +1126,7 @@ impl DatabaseExt for Backend {
         transaction: B256,
     ) -> eyre::Result<LocalForkId> {
         trace!(?transaction, "create fork at transaction");
-        let id = self.create_fork(fork)?;
+        let id = self.create_fork(fork, StateLookup::RollN(0))?;
         let fork_id = self.ensure_fork_id(id).cloned()?;
         let mut env = self
             .forks
@@ -2150,6 +2151,7 @@ impl Backend {
                             Arc::clone(&self.environment_cache),
                             Arc::clone(&self.data_accesses),
                             Arc::clone(&self.code_cache),
+                            access.state_lookup.clone(),
                         )
                         .map(|(_, fork, _)| fork),
                     Err(err) => Err(err),
@@ -2168,6 +2170,7 @@ impl Backend {
                         Arc::clone(&self.environment_cache),
                         Arc::clone(&self.data_accesses),
                         Arc::clone(&self.code_cache),
+                        access.state_lookup.clone(),
                     )
                     .map_err(|err| DatabaseError::msg(err.to_string()))?;
             }

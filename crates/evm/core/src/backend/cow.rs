@@ -139,8 +139,8 @@ impl<'a> DatabaseExt for CowBackend<'a> {
         }
     }
 
-    fn create_fork(&mut self, fork: CreateFork) -> eyre::Result<LocalForkId> {
-        self.backend.to_mut().create_fork(fork)
+    fn create_fork(&mut self, fork: CreateFork, state_lookup: StateLookup) -> eyre::Result<LocalForkId> {
+        self.backend.to_mut().create_fork(fork, state_lookup)
     }
 
     fn create_fork_at_transaction(

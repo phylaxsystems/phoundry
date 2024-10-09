@@ -54,7 +54,7 @@ pub fn abi_decode_calldata(
         calldata = &calldata[4..];
     }
 
-    let res = if input {
+    let res: Vec<DynSolValue> = if input {
         func.abi_decode_input(calldata, false)
     } else {
         func.abi_decode_output(calldata, false)

@@ -112,10 +112,11 @@ impl MultiFork {
         env_cache: Arc<EnvironmentCache>,
         data_accesses: Arc<dashmap::DashSet<Access>>,
         code_cache: Arc<CodeCache>,
+        state_lookup: StateLookup,
     ) -> eyre::Result<(ForkId, SharedBackend, Env)> {
         trace!("Creating new fork, url={}, block={:?}", fork.url, fork.evm_opts.fork_block_number);
         let (sender, rx) = oneshot_channel();
-        let req = Request::CreateFork(Box::new(fork), sender, env_cache, data_accesses, code_cache);
+        let req = Request::CreateFork(Box::new(fork), sender, state_lookup, env_cache, data_accesses, code_cache);
         self.handler.clone().try_send(req).map_err(|e| eyre::eyre!("{:?}", e))?;
         rx.recv()?
     }
@@ -185,6 +186,7 @@ enum Request {
     CreateFork(
         Box<CreateFork>,
         CreateSender,
+        StateLookup,
         Arc<EnvironmentCache>,
         Arc<dashmap::DashSet<Access>>,
         Arc<CodeCache>,
@@ -324,8 +326,8 @@ impl MultiForkHandler {
 
     fn on_request(&mut self, req: Request) {
         match req {
-            Request::CreateFork(fork, sender, env_cache, data_accesses, code_cache) => {
-                self.create_fork(*fork, StateLookup::RollN(0), sender, env_cache, data_accesses, code_cache)
+            Request::CreateFork(fork, sender, state_lookup, env_cache, data_accesses, code_cache) => {
+                self.create_fork(*fork, state_lookup, sender, env_cache, data_accesses, code_cache)
             }
             Request::GetFork(fork_id, sender) => {
                 let fork = self.forks.get(&fork_id).map(|f| f.backend.clone());

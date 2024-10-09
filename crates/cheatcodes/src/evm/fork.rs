@@ -120,7 +120,6 @@ impl Cheatcode for rollFork_3Call {
 impl Cheatcode for rollForkAt_0Call {
     fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
         let Self { blockNumber } = self;
-        println!("roll fork at 0 call");
         persist_caller(ccx);
         let maybe_current_fork_id = ccx.ecx.db.active_fork_id();
         ccx.ecx.db.roll_fork_at(
@@ -349,9 +348,14 @@ fn create_select_fork<DB: DatabaseExt>(
     block: Option<u64>,
 ) -> Result {
     check_broadcast(ccx.state)?;
+    let state_lookup = if let Some(block) = block {
+        StateLookup::RollAt(block)
+    } else {
+        StateLookup::RollN(0)
+    }; 
 
     let fork = create_fork_request(ccx, url_or_alias, block)?;
-    let id = ccx.ecx.db.create_select_fork(fork, &mut ccx.ecx.env, &mut ccx.ecx.journaled_state)?;
+    let id = ccx.ecx.db.create_select_fork(fork, &mut ccx.ecx.env, &mut ccx.ecx.journaled_state, state_lookup)?;
     Ok(id.abi_encode())
 }
 
@@ -361,8 +365,13 @@ fn create_fork<DB: DatabaseExt>(
     url_or_alias: &str,
     block: Option<u64>,
 ) -> Result {
+    let state_lookup = if let Some(block) = block {
+        StateLookup::RollAt(block)
+    } else {
+        StateLookup::RollN(0)
+    }; 
     let fork = create_fork_request(ccx, url_or_alias, block)?;
-    let id = ccx.ecx.db.create_fork(fork)?;
+    let id = ccx.ecx.db.create_fork(fork, state_lookup)?;
     Ok(id.abi_encode())
 }
 
