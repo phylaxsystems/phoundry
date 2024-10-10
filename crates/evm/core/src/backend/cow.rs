@@ -21,6 +21,8 @@ use revm::{
 };
 use std::{borrow::Cow, collections::BTreeMap};
 
+use super::StateLookup;
+
 /// A wrapper around `Backend` that ensures only `revm::DatabaseRef` functions are called.
 ///
 /// Any changes made during its existence that affect the caching layer of the underlying Database
@@ -137,8 +139,8 @@ impl<'a> DatabaseExt for CowBackend<'a> {
         }
     }
 
-    fn create_fork(&mut self, fork: CreateFork) -> eyre::Result<LocalForkId> {
-        self.backend.to_mut().create_fork(fork)
+    fn create_fork(&mut self, fork: CreateFork, state_lookup: StateLookup) -> eyre::Result<LocalForkId> {
+        self.backend.to_mut().create_fork(fork, state_lookup)
     }
 
     fn create_fork_at_transaction(
@@ -162,10 +164,11 @@ impl<'a> DatabaseExt for CowBackend<'a> {
         &mut self,
         id: Option<LocalForkId>,
         block_number: u64,
+        state_lookup: StateLookup,  
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()> {
-        self.backend_mut(env).roll_fork(id, block_number, env, journaled_state)
+        self.backend_mut(env).roll_fork(id, block_number, state_lookup, env, journaled_state)
     }
 
     fn roll_fork_to_transaction(
@@ -176,6 +179,26 @@ impl<'a> DatabaseExt for CowBackend<'a> {
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()> {
         self.backend_mut(env).roll_fork_to_transaction(id, transaction, env, journaled_state)
+    }
+
+    fn roll_fork_at(
+        &mut self,
+        id: Option<LocalForkId>,
+        block_number: u64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        self.backend_mut(env).roll_fork_at(id, block_number, env, journaled_state)
+    }
+
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        roll_back_block_count: i64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        self.backend_mut(env).roll_fork_back(id, roll_back_block_count, env, journaled_state)
     }
 
     fn transact<I: InspectorExt<Backend>>(

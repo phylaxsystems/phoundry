@@ -125,8 +125,9 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         fork: CreateFork,
         env: &mut Env,
         journaled_state: &mut JournaledState,
+        state_lookup: StateLookup,
     ) -> eyre::Result<LocalForkId> {
-        let id = self.create_fork(fork)?;
+        let id = self.create_fork(fork, state_lookup)?;
         self.select_fork(id, env, journaled_state)?;
         Ok(id)
     }
@@ -147,7 +148,7 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
     }
 
     /// Creates a new fork but does _not_ select it
-    fn create_fork(&mut self, fork: CreateFork) -> eyre::Result<LocalForkId>;
+    fn create_fork(&mut self, fork: CreateFork, state_lookup: StateLookup) -> eyre::Result<LocalForkId>;
 
     /// Creates a new fork but does _not_ select it
     fn create_fork_at_transaction(
@@ -183,6 +184,7 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         &mut self,
         id: Option<LocalForkId>,
         block_number: u64,
+        state_lookup: StateLookup,
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
@@ -199,6 +201,36 @@ pub trait DatabaseExt: Database<Error = DatabaseError> {
         &mut self,
         id: Option<LocalForkId>,
         transaction: B256,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()>;
+
+    /// Updates the fork to a specific block number, and optimistically loads storage from previous blocks if they are cached. A Phylax introduced cheatcode.
+    ///
+    /// This will create a new fork at the block and attempts to load cached storage from previous blocks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if not matching fork was found.
+    fn roll_fork_at(
+        &mut self,
+        id: Option<LocalForkId>,
+        target_block_number: u64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()>;
+
+    /// Updates the fork to the N number of blocks before the current block, and optimistically loads storage from those previous blocks. A Phylax introduced cheatcode.
+    ///
+    /// This will create a new fork at the block N numbers from the current block on the forkand attempts to load cached storage from previous blocks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if not matching fork was found.
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        roll_back_block_count: i64,
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
@@ -479,6 +511,7 @@ impl Backend {
                     backend.environment_cache.clone(),
                     backend.data_accesses.clone(),
                     backend.code_cache.clone(),
+                    StateLookup::RollN(0),
                 )
                 .expect("Unable to create fork");
 
@@ -1062,7 +1095,7 @@ impl DatabaseExt for Backend {
         self.inner.snapshots.clear()
     }
 
-    fn create_fork(&mut self, create_fork: CreateFork) -> eyre::Result<LocalForkId> {
+    fn create_fork(&mut self, create_fork: CreateFork, state_lookup: StateLookup) -> eyre::Result<LocalForkId> {
         trace!("create fork");
 
         let (fork_id, fork, env) = self.forks.create_fork(
@@ -1070,10 +1103,9 @@ impl DatabaseExt for Backend {
             Arc::clone(&self.environment_cache),
             Arc::clone(&self.data_accesses),
             Arc::clone(&self.code_cache),
+            state_lookup.clone(),
         )?;
 
-        // All Create Forks roll to specific blocks as currently implemented
-        let state_lookup: StateLookup = (&create_fork).into();
 
         self.data_accesses.insert(Access {
             chain: env.cfg.chain_id.into(),
@@ -1094,7 +1126,7 @@ impl DatabaseExt for Backend {
         transaction: B256,
     ) -> eyre::Result<LocalForkId> {
         trace!(?transaction, "create fork at transaction");
-        let id = self.create_fork(fork)?;
+        let id = self.create_fork(fork, StateLookup::RollN(0))?;
         let fork_id = self.ensure_fork_id(id).cloned()?;
         let mut env = self
             .forks
@@ -1214,6 +1246,7 @@ impl DatabaseExt for Backend {
         &mut self,
         id: Option<LocalForkId>,
         block_number: u64,
+        state_lookup: StateLookup,
         env: &mut Env,
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()> {
@@ -1222,6 +1255,7 @@ impl DatabaseExt for Backend {
         let (fork_id, backend, fork_env) = self.forks.roll_fork(
             self.inner.ensure_fork_id(id).cloned()?,
             block_number,
+            state_lookup,
             Arc::clone(&self.environment_cache),
             Arc::clone(&self.data_accesses),
             Arc::clone(&self.code_cache),
@@ -1293,7 +1327,7 @@ impl DatabaseExt for Backend {
             self.get_block_number_and_block_for_transaction(id, transaction)?;
 
         // roll the fork to the transaction's block or latest if it's pending
-        self.roll_fork(Some(id), fork_block, env, journaled_state)?;
+        self.roll_fork(Some(id), fork_block, StateLookup::RollN(0), env, journaled_state)?;
 
         update_env_block(env, fork_block, &block);
 
@@ -1305,7 +1339,35 @@ impl DatabaseExt for Backend {
         Ok(())
     }
 
-    fn transact<I: InspectorExt<Self>>(
+    fn roll_fork_at(
+        &mut self,
+        id: Option<LocalForkId>,
+        block_number: u64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        trace!(?id, ?block_number, "roll fork at block");
+        let id = self.ensure_fork(id)?;
+        self.roll_fork(Some(id), block_number, StateLookup::RollAt(block_number), env, journaled_state)?;
+        Ok(())
+    }
+
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        roll_back_block_count: i64,
+        env: &mut Env,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        let id = self.ensure_fork(id)?;
+        let fork_id = self.ensure_fork_id(id)?;
+        let block_number: u64 = env.block.number.to();
+        trace!(?id, ?roll_back_block_count, ?fork_id, current_block=?env.block.number, "roll fork back by N blocks");
+        self.roll_fork(Some(id), block_number, StateLookup::RollN(roll_back_block_count), env, journaled_state)?;
+        Ok(())
+    }
+
+    fn transact<I: InspectorExt<Self>> (
         &mut self,
         maybe_id: Option<LocalForkId>,
         transaction: B256,
@@ -2089,6 +2151,7 @@ impl Backend {
                             Arc::clone(&self.environment_cache),
                             Arc::clone(&self.data_accesses),
                             Arc::clone(&self.code_cache),
+                            access.state_lookup.clone(),
                         )
                         .map(|(_, fork, _)| fork),
                     Err(err) => Err(err),
@@ -2107,6 +2170,7 @@ impl Backend {
                         Arc::clone(&self.environment_cache),
                         Arc::clone(&self.data_accesses),
                         Arc::clone(&self.code_cache),
+                        access.state_lookup.clone(),
                     )
                     .map_err(|err| DatabaseError::msg(err.to_string()))?;
             }

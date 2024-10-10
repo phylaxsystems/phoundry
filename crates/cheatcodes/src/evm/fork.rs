@@ -4,7 +4,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
 use alloy_sol_types::SolValue;
 use foundry_common::provider::ProviderBuilder;
-use foundry_evm_core::fork::CreateFork;
+use foundry_evm_core::{backend::StateLookup, fork::CreateFork};
 
 impl Cheatcode for activeForkCall {
     fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
@@ -66,6 +66,7 @@ impl Cheatcode for rollFork_0Call {
         ccx.ecx.db.roll_fork(
             None,
             (*blockNumber).to(),
+            StateLookup::RollN(0),
             &mut ccx.ecx.env,
             &mut ccx.ecx.journaled_state,
         )?;
@@ -94,6 +95,7 @@ impl Cheatcode for rollFork_2Call {
         ccx.ecx.db.roll_fork(
             Some(*forkId),
             (*blockNumber).to(),
+            StateLookup::RollN(0),
             &mut ccx.ecx.env,
             &mut ccx.ecx.journaled_state,
         )?;
@@ -114,6 +116,65 @@ impl Cheatcode for rollFork_3Call {
         Ok(Default::default())
     }
 }
+
+impl Cheatcode for rollForkAt_0Call {
+    fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
+        let Self { blockNumber } = self;
+        persist_caller(ccx);
+        let maybe_current_fork_id = ccx.ecx.db.active_fork_id();
+        ccx.ecx.db.roll_fork_at(
+            maybe_current_fork_id,
+            (*blockNumber).to(),
+            &mut ccx.ecx.env,
+            &mut ccx.ecx.journaled_state,
+        )?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkAt_1Call {
+    fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
+        let Self { forkId, blockNumber } = self;
+        persist_caller(ccx);
+        ccx.ecx.db.roll_fork_at(
+            Some(*forkId),
+            (*blockNumber).to(),
+            &mut ccx.ecx.env,
+            &mut ccx.ecx.journaled_state,
+        )?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkBack_0Call {
+    fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
+        let Self { blocksInThePast } = self;
+        persist_caller(ccx);
+        let maybe_current_fork_id = ccx.ecx.db.active_fork_id();
+        ccx.ecx.db.roll_fork_back(
+            maybe_current_fork_id,
+            (*blocksInThePast).to(),
+            &mut ccx.ecx.env,
+            &mut ccx.ecx.journaled_state,
+        )?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkBack_1Call {
+    fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
+        let Self { forkId, blocksInThePast } = self;
+        persist_caller(ccx);
+        ccx.ecx.db.roll_fork_back(
+            Some(*forkId),
+            (*blocksInThePast).to(),
+            &mut ccx.ecx.env,
+            &mut ccx.ecx.journaled_state,
+        )?;
+        Ok(Default::default())
+    }
+}
+
 
 impl Cheatcode for selectForkCall {
     fn apply_full<DB: DatabaseExt>(&self, ccx: &mut CheatsCtxt<DB>) -> Result {
@@ -287,9 +348,14 @@ fn create_select_fork<DB: DatabaseExt>(
     block: Option<u64>,
 ) -> Result {
     check_broadcast(ccx.state)?;
+    let state_lookup = if let Some(block) = block {
+        StateLookup::RollAt(block)
+    } else {
+        StateLookup::RollN(0)
+    }; 
 
     let fork = create_fork_request(ccx, url_or_alias, block)?;
-    let id = ccx.ecx.db.create_select_fork(fork, &mut ccx.ecx.env, &mut ccx.ecx.journaled_state)?;
+    let id = ccx.ecx.db.create_select_fork(fork, &mut ccx.ecx.env, &mut ccx.ecx.journaled_state, state_lookup)?;
     Ok(id.abi_encode())
 }
 
@@ -299,8 +365,13 @@ fn create_fork<DB: DatabaseExt>(
     url_or_alias: &str,
     block: Option<u64>,
 ) -> Result {
+    let state_lookup = if let Some(block) = block {
+        StateLookup::RollAt(block)
+    } else {
+        StateLookup::RollN(0)
+    }; 
     let fork = create_fork_request(ccx, url_or_alias, block)?;
-    let id = ccx.ecx.db.create_fork(fork)?;
+    let id = ccx.ecx.db.create_fork(fork, state_lookup)?;
     Ok(id.abi_encode())
 }
 

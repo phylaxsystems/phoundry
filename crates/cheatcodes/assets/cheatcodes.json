@@ -6893,6 +6893,86 @@
     },
     {
       "func": {
+        "id": "rollForkAt_0",
+        "description": "Roll back to a specific block number in the active fork. A Phylax introduced cheatcode.",
+        "declaration": "function rollForkAt(uint256 blockNumber) external;",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "rollForkAt(uint256)",
+        "selector": "0x8d9fb99f",
+        "selectorBytes": [
+          141,
+          159,
+          185,
+          159
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
+        "id": "rollForkAt_1",
+        "description": "Roll back to a specific block number in the fork with the given ID. A Phylax introduced cheatcode.",
+        "declaration": "function rollForkAt(uint256 forkId, uint256 blockNumber) external;",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "rollForkAt(uint256,uint256)",
+        "selector": "0x03cb350e",
+        "selectorBytes": [
+          3,
+          203,
+          53,
+          14
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
+        "id": "rollForkBack_0",
+        "description": "Rolls back a certain number of blocks in the past, allowing for fast caching that results in faster testing runs. A Phylax introduced cheatcode.",
+        "declaration": "function rollForkBack(uint256 blocksInThePast) external;",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "rollForkBack(uint256)",
+        "selector": "0x9a273b72",
+        "selectorBytes": [
+          154,
+          39,
+          59,
+          114
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
+        "id": "rollForkBack_1",
+        "description": "Rolls back a certain number of blocks in the past in the fork with the given ID, allowing for fast caching that results in faster testing runs. A Phylax introduced cheatcode.",
+        "declaration": "function rollForkBack(uint256 forkId, uint256 blocksInThePast) external;",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "rollForkBack(uint256,uint256)",
+        "selector": "0xa3e5c910",
+        "selectorBytes": [
+          163,
+          229,
+          201,
+          16
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
         "id": "rollFork_0",
         "description": "Updates the currently active fork to given block number\nThis is similar to `roll` but for the currently active fork.",
         "declaration": "function rollFork(uint256 blockNumber) external;",
