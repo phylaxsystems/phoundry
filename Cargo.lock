@@ -3627,6 +3627,7 @@ dependencies = [
 name = "foundry-cheatcodes"
 version = "0.2.0"
 dependencies = [
+ "alloy-chains",
  "alloy-dyn-abi",
  "alloy-genesis",
  "alloy-json-abi",
