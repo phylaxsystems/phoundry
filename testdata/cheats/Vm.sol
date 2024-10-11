@@ -164,9 +164,13 @@ interface Vm {
     function createFork(string calldata urlOrAlias) external returns (uint256 forkId);
     function createFork(string calldata urlOrAlias, uint256 blockNumber) external returns (uint256 forkId);
     function createFork(string calldata urlOrAlias, bytes32 txHash) external returns (uint256 forkId);
+    function createFork(uint256 chainId) external returns (uint256 forkId);
+    function createFork(uint256 chainId, uint256 blockNumber) external returns (uint256 forkId);
     function createSelectFork(string calldata urlOrAlias) external returns (uint256 forkId);
     function createSelectFork(string calldata urlOrAlias, uint256 blockNumber) external returns (uint256 forkId);
     function createSelectFork(string calldata urlOrAlias, bytes32 txHash) external returns (uint256 forkId);
+    function createSelectFork(uint256 chainId) external returns (uint256 forkId);
+    function createSelectFork(uint256 chainId, uint256 blockNumber) external returns (uint256 forkId);
     function createWallet(string calldata walletLabel) external returns (Wallet memory wallet);
     function createWallet(uint256 privateKey) external returns (Wallet memory wallet);
     function createWallet(uint256 privateKey, string calldata walletLabel) external returns (Wallet memory wallet);
