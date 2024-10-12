@@ -1,5 +1,6 @@
 use super::Result;
 use crate::Vm::Rpc;
+use alloy_chains::Chain;
 use alloy_primitives::{U256, map::AddressHashMap};
 use foundry_common::{ContractsByArtifact, fs::normalize_path};
 use foundry_compilers::{ArtifactId, ProjectPathsConfig, utils::canonicalize};
@@ -9,6 +10,7 @@ use foundry_config::{
 };
 use foundry_evm_core::opts::EvmOpts;
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -56,6 +58,8 @@ pub struct CheatsConfig {
     pub seed: Option<U256>,
     /// Whether to allow `expectRevert` to work for internal calls.
     pub internal_expect_revert: bool,
+    /// If provided, restricts CreateFork and related cheatcodes to this chain URL map.
+    pub valid_chains_by_url: Option<HashMap<Chain, String>>,
 }
 
 impl CheatsConfig {
@@ -92,6 +96,7 @@ impl CheatsConfig {
             assertions_revert: config.assertions_revert,
             seed: config.fuzz.seed,
             internal_expect_revert: config.allow_internal_expect_revert,
+            valid_chains_by_url: None,
         }
     }
 
@@ -190,11 +195,17 @@ impl CheatsConfig {
             }
         }
     }
+
+    /// Returns the resolved RPC URL for an alias or explicit endpoint.
+    pub fn rpc_url(&self, url_or_alias: &str) -> Result<String> {
+        Ok(self.rpc_endpoint(url_or_alias)?.url()?)
+    }
+
     /// Returns all the RPC urls and their alias.
     pub fn rpc_urls(&self) -> Result<Vec<Rpc>> {
         let mut urls = Vec::with_capacity(self.rpc_endpoints.len());
         for alias in self.rpc_endpoints.keys() {
-            let url = self.rpc_endpoint(alias)?.url()?;
+            let url = self.rpc_url(alias)?;
             urls.push(Rpc { key: alias.clone(), url });
         }
         Ok(urls)
@@ -222,6 +233,7 @@ impl Default for CheatsConfig {
             assertions_revert: true,
             seed: None,
             internal_expect_revert: false,
+            valid_chains_by_url: None,
         }
     }
 }
