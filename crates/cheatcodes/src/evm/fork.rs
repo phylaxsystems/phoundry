@@ -2,6 +2,7 @@ use crate::{
     Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, DatabaseExt, Result, Vm::*,
     json::json_value_to_token,
 };
+use alloy_chains::Chain;
 use alloy_dyn_abi::DynSolValue;
 use alloy_network::AnyNetwork;
 use alloy_primitives::{B256, U256};
@@ -44,6 +45,20 @@ impl Cheatcode for createFork_2Call {
     }
 }
 
+impl Cheatcode for createFork_3Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { chainId } = self;
+        create_fork_chain(ccx, chainId.to(), None)
+    }
+}
+
+impl Cheatcode for createFork_4Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { chainId, blockNumber } = self;
+        create_fork_chain(ccx, chainId.to(), Some(blockNumber.to()))
+    }
+}
+
 impl Cheatcode for createSelectFork_0Call {
     fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
         let Self { urlOrAlias } = self;
@@ -62,6 +77,20 @@ impl Cheatcode for createSelectFork_2Call {
     fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
         let Self { urlOrAlias, txHash } = self;
         create_select_fork_at_transaction(ccx, urlOrAlias, txHash)
+    }
+}
+
+impl Cheatcode for createSelectFork_3Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { chainId } = self;
+        create_select_fork_chain(ccx, chainId.to(), None)
+    }
+}
+
+impl Cheatcode for createSelectFork_4Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { chainId, blockNumber } = self;
+        create_select_fork_chain(ccx, chainId.to(), Some(blockNumber.to()))
     }
 }
 
@@ -304,11 +333,31 @@ fn create_select_fork(ccx: &mut CheatsCtxt, url_or_alias: &str, block: Option<u6
     Ok(id.abi_encode())
 }
 
+fn create_select_fork_chain(ccx: &mut CheatsCtxt, chain_id: u64, block: Option<u64>) -> Result {
+    if let Some(chains) = ccx.state.config.valid_chains_by_url.as_ref() {
+        let chain = Chain::from_id(chain_id);
+        if let Some(url) = chains.get(&chain).cloned() {
+            return create_select_fork(ccx, &url, block);
+        }
+    }
+    Err(fmt_err!("There was not a valid chain with id {chain_id}"))
+}
+
 /// Creates a new fork
 fn create_fork(ccx: &mut CheatsCtxt, url_or_alias: &str, block: Option<u64>) -> Result {
     let fork = create_fork_request(ccx, url_or_alias, block)?;
     let id = ccx.ecx.journaled_state.database.create_fork(fork)?;
     Ok(id.abi_encode())
+}
+
+fn create_fork_chain(ccx: &mut CheatsCtxt, chain_id: u64, block: Option<u64>) -> Result {
+    if let Some(chains) = ccx.state.config.valid_chains_by_url.as_ref() {
+        let chain = Chain::from_id(chain_id);
+        if let Some(url) = chains.get(&chain).cloned() {
+            return create_fork(ccx, &url, block);
+        }
+    }
+    Err(fmt_err!("There was not a valid chain with id {chain_id}"))
 }
 
 /// Creates and then also selects the new fork at the given transaction
