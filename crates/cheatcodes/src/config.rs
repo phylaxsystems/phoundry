@@ -1,5 +1,6 @@
 use super::Result;
 use crate::{script::ScriptWallets, Vm::Rpc};
+use alloy_chains::Chain;
 use alloy_primitives::Address;
 use foundry_common::{fs::normalize_path, ContractsByArtifact};
 use foundry_compilers::{utils::canonicalize, ProjectPathsConfig};
@@ -52,6 +53,8 @@ pub struct CheatsConfig {
     pub available_artifacts: Option<ContractsByArtifact>,
     /// Version of the script/test contract which is currently running.
     pub running_version: Option<Version>,
+    /// If provided, restricts the number of chains the CreateFork and related cheatcodes may switch to.
+    pub valid_chains_by_url: Option<HashMap<Chain, String>>,
 }
 
 impl CheatsConfig {
@@ -90,6 +93,7 @@ impl CheatsConfig {
             script_wallets,
             available_artifacts,
             running_version,
+            valid_chains_by_url: None,
         }
     }
 
@@ -217,6 +221,7 @@ impl Default for CheatsConfig {
             script_wallets: None,
             available_artifacts: Default::default(),
             running_version: Default::default(),
+            valid_chains_by_url: None,
         }
     }
 }

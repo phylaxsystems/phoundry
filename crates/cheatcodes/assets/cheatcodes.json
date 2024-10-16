@@ -3373,6 +3373,46 @@
     },
     {
       "func": {
+        "id": "createFork_3",
+        "description": "Creates a new fork with the given endpoint and the _latest_ block and returns the identifier of the fork.",
+        "declaration": "function createFork(uint256 chainId) external returns (uint256 forkId);",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "createFork(uint256)",
+        "selector": "0x68b89f2b",
+        "selectorBytes": [
+          104,
+          184,
+          159,
+          43
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
+        "id": "createFork_4",
+        "description": "Creates a new fork with the given endpoint and block and returns the identifier of the fork.",
+        "declaration": "function createFork(uint256 chainId, uint256 blockNumber) external returns (uint256 forkId);",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "createFork(uint256,uint256)",
+        "selector": "0xb2ef12d0",
+        "selectorBytes": [
+          178,
+          239,
+          18,
+          208
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
         "id": "createSelectFork_0",
         "description": "Creates and also selects a new fork with the given endpoint and the latest block and returns the identifier of the fork.",
         "declaration": "function createSelectFork(string calldata urlOrAlias) external returns (uint256 forkId);",
@@ -3425,6 +3465,46 @@
           213,
           43,
           122
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
+        "id": "createSelectFork_3",
+        "description": "Creates and also selects a new fork with the given endpoint and the latest block and returns the identifier of the fork.",
+        "declaration": "function createSelectFork(uint256 chainId) external returns (uint256 forkId);",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "createSelectFork(uint256)",
+        "selector": "0x07b8c65e",
+        "selectorBytes": [
+          7,
+          184,
+          198,
+          94
+        ]
+      },
+      "group": "evm",
+      "status": "stable",
+      "safety": "unsafe"
+    },
+    {
+      "func": {
+        "id": "createSelectFork_4",
+        "description": "Creates and also selects a new fork with the given endpoint and block and returns the identifier of the fork.",
+        "declaration": "function createSelectFork(uint256 chainId, uint256 blockNumber) external returns (uint256 forkId);",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "createSelectFork(uint256,uint256)",
+        "selector": "0x027f8b84",
+        "selectorBytes": [
+          2,
+          127,
+          139,
+          132
         ]
       },
       "group": "evm",
