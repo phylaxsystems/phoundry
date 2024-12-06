@@ -68,6 +68,8 @@ mod toml;
 
 mod utils;
 
+mod credible;
+
 /// Cheatcode implementation.
 pub(crate) trait Cheatcode: CheatcodeDef {
     /// Applies this cheatcode to the given state.
