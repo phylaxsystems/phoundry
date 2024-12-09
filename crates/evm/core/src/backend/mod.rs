@@ -82,7 +82,7 @@ pub type JournaledState = JournalInner<JournalEntry>;
 /// An extension trait that allows us to easily extend the `revm::Inspector` capabilities
 #[auto_impl::auto_impl(&mut)]
 pub trait DatabaseExt<F: FoundryEvmFactory>:
-    Database<Error = DatabaseError> + DatabaseCommit + Debug
+    Database<Error = DatabaseError> + DatabaseCommit + Debug + Send
 {
     /// Creates a new state snapshot at the current point of execution.
     ///
