@@ -613,6 +613,3 @@ solar-sema = { package = "solar-sema", git = "https://github.com/paradigmxyz/sol
 
 [workspace.metadata.cargo-shear]
 ignored = ["idna_adapter", "cast", "chisel", "forge", "alloy-contract"]
-
-[patch."ssh://git@github.com/phylaxsystems/assertion-executor.git"]
-assertion-executor = { path = "../assertion-executor" }
