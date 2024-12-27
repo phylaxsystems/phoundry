@@ -64,3 +64,7 @@ polkadotTestnet = "https://eth-rpc-testnet.polkadot.io"
 kusama = "https://eth-rpc-kusama.polkadot.io"
 polkadot = "https://eth-rpc.polkadot.io"
 rpcEnvAlias = "${RPC_ENV_ALIAS}"
+
+[profile.credible]
+src = "./credible"
+test = "./credible"
