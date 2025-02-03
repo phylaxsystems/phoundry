@@ -12,18 +12,18 @@ use tokio;
 
 /// Wrapper around DatabaseExt to make it thread-safe
 #[derive(Clone)]
-struct ThreadSafeDb<'a> {
-    db: Arc<Mutex<&'a mut dyn DatabaseExt>>,
+struct ThreadSafeDb {
+    db: Arc<Mutex<& mut dyn DatabaseExt>>,
 }
 
-impl std::fmt::Debug for ThreadSafeDb<'_> {
+impl std::fmt::Debug for ThreadSafeDb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ThreadSafeDb")
     }
 }
 
 /// Separate implementation block for constructor and helper methods
-impl<'a> ThreadSafeDb<'a> {
+impl ThreadSafeDb {
     /// Creates a new thread-safe database wrapper
     pub fn new(db: &'a mut dyn DatabaseExt) -> Self {
         Self { db: Arc::new(Mutex::new(db)) }
@@ -31,7 +31,7 @@ impl<'a> ThreadSafeDb<'a> {
 }
 
 /// Keep DatabaseRef implementation separate
-impl<'a> DatabaseRef for ThreadSafeDb<'a> {
+impl DatabaseRef for ThreadSafeDb {
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -135,7 +135,7 @@ impl Cheatcode for assertionExCall {
                     assertion_execution_details.total_assertion_gas
                 ),
             };
-            return Ok((
+            Ok((
                 assertion_validation_result,
                 assertion_execution_details.total_assertion_gas,
                 assertion_execution_details.total_assertions_ran,
