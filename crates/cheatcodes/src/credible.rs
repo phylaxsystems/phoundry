@@ -108,23 +108,39 @@ impl Cheatcode for assertionExCall {
             let _ = handle.await;
 
             validate_result
-        }); 
+        });
         if assertion_execution_result.is_err() {
-            bail!("Error during Assertion Execution: {:#?}", assertion_execution_result.err().unwrap());
+            bail!(
+                "Error during Assertion Execution: {:#?}",
+                assertion_execution_result.err().unwrap()
+            );
         } else {
             let assertion_execution_details = assertion_execution_result.unwrap();
             let assertion_validation_result = match assertion_execution_details.result_and_state {
                 Some(result_and_state) => {
                     let execution = result_and_state.result;
                     if !execution.is_success() {
-                        let decoded_error = Revert::abi_decode(&execution.into_output().unwrap_or_default(), false).unwrap_or(Revert::new(("Couldn't decode revert error".to_string(),)));
+                        let decoded_error =
+                            Revert::abi_decode(&execution.into_output().unwrap_or_default(), false)
+                                .unwrap_or(Revert::new((
+                                    "Couldn't decode revert error".to_string(),
+                                )));
                         bail!("Transaction Execution Reverted: {:#?}", decoded_error);
                     }
                     true
-                } ,
-                None =>  bail!("Some Assertions reverted | Total Assertions Ran: {} | Total Assertion Gas: {}", assertion_execution_details.total_assertions_ran, assertion_execution_details.total_assertion_gas)
+                }
+                None => bail!(
+                    "Some Assertions reverted | Total Assertions Ran: {} | Total Assertion Gas: {}",
+                    assertion_execution_details.total_assertions_ran,
+                    assertion_execution_details.total_assertion_gas
+                ),
             };
-            return Ok((assertion_validation_result, assertion_execution_details.total_assertion_gas, assertion_execution_details.total_assertions_ran).abi_encode())
+            return Ok((
+                assertion_validation_result,
+                assertion_execution_details.total_assertion_gas,
+                assertion_execution_details.total_assertions_ran,
+            )
+                .abi_encode())
         }
     }
 }

@@ -1634,7 +1634,7 @@ dependencies = [
 [[package]]
 name = "assertion-executor"
 version = "0.1.0"
-source = "git+ssh://git@github.com/phylaxsystems/assertion-executor.git?branch=main#addbce96cd3a728012d61a71ce6982ac6d964704"
+source = "git+ssh://git@github.com/phylaxsystems/assertion-executor.git?branch=main#d49f5080816b0591ef500fbd94eb1ceae0bedfa3"
 dependencies = [
  "alloy 0.8.3",
  "alloy-consensus 0.8.3",
@@ -6637,7 +6637,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -11562,7 +11562,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69fff37da548239c3bf9e64a12193d261e8b22b660991c6fd2df057c168f435f"
 dependencies = [
  "cc",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -12101,7 +12101,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
