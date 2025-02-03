@@ -1,6 +1,6 @@
 use crate::{Cheatcode, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::TxKind;
-use alloy_sol_types::SolValue;
+use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{db::fork_db::ForkDb, store::MockStore, ExecutorConfig};
 use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
 use revm::{
@@ -87,7 +87,7 @@ impl Cheatcode for assertionExCall {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         // Execute the future, blocking the current thread until completion
-        match rt.block_on(async move {
+        let assertion_execution_result = rt.block_on(async move {
             let cancellation_token = tokio_util::sync::CancellationToken::new();
 
             let (reader, handle) = store.cancellable_reader(cancellation_token.clone());
@@ -108,14 +108,23 @@ impl Cheatcode for assertionExCall {
             let _ = handle.await;
 
             validate_result
-        }) {
-            Ok(val) => Ok((
-                val.result_and_state.is_some(),
-                val.total_assertion_gas,
-                val.total_assertions_ran,
-            )
-                .abi_encode()),
-            Err(e) => Result::Err(format!("Error in assertionExCall: {:#?}", e).into()),
+        }); 
+        if assertion_execution_result.is_err() {
+            bail!("Error during Assertion Execution: {:#?}", assertion_execution_result.err().unwrap());
+        } else {
+            let assertion_execution_details = assertion_execution_result.unwrap();
+            let assertion_validation_result = match assertion_execution_details.result_and_state {
+                Some(result_and_state) => {
+                    let execution = result_and_state.result;
+                    if !execution.is_success() {
+                        let decoded_error = Revert::abi_decode(&execution.into_output().unwrap_or_default(), false).unwrap_or(Revert::new(("Couldn't decode revert error".to_string(),)));
+                        bail!("Transaction Execution Reverted: {:#?}", decoded_error);
+                    }
+                    true
+                } ,
+                None =>  bail!("Some Assertions reverted | Total Assertions Ran: {} | Total Assertion Gas: {}", assertion_execution_details.total_assertions_ran, assertion_execution_details.total_assertion_gas)
+            };
+            return Ok((assertion_validation_result, assertion_execution_details.total_assertion_gas, assertion_execution_details.total_assertions_ran).abi_encode())
         }
     }
 }
