@@ -3071,7 +3071,7 @@
       "func": {
         "id": "assertionEx",
         "description": "Gets the address for a given private key.",
-        "declaration": "function assertionEx(bytes calldata tx, address assertionAdopter, bytes[] assertions) external returns (bool success);",
+        "declaration": "function assertionEx(bytes calldata tx, address assertionAdopter, bytes[] assertions) external returns (uint256 total_assertion_gas, uint256 total_assertions_ran);",
         "visibility": "external",
         "mutability": "",
         "signature": "assertionEx(bytes,address,bytes[])",
