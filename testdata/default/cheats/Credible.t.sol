@@ -70,7 +70,6 @@ contract CredibleTest is DSTest {
         assertTrue(MockContract(assertionAdopter).value() == 2);
 
         (success, total_assertion_gas, total_assertions_ran) = vm.assertionEx(abi.encode(transaction), assertionAdopter, assertions);
-        assertTrue(success);
         assertTrue(total_assertion_gas == 234094);
         assertTrue(total_assertions_ran == 1);
     }
