@@ -1,29 +1,29 @@
 use crate::{Cheatcode, CheatsCtxt, Result, Vm::*};
-use alloy_primitives::TxKind;
+use alloy_primitives::{hex::hex, TxKind};
 use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{db::fork_db::ForkDb, store::MockStore, ExecutorConfig};
 use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
 use revm::{
-    primitives::{AccountInfo, Address, Bytecode, TxEnv, B256, U256},
+    primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
     DatabaseCommit, DatabaseRef,
 };
-use std::sync::{Arc, Mutex};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 use tokio;
 
 /// Wrapper around DatabaseExt to make it thread-safe
 #[derive(Clone)]
-struct ThreadSafeDb {
-    db: Arc<Mutex<& mut dyn DatabaseExt>>,
+struct ThreadSafeDb<'a> {
+    db: Arc<Mutex<&'a mut dyn DatabaseExt>>,
 }
 
-impl std::fmt::Debug for ThreadSafeDb {
+impl std::fmt::Debug for ThreadSafeDb<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ThreadSafeDb")
     }
 }
 
 /// Separate implementation block for constructor and helper methods
-impl ThreadSafeDb {
+impl<'a> ThreadSafeDb<'a> {
     /// Creates a new thread-safe database wrapper
     pub fn new(db: &'a mut dyn DatabaseExt) -> Self {
         Self { db: Arc::new(Mutex::new(db)) }
@@ -31,7 +31,7 @@ impl ThreadSafeDb {
 }
 
 /// Keep DatabaseRef implementation separate
-impl DatabaseRef for ThreadSafeDb {
+impl<'a> DatabaseRef for ThreadSafeDb<'a> {
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -87,7 +87,7 @@ impl Cheatcode for assertionExCall {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         // Execute the future, blocking the current thread until completion
-        let assertion_execution_result = rt.block_on(async move {
+        let res = rt.block_on(async move {
             let cancellation_token = tokio_util::sync::CancellationToken::new();
 
             let (reader, handle) = store.cancellable_reader(cancellation_token.clone());
@@ -109,38 +109,43 @@ impl Cheatcode for assertionExCall {
 
             validate_result
         });
-        if assertion_execution_result.is_err() {
-            bail!(
-                "Error during Assertion Execution: {:#?}",
-                assertion_execution_result.err().unwrap()
-            );
-        } else {
-            let assertion_execution_details = assertion_execution_result.unwrap();
-            let assertion_validation_result = match assertion_execution_details.result_and_state {
-                Some(result_and_state) => {
-                    let execution = result_and_state.result;
-                    if !execution.is_success() {
-                        let decoded_error =
-                            Revert::abi_decode(&execution.into_output().unwrap_or_default(), false)
-                                .unwrap_or(Revert::new((
-                                    "Couldn't decode revert error".to_string(),
-                                )));
-                        bail!("Transaction Execution Reverted: {:#?}", decoded_error);
-                    }
-                    true
-                }
-                None => bail!(
-                    "Some Assertions reverted | Total Assertions Ran: {} | Total Assertion Gas: {}",
-                    assertion_execution_details.total_assertions_ran,
-                    assertion_execution_details.total_assertion_gas
-                ),
-            };
-            Ok((
-                assertion_validation_result,
-                assertion_execution_details.total_assertion_gas,
-                assertion_execution_details.total_assertions_ran,
-            )
-                .abi_encode())
+        if res.is_err(){
+            bail!("Error during Assertion Execution: {:#?}", res.err().unwrap());
         }
+        let tx_validation = res.unwrap();
+        if !tx_validation.is_valid(){
+            if !tx_validation.result_and_state.result.is_success() {
+                let decoded_error = decode_revert_error(&tx_validation.result_and_state.result);
+                bail!("Transaction Execution Reverted: {}", decoded_error.reason());
+            }
+            let mut reverted_assertions = HashMap::new();
+            // There should only be one assertion contract in the tx validation
+            let assertion_contract = tx_validation.assertions_executions.first().unwrap();
+            for (fn_selector_index, assertion_fn) in assertion_contract.assertion_fns_results.iter().enumerate() {
+                if !assertion_fn.is_success() {
+                    let key = format!("[selector {}:index {}]", assertion_fn.id.fn_selector, fn_selector_index);
+                    let revert = decode_revert_error(assertion_fn.as_result());
+                    reverted_assertions.insert(key, revert);
+                }
+            }
+            let mut error_msg = String::from("\nThe following assertions failed:\n");
+            for (key, revert) in reverted_assertions {
+                error_msg.push_str(&format!(
+                    "{} - Revert Reason: {} \n", 
+                    key, revert.reason()
+                ));
+            }
+            bail!(error_msg);
+        }
+        let total_assertion_gas = tx_validation.total_assertions_gas();
+        let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
+        Ok((total_assertion_gas, total_assertions_ran).abi_encode())
     }
+}
+
+fn decode_revert_error(revert: &ExecutionResult) -> Revert {
+    Revert::abi_decode(&revert.clone().into_output().unwrap_or_default(), false)
+        .unwrap_or(Revert::new((
+            "Unknown Revert Reason".to_string(),
+        )))
 }
