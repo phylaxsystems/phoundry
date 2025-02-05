@@ -2,10 +2,7 @@ use crate::{Cheatcode, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::TxKind;
 use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{db::fork_db::ForkDb, store::MockStore, ExecutorConfig};
-use foundry_evm_core::{
-    backend::{DatabaseError, DatabaseExt, GLOBAL_FAIL_SLOT},
-    constants::CHEATCODE_ADDRESS,
-};
+use foundry_evm_core::backend::{DatabaseError, DatabaseExt };
 use revm::{
     primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
     DatabaseCommit, DatabaseRef,
@@ -99,7 +96,7 @@ impl Cheatcode for assertionExCall {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         // Execute the future, blocking the current thread until completion
-        let res = rt.block_on(async move {
+        let tx_validation = rt.block_on(async move {
             let cancellation_token = tokio_util::sync::CancellationToken::new();
 
             let (reader, handle) = store.cancellable_reader(cancellation_token.clone());
@@ -120,11 +117,7 @@ impl Cheatcode for assertionExCall {
             let _ = handle.await;
 
             validate_result
-        });
-        if res.is_err() {
-            bail!("Error during Assertion Execution: {:#?}", res.err().unwrap());
-        }
-        let tx_validation = res.unwrap();
+        }).map_err(|e| format!("Assertion Executor Error: {:#?}", e))?;
         let assertion_contract = tx_validation.assertions_executions.first().unwrap();
         let total_assertion_gas = tx_validation.total_assertions_gas();
         let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
@@ -180,7 +173,7 @@ impl Cheatcode for assertionExCall {
             }
 
             executor.console_log(ccx, error_msg);
-            ccx.ecx.sstore(CHEATCODE_ADDRESS, GLOBAL_FAIL_SLOT, U256::from(1))?;
+            bail!("Assertions Reverted");
         }
         Ok(Default::default())
     }
