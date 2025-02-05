@@ -119,7 +119,8 @@ impl Cheatcode for assertionExCall {
                 bail!("Transaction Execution Reverted: {}", decoded_error.reason());
             }
             let mut reverted_assertions = HashMap::new();
-            // There should only be one assertion contract in the tx validation
+
+            // FIXME: The cheatcode can accept multiple assertion contracts curently, but then it makes it hard to associate the functions with every assertion contract. The user wouldn't know what's the code_hash of the assertion contract to understand which failed. The code_hash is passed by the assertion executor, but the user woudldn't know to which contract it belongs to.
             let assertion_contract = tx_validation.assertions_executions.first().unwrap();
             for (fn_selector_index, assertion_fn) in assertion_contract.assertion_fns_results.iter().enumerate() {
                 if !assertion_fn.is_success() {
