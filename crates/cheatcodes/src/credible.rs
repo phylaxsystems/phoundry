@@ -2,7 +2,7 @@ use crate::{Cheatcode, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::TxKind;
 use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{db::fork_db::ForkDb, store::MockStore, ExecutorConfig};
-use foundry_evm_core::backend::{DatabaseError, DatabaseExt };
+use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
 use revm::{
     primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
     DatabaseCommit, DatabaseRef,
@@ -96,28 +96,30 @@ impl Cheatcode for assertionExCall {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         // Execute the future, blocking the current thread until completion
-        let tx_validation = rt.block_on(async move {
-            let cancellation_token = tokio_util::sync::CancellationToken::new();
+        let tx_validation = rt
+            .block_on(async move {
+                let cancellation_token = tokio_util::sync::CancellationToken::new();
 
-            let (reader, handle) = store.cancellable_reader(cancellation_token.clone());
+                let (reader, handle) = store.cancellable_reader(cancellation_token.clone());
 
-            let mut assertion_executor = config.build(db, reader);
+                let mut assertion_executor = config.build(db, reader);
 
-            // Commit current journal state so that it is available for assertions and
-            // triggering tx
-            let mut fork_db = ForkDb::new(assertion_executor.db.clone());
-            fork_db.commit(state);
+                // Commit current journal state so that it is available for assertions and
+                // triggering tx
+                let mut fork_db = ForkDb::new(assertion_executor.db.clone());
+                fork_db.commit(state);
 
-            // Store assertions
-            let validate_result =
-                assertion_executor.validate_transaction(block, tx_env, &mut fork_db).await;
+                // Store assertions
+                let validate_result =
+                    assertion_executor.validate_transaction(block, tx_env, &mut fork_db).await;
 
-            cancellation_token.cancel();
+                cancellation_token.cancel();
 
-            let _ = handle.await;
+                let _ = handle.await;
 
-            validate_result
-        }).map_err(|e| format!("Assertion Executor Error: {:#?}", e))?;
+                validate_result
+            })
+            .map_err(|e| format!("Assertion Executor Error: {:#?}", e))?;
         let assertion_contract = tx_validation.assertions_executions.first().unwrap();
         let total_assertion_gas = tx_validation.total_assertions_gas();
         let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
