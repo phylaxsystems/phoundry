@@ -1,8 +1,8 @@
-use crate::{Cheatcode, CheatsCtxt, Result, Vm::*};
+use crate::{Cheatcode, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::{hex::hex, TxKind};
 use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{db::fork_db::ForkDb, store::MockStore, ExecutorConfig};
-use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
+use foundry_evm_core::{backend::{DatabaseError, DatabaseExt, GLOBAL_FAIL_SLOT}, constants::CHEATCODE_ADDRESS};
 use revm::{
     primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
     DatabaseCommit, DatabaseRef,
@@ -52,7 +52,7 @@ impl<'a> DatabaseRef for ThreadSafeDb<'a> {
 }
 
 impl Cheatcode for assertionExCall {
-    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+    fn apply_full(&self, ccx: &mut CheatsCtxt, executor: &mut dyn CheatcodesExecutor) -> Result {
         let Self { tx, assertionAdopter: assertion_adopter, assertions } = self;
 
         let spec_id = ccx.ecx.spec_id();
@@ -113,13 +113,14 @@ impl Cheatcode for assertionExCall {
             bail!("Error during Assertion Execution: {:#?}", res.err().unwrap());
         }
         let tx_validation = res.unwrap();
+        let total_assertion_gas = tx_validation.total_assertions_gas();
+        let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
         if !tx_validation.is_valid(){
             if !tx_validation.result_and_state.result.is_success() {
                 let decoded_error = decode_revert_error(&tx_validation.result_and_state.result);
                 bail!("Transaction Execution Reverted: {}", decoded_error.reason());
             }
             let mut reverted_assertions = HashMap::new();
-
             // FIXME: The cheatcode can accept multiple assertion contracts curently, but then it makes it hard to associate the functions with every assertion contract. The user wouldn't know what's the code_hash of the assertion contract to understand which failed. The code_hash is passed by the assertion executor, but the user woudldn't know to which contract it belongs to.
             let assertion_contract = tx_validation.assertions_executions.first().unwrap();
             for (fn_selector_index, assertion_fn) in assertion_contract.assertion_fns_results.iter().enumerate() {
@@ -136,10 +137,9 @@ impl Cheatcode for assertionExCall {
                     key, revert.reason()
                 ));
             }
-            bail!(error_msg);
+            executor.console_log(ccx, error_msg);
+            ccx.ecx.sstore(CHEATCODE_ADDRESS, GLOBAL_FAIL_SLOT, U256::from(1))?;
         }
-        let total_assertion_gas = tx_validation.total_assertions_gas();
-        let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
         Ok((total_assertion_gas, total_assertions_ran).abi_encode())
     }
 }
