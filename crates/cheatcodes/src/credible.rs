@@ -53,7 +53,7 @@ impl<'a> DatabaseRef for ThreadSafeDb<'a> {
 
 impl Cheatcode for assertionExCall {
     fn apply_full(&self, ccx: &mut CheatsCtxt, executor: &mut dyn CheatcodesExecutor) -> Result {
-        let Self { tx, assertionAdopter: assertion_adopter, assertions } = self;
+        let Self { tx, assertionAdopter: assertion_adopter, assertionContract, assertionContractLabel } = self;
 
         let spec_id = ccx.ecx.spec_id();
         let block = ccx.ecx.env.block.clone();
@@ -64,13 +64,12 @@ impl Cheatcode for assertionExCall {
         let db = ThreadSafeDb::new(ccx.ecx.db);
 
         // Prepare assertion store
-        let assertions_bytecode =
-            assertions.iter().map(|bytes| Bytecode::LegacyRaw(bytes.to_vec().into())).collect();
+        let assertion_contract_bytecode = Bytecode::LegacyRaw(assertionContract.to_vec().into());
 
         let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: 3_000_000 };
 
         let mut store = MockStore::new(config.clone());
-        store.insert(*assertion_adopter, assertions_bytecode).expect("Failed to store assertions");
+        store.insert(*assertion_adopter, vec![assertion_contract_bytecode]).expect("Failed to store assertions");
 
         let decoded_tx = AssertionExTransaction::abi_decode(&tx, true)?;
 
@@ -121,7 +120,7 @@ impl Cheatcode for assertionExCall {
                 bail!("Transaction Execution Reverted: {}", decoded_error.reason());
             }
             let mut reverted_assertions = HashMap::new();
-            // FIXME: The cheatcode can accept multiple assertion contracts curently, but then it makes it hard to associate the functions with every assertion contract. The user wouldn't know what's the code_hash of the assertion contract to understand which failed. The code_hash is passed by the assertion executor, but the user woudldn't know to which contract it belongs to.
+            // There should only be one assertion contract in the tx validation
             let assertion_contract = tx_validation.assertions_executions.first().unwrap();
             for (fn_selector_index, assertion_fn) in assertion_contract.assertion_fns_results.iter().enumerate() {
                 if !assertion_fn.is_success() {
@@ -130,7 +129,7 @@ impl Cheatcode for assertionExCall {
                     reverted_assertions.insert(key, revert);
                 }
             }
-            let mut error_msg = String::from("\nThe following assertions failed:\n");
+            let mut error_msg = String::from("\n{assertionContractLabel} Assertions Failed:\n");
             for (key, revert) in reverted_assertions {
                 error_msg.push_str(&format!(
                     "{} - Revert Reason: {} \n", 
