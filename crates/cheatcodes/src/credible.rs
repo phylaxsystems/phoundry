@@ -82,24 +82,35 @@ impl Cheatcode for assertionExCall {
         let store = match AssertionStore::new_ephemeral() {
             Ok(store) => store,
             Err(e) => {
-                executor.console_log(ccx, format!("Failed to create assertion store: {e}"));
-                bail!("Failed to create assertion store");
+                executor.console_log(ccx, format!("Error: {e}"));
+                executor.console_log(
+                    ccx,
+                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                );
+                bail!("Assertion store creation failed");
             }
         };
 
         // Insert assertion contract into store
         let assertion_state = AssertionState::new_active(assertion_contract_bytecode, &config)
-            .map_err(|e| eyre::eyre!("Failed to create assertion state: {e}"))?;
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
 
         match store.insert(*assertion_adopter, assertion_state) {
             Ok(Some(_)) => (), // Successfully inserted
             Ok(None) => {
-                executor.console_log(ccx, "Failed to insert assertion: no result".to_string());
-                bail!("Failed to insert assertion");
+                executor.console_log(
+                    ccx,
+                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                );
+                bail!("Assertion insertion failed");
             }
             Err(e) => {
-                executor.console_log(ccx, format!("Failed to insert assertion: {e}"));
-                bail!("Failed to insert assertion");
+                executor.console_log(ccx, format!("Error: {e}"));
+                executor.console_log(
+                    ccx,
+                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                );
+                bail!("Assertion insertion failed");
             }
         }
         let decoded_tx = AssertionExTransaction::abi_decode(tx, true)?;
@@ -122,18 +133,25 @@ impl Cheatcode for assertionExCall {
         fork_db.commit(state);
 
         // Validate transaction and handle errors
-        let validate_result =
-            match assertion_executor.validate_transaction(block, tx_env, &mut fork_db) {
-                Ok(result) => result,
-                Err(ExecutorError::TxError(evm_err)) => {
-                    executor.console_log(ccx, format!("EVM execution failed: {evm_err}"));
-                    bail!("EVM execution failed");
-                }
-                Err(ExecutorError::AssertionReadError(store_err)) => {
-                    executor.console_log(ccx, format!("Assertion store error: {store_err}"));
-                    bail!("Assertion store error");
-                }
-            };
+        let validate_result = match assertion_executor.validate_transaction(
+            block,
+            tx_env,
+            &mut fork_db,
+        ) {
+            Ok(result) => result,
+            Err(ExecutorError::TxError(evm_err)) => {
+                executor.console_log(ccx, format!("EVM execution failed: {evm_err}"));
+                bail!("EVM execution failed");
+            }
+            Err(ExecutorError::AssertionReadError(store_err)) => {
+                executor.console_log(ccx, format!("Error: {store_err}"));
+                executor.console_log(
+                        ccx,
+                        "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                    );
+                bail!("Assertion store error");
+            }
+        };
 
         // Handle transaction revert
         if !validate_result.result_and_state.result.is_success() {
@@ -144,7 +162,6 @@ impl Cheatcode for assertionExCall {
 
         // Get assertion execution info
         let Some(assertion_contract) = validate_result.assertions_executions.first() else {
-            executor.console_log(ccx, "No assertion executed".to_string());
             bail!("No assertion executed");
         };
 
