@@ -4,7 +4,7 @@ use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{
     db::fork_db::ForkDb,
     store::{AssertionState, AssertionStore},
-    ExecutorConfig,
+    ExecutorConfig, ExecutorError,
 };
 use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
 use revm::{
@@ -79,18 +79,29 @@ impl Cheatcode for assertionExCall {
 
         let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: 3_000_000 };
 
-        let store = AssertionStore::new_ephemeral().unwrap();
-        store
-            .insert(
-                *assertion_adopter,
-                AssertionState::new_active(assertion_contract_bytecode, &config).unwrap(),
-            )
-            .unwrap()
-            .expect("Failed to store assertions");
+        let store = match AssertionStore::new_ephemeral() {
+            Ok(store) => store,
+            Err(e) => {
+                executor.console_log(ccx, format!("Failed to create assertion store: {e}"));
+                bail!("Failed to create assertion store");
+            }
+        };
 
-        // .insert(*assertion_adopter, vec![assertion_contract_bytecode])
-        //.expect("Failed to store assertions");
+        // Insert assertion contract into store
+        let assertion_state = AssertionState::new_active(assertion_contract_bytecode, &config)
+            .map_err(|e| eyre::eyre!("Failed to create assertion state: {e}"))?;
 
+        match store.insert(*assertion_adopter, assertion_state) {
+            Ok(Some(_)) => (), // Successfully inserted
+            Ok(None) => {
+                executor.console_log(ccx, "Failed to insert assertion: no result".to_string());
+                bail!("Failed to insert assertion");
+            }
+            Err(e) => {
+                executor.console_log(ccx, format!("Failed to insert assertion: {e}"));
+                bail!("Failed to insert assertion");
+            }
+        }
         let decoded_tx = AssertionExTransaction::abi_decode(tx, true)?;
 
         let tx_env = TxEnv {
@@ -110,18 +121,34 @@ impl Cheatcode for assertionExCall {
         let mut fork_db = ForkDb::new(assertion_executor.db.clone());
         fork_db.commit(state);
 
-        // Store assertions
+        // Validate transaction and handle errors
         let validate_result =
-            assertion_executor.validate_transaction(block, tx_env, &mut fork_db).unwrap();
+            match assertion_executor.validate_transaction(block, tx_env, &mut fork_db) {
+                Ok(result) => result,
+                Err(ExecutorError::TxError(evm_err)) => {
+                    executor.console_log(ccx, format!("EVM execution failed: {evm_err}"));
+                    bail!("EVM execution failed");
+                }
+                Err(ExecutorError::AssertionReadError(store_err)) => {
+                    executor.console_log(ccx, format!("Assertion store error: {store_err}"));
+                    bail!("Assertion store error");
+                }
+            };
 
-        // if transaction execution reverted, bail
+        // Handle transaction revert
         if !validate_result.result_and_state.result.is_success() {
             let decoded_error = decode_revert_error(&validate_result.result_and_state.result);
             executor.console_log(ccx, format!("Transaction reverted: {}", decoded_error.reason()));
             bail!("Transaction Reverted");
         }
-        // else get information about the assertion execution
-        let assertion_contract = validate_result.assertions_executions.first().unwrap();
+
+        // Get assertion execution info
+        let Some(assertion_contract) = validate_result.assertions_executions.first() else {
+            executor.console_log(ccx, "No assertion executed".to_string());
+            bail!("No assertion executed");
+        };
+
+        // Log gas usage information
         let total_assertion_gas = validate_result.total_assertions_gas();
         let total_assertions_ran = validate_result.total_assertion_funcs_ran();
         let tx_gas_used = validate_result.result_and_state.result.gas_used();
@@ -142,6 +169,7 @@ impl Cheatcode for assertionExCall {
         }
         executor.console_log(ccx, assertion_gas_message);
 
+        // Handle failed assertions
         if !validate_result.is_valid() {
             let mut error_msg = format!("\n  {assertionContractLabel} Assertions Failed:\n");
             // Collect failed assertions
@@ -172,6 +200,7 @@ impl Cheatcode for assertionExCall {
             executor.console_log(ccx, error_msg);
             bail!("Assertions Reverted");
         }
+
         Ok(Default::default())
     }
 }
