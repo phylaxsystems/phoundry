@@ -25,7 +25,6 @@ vergen = { workspace = true, default-features = false, features = [
 [dependencies]
 assertion-executor = { git = "ssh://git@github.com/phylaxsystems/assertion-executor.git", branch = "main", features = ["phoundry"]  }
 
-tokio.workspace = true
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
 foundry-compilers.workspace = true
@@ -73,5 +72,4 @@ tracing.workspace = true
 walkdir.workspace = true
 proptest.workspace = true
 serde.workspace = true
-tokio-util = "0.7.13"
 

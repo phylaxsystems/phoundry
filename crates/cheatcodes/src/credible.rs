@@ -1,7 +1,11 @@
 use crate::{Cheatcode, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
-use alloy_primitives::TxKind;
+use alloy_primitives::{Bytes, TxKind};
 use alloy_sol_types::{Revert, SolError, SolValue};
-use assertion_executor::{db::fork_db::ForkDb, store::MockStore, ExecutorConfig};
+use assertion_executor::{
+    db::fork_db::ForkDb,
+    store::{AssertionState, AssertionStore},
+    ExecutorConfig, ExecutorError,
+};
 use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
 use revm::{
     primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
@@ -11,7 +15,6 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use tokio;
 
 /// Wrapper around DatabaseExt to make it thread-safe
 #[derive(Clone)]
@@ -34,7 +37,7 @@ impl<'a> ThreadSafeDb<'a> {
 }
 
 /// Keep DatabaseRef implementation separate
-impl<'a> DatabaseRef for ThreadSafeDb<'a> {
+impl DatabaseRef for ThreadSafeDb<'_> {
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -72,16 +75,45 @@ impl Cheatcode for assertionExCall {
         let db = ThreadSafeDb::new(ccx.ecx.db);
 
         // Prepare assertion store
-        let assertion_contract_bytecode = Bytecode::LegacyRaw(assertionContract.to_vec().into());
+        let assertion_contract_bytecode = Bytes::from(assertionContract.to_vec());
 
         let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: 3_000_000 };
 
-        let mut store = MockStore::new(config.clone());
-        store
-            .insert(*assertion_adopter, vec![assertion_contract_bytecode])
-            .expect("Failed to store assertions");
+        let store = match AssertionStore::new_ephemeral() {
+            Ok(store) => store,
+            Err(e) => {
+                executor.console_log(ccx, format!("Error: {e}"));
+                executor.console_log(
+                    ccx,
+                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                );
+                bail!("Assertion store creation failed");
+            }
+        };
 
-        let decoded_tx = AssertionExTransaction::abi_decode(&tx, true)?;
+        // Insert assertion contract into store
+        let assertion_state = AssertionState::new_active(assertion_contract_bytecode, &config)
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+
+        match store.insert(*assertion_adopter, assertion_state) {
+            Ok(Some(_)) => (), // Successfully inserted
+            Ok(None) => {
+                executor.console_log(
+                    ccx,
+                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                );
+                bail!("Assertion insertion failed");
+            }
+            Err(e) => {
+                executor.console_log(ccx, format!("Error: {e}"));
+                executor.console_log(
+                    ccx,
+                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                );
+                bail!("Assertion insertion failed");
+            }
+        }
+        let decoded_tx = AssertionExTransaction::abi_decode(tx, true)?;
 
         let tx_env = TxEnv {
             caller: decoded_tx.from,
@@ -93,47 +125,52 @@ impl Cheatcode for assertionExCall {
             ..Default::default()
         };
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let mut assertion_executor = config.build(db, store);
 
-        // Execute the future, blocking the current thread until completion
-        let tx_validation = rt
-            .block_on(async move {
-                let cancellation_token = tokio_util::sync::CancellationToken::new();
+        // Commit current journal state so that it is available for assertions and
+        // triggering tx
+        let mut fork_db = ForkDb::new(assertion_executor.db.clone());
+        fork_db.commit(state);
 
-                let (reader, handle) = store.cancellable_reader(cancellation_token.clone());
+        // Validate transaction and handle errors
+        let validate_result = match assertion_executor.validate_transaction(
+            block,
+            tx_env,
+            &mut fork_db,
+        ) {
+            Ok(result) => result,
+            Err(ExecutorError::TxError(evm_err)) => {
+                executor.console_log(ccx, format!("EVM execution failed: {evm_err}"));
+                bail!("EVM execution failed");
+            }
+            Err(ExecutorError::AssertionReadError(store_err)) => {
+                executor.console_log(ccx, format!("Error: {store_err}"));
+                executor.console_log(
+                        ccx,
+                        "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
+                    );
+                bail!("Assertion store error");
+            }
+        };
 
-                let mut assertion_executor = config.build(db, reader);
-
-                // Commit current journal state so that it is available for assertions and
-                // triggering tx
-                let mut fork_db = ForkDb::new(assertion_executor.db.clone());
-                fork_db.commit(state);
-
-                // Store assertions
-                let validate_result =
-                    assertion_executor.validate_transaction(block, tx_env, &mut fork_db).await;
-
-                cancellation_token.cancel();
-
-                let _ = handle.await;
-
-                validate_result
-            })
-            .map_err(|e| format!("Assertion Executor Error: {:#?}", e))?;
-        // if transaction execution reverted, bail
-        if !tx_validation.result_and_state.result.is_success() {
-            let decoded_error = decode_revert_error(&tx_validation.result_and_state.result);
+        // Handle transaction revert
+        if !validate_result.result_and_state.result.is_success() {
+            let decoded_error = decode_revert_error(&validate_result.result_and_state.result);
             executor.console_log(ccx, format!("Transaction reverted: {}", decoded_error.reason()));
             bail!("Transaction Reverted");
         }
-        // else get information about the assertion execution
-        let assertion_contract = tx_validation.assertions_executions.first().unwrap();
-        let total_assertion_gas = tx_validation.total_assertions_gas();
-        let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
-        let tx_gas_used = tx_validation.result_and_state.result.gas_used();
+
+        // Get assertion execution info
+        let Some(assertion_contract) = validate_result.assertions_executions.first() else {
+            bail!("No assertion executed");
+        };
+
+        // Log gas usage information
+        let total_assertion_gas = validate_result.total_assertions_gas();
+        let total_assertions_ran = validate_result.total_assertion_funcs_ran();
+        let tx_gas_used = validate_result.result_and_state.result.gas_used();
         let mut assertion_gas_message = format!(
-            "Transaction gas cost: {}\n  Total Assertion gas cost: {}\n  Total assertions ran: {}\n  Assertion Functions gas cost\n  ",
-            tx_gas_used, total_assertion_gas, total_assertions_ran
+            "Transaction gas cost: {tx_gas_used}\n  Total Assertion gas cost: {total_assertion_gas}\n  Total assertions ran: {total_assertions_ran}\n  Assertion Functions gas cost\n  ",
         );
 
         // Format individual assertion function results
@@ -149,7 +186,8 @@ impl Cheatcode for assertionExCall {
         }
         executor.console_log(ccx, assertion_gas_message);
 
-        if !tx_validation.is_valid() {
+        // Handle failed assertions
+        if !validate_result.is_valid() {
             let mut error_msg = format!("\n  {assertionContractLabel} Assertions Failed:\n");
             // Collect failed assertions
             let reverted_assertions: HashMap<_, _> = assertion_contract
@@ -179,6 +217,7 @@ impl Cheatcode for assertionExCall {
             executor.console_log(ccx, error_msg);
             bail!("Assertions Reverted");
         }
+
         Ok(Default::default())
     }
 }
