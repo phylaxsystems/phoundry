@@ -96,14 +96,7 @@ impl Cheatcode for assertionExCall {
             .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
 
         match store.insert(*assertion_adopter, assertion_state) {
-            Ok(Some(_)) => (), // Successfully inserted
-            Ok(None) => {
-                executor.console_log(
-                    ccx,
-                    "This is a bug, please open an issue at https://github.com/phoundry-labs/phoundry/issues".to_string(),
-                );
-                bail!("Assertion insertion failed");
-            }
+            Ok(_) => (), // Successfully inserted (either first time or replacing existing)
             Err(e) => {
                 executor.console_log(ccx, format!("Error: {e}"));
                 executor.console_log(
