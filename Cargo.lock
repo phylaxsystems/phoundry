@@ -95,13 +95,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59febb24956a41c29bb5f450978fbe825bd6456b3f80586c8bd558dc882e7b6a"
 dependencies = [
  "alloy-consensus 0.8.3",
+ "alloy-contract",
  "alloy-core",
  "alloy-eips 0.8.3",
  "alloy-genesis 0.8.3",
+ "alloy-json-rpc 0.8.3",
+ "alloy-network 0.8.3",
+ "alloy-node-bindings",
  "alloy-provider 0.8.3",
+ "alloy-pubsub",
  "alloy-rpc-client 0.8.3",
+ "alloy-rpc-types 0.8.3",
  "alloy-serde 0.8.3",
+ "alloy-signer 0.8.3",
+ "alloy-signer-local",
+ "alloy-transport 0.8.3",
  "alloy-transport-http 0.8.3",
+ "alloy-transport-ipc",
+ "alloy-transport-ws",
 ]
 
 [[package]]
@@ -1632,9 +1643,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "assertion-da-client"
+version = "0.1.0"
+source = "git+ssh://git@github.com/phylaxsystems/assertion-da.git#9e1ec0960cbdc6af7568f219c883471e833fae96"
+dependencies = [
+ "alloy 0.8.3",
+ "assertion-da-core",
+ "jsonrpsee",
+ "thiserror 2.0.3",
+ "tokio",
+]
+
+[[package]]
+name = "assertion-da-core"
+version = "0.1.0"
+source = "git+ssh://git@github.com/phylaxsystems/assertion-da.git#9e1ec0960cbdc6af7568f219c883471e833fae96"
+dependencies = [
+ "alloy 0.8.3",
+ "serde",
+]
+
+[[package]]
 name = "assertion-executor"
 version = "0.1.0"
-source = "git+ssh://git@github.com/phylaxsystems/assertion-executor.git?branch=main#731e372a5191ecfd4fb28bab6d551088ec3b7089"
+source = "git+ssh://git@github.com/phylaxsystems/assertion-executor.git?branch=main#e0361c4957a08424971cdaa05942891aeda5d2c9"
 dependencies = [
  "alloy 0.8.3",
  "alloy-consensus 0.8.3",
@@ -1653,6 +1685,7 @@ dependencies = [
  "alloy-transport 0.8.3",
  "alloy-transport-ws",
  "anyhow",
+ "assertion-da-client",
  "bincode",
  "clap",
  "clap_derive",
@@ -2286,7 +2319,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cexpr",
  "clang-sys",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -2304,7 +2337,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cexpr",
  "clang-sys",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -6649,7 +6682,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -8202,7 +8235,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.90",
@@ -10543,7 +10576,7 @@ dependencies = [
  "const-hex",
  "derive_builder",
  "dunce",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "itoa",
  "lasso",
  "match_cfg",
@@ -10579,7 +10612,7 @@ dependencies = [
  "alloy-primitives",
  "bitflags 2.6.0",
  "bumpalo",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "memchr",
  "num-bigint",
  "num-rational",
@@ -11573,7 +11606,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69fff37da548239c3bf9e64a12193d261e8b22b660991c6fd2df057c168f435f"
 dependencies = [
  "cc",
- "windows-targets 0.52.6",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -12112,7 +12145,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
