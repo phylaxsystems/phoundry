@@ -106,7 +106,8 @@ impl Cheatcode for assertionExCall {
                 bail!("Assertion insertion failed");
             }
         }
-        let decoded_tx = AssertionExTransaction::abi_decode(tx, true)?;
+        let decoded_tx = AssertionExTransaction::abi_decode(tx, true)
+            .map_err(|e| format!("Failed to decode transaction: {e}"))?;
 
         let tx_env = TxEnv {
             caller: decoded_tx.from,
