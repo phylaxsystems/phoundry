@@ -106,6 +106,10 @@ impl Cheatcode for assertionExCall {
         let mut fork_db = ForkDb::new(assertion_executor.db.clone());
         fork_db.commit(state);
 
+        // Odysseas: This is a hack to use the new unified codepath for validate_transaction_ext_db
+        // Effectively, we are applying the transaction in a clone of the currently running database
+        // which is then used by the fork_db.
+        // TODO: Remove this once we have a proper way to handle this.
         let mut ext_db = revm::db::WrapDatabaseRef(fork_db.clone());
 
         // Store assertions
