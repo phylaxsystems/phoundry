@@ -2279,7 +2279,7 @@ impl Default for Config {
             test: "assertions/test".into(),
             script: "assertions/script".into(),
             out: "assertions/out".into(),
-            libs: vec!["assertions".into()],
+            libs: vec!["lib".into()],
             cache: true,
             dynamic_test_linking: false,
             cache_path: "assertions/cache".into(),
