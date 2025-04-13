@@ -41,7 +41,7 @@ pub struct DocBuilder {
 
 // TODO: consider using `tfio`
 impl DocBuilder {
-    pub(crate) const SRC: &'static str = "src";
+    pub(crate) const SRC: &'static str = "assertions/src";
     const SOL_EXT: &'static str = "sol";
     const README: &'static str = "README.md";
     const SUMMARY: &'static str = "SUMMARY.md";

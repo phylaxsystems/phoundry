@@ -545,7 +545,7 @@ pub const STANDALONE_FALLBACK_SECTIONS: &[(&str, &str)] = &[("invariant", "fuzz"
 pub const DEPRECATIONS: &[(&str, &str)] = &[("cancun", "evm_version = Cancun")];
 
 impl Config {
-    /// The default profile: "default"
+    /// The default profile: "assertions"
     pub const DEFAULT_PROFILE: Profile = Profile::Default;
 
     /// The hardhat profile: "hardhat"
