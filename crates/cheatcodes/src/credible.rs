@@ -3,7 +3,6 @@ use alloy_primitives::TxKind;
 use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{
     db::fork_db::ForkDb,
-    primitives::AssertionFunctionResult,
     store::{AssertionState, AssertionStore},
     ExecutorConfig,
 };
