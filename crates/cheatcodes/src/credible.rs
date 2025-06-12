@@ -147,7 +147,8 @@ impl Cheatcode for assertionExCall {
         executor.console_log(ccx, &assertion_gas_message);
 
         if !tx_validation.is_valid() {
-            let mut error_msg = format!("\n  {assertionContractLabel} Enforced Assertions:\n");
+            let mut console_error_msg =
+                format!("\n  {assertionContractLabel} Enforced Assertions:\n");
             // Collect failed assertions
             let reverted_assertions: HashMap<_, _> = assertion_contract
                 .assertion_fns_results
@@ -164,17 +165,15 @@ impl Cheatcode for assertionExCall {
                 })
                 .collect();
 
+            let mut revert_msg = format!("Assertions Reverted:\n");
             // Format error messages
             for (key, revert) in reverted_assertions {
-                error_msg.push_str(&format!(
-                    "   └─ {} - Revert Reason: {} \n",
-                    key,
-                    revert.reason()
-                ));
+                console_error_msg.push_str(&format!("   └─ {key} \n    └─ {}\n", revert.reason()));
+                revert_msg.push_str(&format!("  • {key} \n    └─ {}\n", revert.reason()));
             }
 
-            executor.console_log(ccx, &error_msg);
-            bail!("Assertions Reverted");
+            executor.console_log(ccx, &console_error_msg);
+            bail!(revert_msg);
         }
         Ok(Default::default())
     }
