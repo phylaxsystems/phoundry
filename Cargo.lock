@@ -1779,8 +1779,8 @@ dependencies = [
 
 [[package]]
 name = "assertion-executor"
-version = "0.1.7"
-source = "git+https://github.com/phylaxsystems/assertion-executor.git?tag=0.1.7#dbed50db4b9d9be60a5e53a1bb0e5a82b27134c1"
+version = "0.1.8"
+source = "git+https://github.com/phylaxsystems/assertion-executor.git?tag=0.1.8#f8dc8f6163d51eb22ff5aa5042a056e6106ba901"
 dependencies = [
  "alloy",
  "alloy-consensus 0.11.1",
@@ -1811,6 +1811,7 @@ dependencies = [
  "reth-primitives",
  "revm",
  "serde",
+ "serde_json",
  "sled",
  "tempfile",
  "thiserror 1.0.69",
