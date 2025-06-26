@@ -1,0 +1,1 @@
+searchState.loadedDescShard("foundry_common", 3, "The short version message information for the Foundry CLI.")
