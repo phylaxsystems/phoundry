@@ -22,7 +22,9 @@ vergen = { workspace = true, default-features = false, features = [
 ] }
 
 [dependencies]
-assertion-executor = { git = "https://github.com/phylaxsystems/assertion-executor.git", tag = "0.1.6", default-features = false }
+#assertion-executor = { git = "https://github.com/phylaxsystems/.git", tag = "0.1.6", default-features = false }
+assertion-executor = { path = "../../../credible-sdk/crates/assertion-executor", default-features = false }
+
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
 foundry-compilers.workspace = true
@@ -33,6 +35,7 @@ foundry-wallets.workspace = true
 forge-script-sequence.workspace = true
 
 alloy-dyn-abi.workspace = true
+alloy-evm.workspace = true
 alloy-json-abi.workspace = true
 alloy-primitives.workspace = true
 alloy-genesis.workspace = true
@@ -45,9 +48,11 @@ alloy-signer-local = { workspace = true, features = [
     "keystore",
 ] }
 parking_lot.workspace = true
-alloy-consensus = { workspace = true, features = ["k256"] }
+alloy-consensus = { workspace = true, features = ["k256", "kzg"] }
 alloy-network.workspace = true
 alloy-rlp.workspace = true
+alloy-chains.workspace = true
+alloy-ens.workspace = true
 
 base64.workspace = true
 dialoguer = "0.11"
