@@ -2,15 +2,12 @@ use crate::{Cheatcode, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::TxKind;
 use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{
-    db::fork_db::ForkDb,
+    db::{fork_db::ForkDb, DatabaseCommit, DatabaseRef},
+    primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
     store::{AssertionState, AssertionStore},
     ExecutorConfig,
 };
 use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
-use assertion_executor::{
-    primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
-    db::{DatabaseCommit, DatabaseRef},
-};
 use revm::context_interface::ContextTr;
 use std::{
     collections::HashMap,
@@ -41,7 +38,10 @@ impl<'a> ThreadSafeDb<'a> {
 impl<'a> DatabaseRef for ThreadSafeDb<'a> {
     type Error = DatabaseError;
 
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, <Self as DatabaseRef>::Error> {
+    fn basic_ref(
+        &self,
+        address: Address,
+    ) -> Result<Option<AccountInfo>, <Self as DatabaseRef>::Error> {
         self.db.lock().unwrap().basic(address)
     }
 
@@ -49,7 +49,11 @@ impl<'a> DatabaseRef for ThreadSafeDb<'a> {
         self.db.lock().unwrap().code_by_hash(code_hash)
     }
 
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, <Self as DatabaseRef>::Error> {
+    fn storage_ref(
+        &self,
+        address: Address,
+        index: U256,
+    ) -> Result<U256, <Self as DatabaseRef>::Error> {
         self.db.lock().unwrap().storage(address, index)
     }
 
@@ -97,7 +101,7 @@ impl Cheatcode for assertionExCall {
             value: decoded_tx.value,
             data: decoded_tx.data,
             chain_id: Some(chain_id),
-            gas_price: ccx.ecx.env.block.basefee,
+            gas_price: block.basefee.into(),
             ..Default::default()
         };
 
@@ -202,7 +206,7 @@ fn decode_invalidated_assertion(execution_result: &ExecutionResult) -> Revert {
 mod tests {
     use super::*;
     use alloy_primitives::Bytes;
-    use assertion_executor::primitives::{HaltReason, ExecutionResult};
+    use assertion_executor::primitives::HaltReason;
 
     #[test]
     fn test_decode_revert_error_success() {
