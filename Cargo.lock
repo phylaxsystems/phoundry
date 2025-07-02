@@ -1584,7 +1584,6 @@ dependencies = [
  "alloy-network",
  "alloy-network-primitives",
  "alloy-node-bindings",
- "alloy-op-evm",
  "alloy-primitives",
  "alloy-provider",
  "alloy-pubsub",

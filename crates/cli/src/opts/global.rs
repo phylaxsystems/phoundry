@@ -1,8 +1,5 @@
 use clap::{ArgAction, Parser};
-use foundry_common::{
-    shell::{ColorChoice, OutputFormat, OutputMode, Shell, Verbosity},
-    version::{IS_NIGHTLY_VERSION, NIGHTLY_VERSION_WARNING_MESSAGE},
-};
+use foundry_common::shell::{ColorChoice, OutputFormat, OutputMode, Shell, Verbosity};
 use serde::{Deserialize, Serialize};
 
 /// Global arguments for the CLI.

@@ -7,10 +7,11 @@ use assertion_executor::{
     ExecutorConfig,
 };
 use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
-use revm::{
+use assertion_executor::{
     primitives::{AccountInfo, Address, Bytecode, ExecutionResult, TxEnv, B256, U256},
-    DatabaseCommit, DatabaseRef,
+    db::{DatabaseCommit, DatabaseRef},
 };
+use revm::context_interface::ContextTr;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -40,19 +41,19 @@ impl<'a> ThreadSafeDb<'a> {
 impl<'a> DatabaseRef for ThreadSafeDb<'a> {
     type Error = DatabaseError;
 
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, <Self as DatabaseRef>::Error> {
         self.db.lock().unwrap().basic(address)
     }
 
-    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, <Self as DatabaseRef>::Error> {
         self.db.lock().unwrap().code_by_hash(code_hash)
     }
 
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, <Self as DatabaseRef>::Error> {
         self.db.lock().unwrap().storage(address, index)
     }
 
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+    fn block_hash_ref(&self, number: u64) -> Result<B256, <Self as DatabaseRef>::Error> {
         self.db.lock().unwrap().block_hash(number)
     }
 }
@@ -66,16 +67,16 @@ impl Cheatcode for assertionExCall {
             assertionContractLabel,
         } = self;
 
-        let spec_id = ccx.ecx.spec_id();
-        let block = ccx.ecx.env.block.clone();
+        let spec_id = ccx.ecx.cfg.spec;
+        let block = ccx.ecx.block.clone();
         let state = ccx.ecx.journaled_state.state.clone();
-        let chain_id = ccx.ecx.env.cfg.chain_id;
+        let chain_id = ccx.ecx.cfg.chain_id;
 
         // Setup assertion database
-        let db = ThreadSafeDb::new(ccx.ecx.db);
+        let db = ThreadSafeDb::new(ccx.ecx.db());
 
         // Prepare assertion store
-        let assertion_contract_bytecode = Bytecode::LegacyRaw(assertionContract.to_vec().into());
+        let assertion_contract_bytecode = Bytecode::new_legacy(assertionContract.to_vec().into());
 
         let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: 100_000 };
 
@@ -87,30 +88,30 @@ impl Cheatcode for assertionExCall {
 
         store.insert(*assertion_adopter, assertion_state).expect("Failed to store assertions");
 
-        let decoded_tx = AssertionExTransaction::abi_decode(tx, true)?;
+        let decoded_tx = AssertionExTransaction::abi_decode(tx)?;
 
         let tx_env = TxEnv {
             caller: decoded_tx.from,
-            gas_limit: ccx.ecx.env.block.gas_limit.try_into().unwrap_or(u64::MAX),
-            transact_to: TxKind::Call(decoded_tx.to),
+            gas_limit: block.gas_limit.try_into().unwrap_or(u64::MAX),
+            kind: TxKind::Call(decoded_tx.to),
             value: decoded_tx.value,
             data: decoded_tx.data,
             chain_id: Some(chain_id),
             ..Default::default()
         };
 
-        let mut assertion_executor = config.build(db, store);
+        let mut assertion_executor = config.build(store);
 
         // Commit current journal state so that it is available for assertions and
         // triggering tx
-        let mut fork_db = ForkDb::new(assertion_executor.db.clone());
+        let mut fork_db = ForkDb::new(db.clone());
         fork_db.commit(state);
 
         // Odysseas: This is a hack to use the new unified codepath for validate_transaction_ext_db
         // Effectively, we are applying the transaction in a clone of the currently running database
         // which is then used by the fork_db.
         // TODO: Remove this once we have a proper way to handle this.
-        let mut ext_db = revm::db::WrapDatabaseRef(fork_db.clone());
+        let mut ext_db = revm::database::WrapDatabaseRef(fork_db.clone());
 
         // Store assertions
         let tx_validation = assertion_executor
@@ -187,7 +188,7 @@ fn decode_invalidated_assertion(execution_result: &ExecutionResult) -> Revert {
             reason: "Tried to decode invalidated assertion, but result was success. This is a bug in phoundry. Please report to the Phylax team.".to_string(),
         },
         ExecutionResult::Revert{output, ..} => {
-            Revert::abi_decode(output, true)
+            Revert::abi_decode(output)
                 .unwrap_or(Revert::new(("Unknown Revert Reason".to_string(),)))
         },
         ExecutionResult::Halt{reason, ..} => Revert {
@@ -200,7 +201,7 @@ fn decode_invalidated_assertion(execution_result: &ExecutionResult) -> Revert {
 mod tests {
     use super::*;
     use alloy_primitives::Bytes;
-    use revm::primitives::{HaltReason, Output, SuccessReason};
+    use assertion_executor::primitives::{HaltReason, ExecutionResult};
 
     #[test]
     fn test_decode_revert_error_success() {
@@ -209,8 +210,8 @@ mod tests {
             gas_used: 0,
             gas_refunded: 0,
             logs: vec![],
-            output: Output::Call(Bytes::new()),
-            reason: SuccessReason::Return,
+            output: revm::context::result::Output::Call(Bytes::new()),
+            reason: revm::context::result::SuccessReason::Return,
         };
         let revert = decode_invalidated_assertion(&result);
         assert_eq!(revert.reason(), "Tried to decode invalidated assertion, but result was success. This is a bug in phoundry. Please report to the Phylax team.");
