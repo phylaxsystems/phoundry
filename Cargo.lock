@@ -58,9 +58,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "alloy"
-version = "1.0.12"
+version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a66e45d962abb2e1e8a505d97af34d92137b82f6cabbfb373406a9220dc7dca"
+checksum = "4e0d1aecf3cab3d0e7383064ce488616434b4ade10d8904dff422e74203c712f"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -374,9 +374,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-node-bindings"
-version = "1.0.12"
+version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e712c068ebe9f690d7d06610ed2e52639cb9570c81420d7a5fb0c9780625086"
+checksum = "0d4f3ab81744547ab8283aa94c9670d3880ac826642e52739e3c4ecbfa84857a"
 dependencies = [
  "alloy-genesis",
  "alloy-hardforks",
@@ -1553,6 +1553,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-client"
 version = "0.2.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=968372e#968372e153a53dfb6bf7a3b136b046ce7d0a2cfb"
 dependencies = [
  "alloy",
  "assertion-da-core",
@@ -1569,6 +1570,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-core"
 version = "0.2.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=968372e#968372e153a53dfb6bf7a3b136b046ce7d0a2cfb"
 dependencies = [
  "alloy",
  "serde",
@@ -1577,6 +1579,7 @@ dependencies = [
 [[package]]
 name = "assertion-executor"
 version = "0.2.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=968372e#968372e153a53dfb6bf7a3b136b046ce7d0a2cfb"
 dependencies = [
  "alloy",
  "alloy-consensus",
