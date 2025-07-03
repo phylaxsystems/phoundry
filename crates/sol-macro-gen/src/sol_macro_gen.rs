@@ -15,10 +15,13 @@ use eyre::{Context, OptionExt, Result};
 use foundry_common::fs;
 use proc_macro2::{Span, TokenStream};
 use std::{
+    env::temp_dir,
     fmt::Write,
     path::{Path, PathBuf},
     str::FromStr,
 };
+
+use heck::ToSnakeCase;
 
 pub struct SolMacroGen {
     pub path: PathBuf,
@@ -82,14 +85,51 @@ impl MultiSolMacroGen {
     }
 
     fn generate_binding(instance: &mut SolMacroGen, all_derives: bool) -> Result<()> {
-        let input = instance.get_sol_input()?.normalize_json()?;
+        // TODO: in `get_sol_input` we currently can't handle unlinked bytecode: <https://github.com/alloy-rs/core/issues/926>
+        let input = match instance.get_sol_input() {
+            Ok(input) => input.normalize_json()?,
+            Err(error) => {
+                // TODO(mattsse): remove after <https://github.com/alloy-rs/core/issues/926>
+                if error.to_string().contains("expected bytecode, found unlinked bytecode") {
+                    // we attempt to do a little hack here until we have this properly supported by
+                    // removing the bytecode objects from the json file and using a tmpfile (very
+                    // hacky)
+                    let content = std::fs::read_to_string(&instance.path)?;
+                    let mut value = serde_json::from_str::<serde_json::Value>(&content)?;
+                    let obj = value.as_object_mut().expect("valid abi");
+
+                    // clear unlinked bytecode
+                    obj.remove("bytecode");
+                    obj.remove("deployedBytecode");
+
+                    let tmpdir = temp_dir();
+                    let mut tmp_file = tmpdir.join(instance.path.file_name().unwrap());
+                    std::fs::write(&tmp_file, serde_json::to_string(&value)?)?;
+
+                    // try again
+                    std::mem::swap(&mut tmp_file, &mut instance.path);
+                    let input = instance.get_sol_input()?.normalize_json()?;
+                    std::mem::swap(&mut tmp_file, &mut instance.path);
+                    input.normalize_json()?
+                } else {
+                    return Err(error)
+                }
+            }
+        };
 
         let SolInput { attrs: _, path: _, kind } = input;
 
         let tokens = match kind {
             SolInputKind::Sol(mut file) => {
-                let sol_attr: syn::Attribute = syn::parse_quote! {
-                    #[sol(rpc, alloy_sol_types = alloy::sol_types, alloy_contract = alloy::contract, all_derives = #all_derives)]
+                let sol_attr: syn::Attribute = if all_derives {
+                    syn::parse_quote! {
+                            #[sol(rpc, alloy_sol_types = alloy::sol_types, alloy_contract =
+                    alloy::contract, all_derives = true, extra_derives(serde::Serialize,
+                    serde::Deserialize))]     }
+                } else {
+                    syn::parse_quote! {
+                            #[sol(rpc, alloy_sol_types = alloy::sol_types, alloy_contract =
+                    alloy::contract)]     }
                 };
                 file.attrs.push(sol_attr);
                 expand(file).wrap_err("failed to expand")?
@@ -146,6 +186,11 @@ edition = "2021"
         let alloy_dep = Self::get_alloy_dep(alloy_version, alloy_rev);
         write!(toml_contents, "{alloy_dep}")?;
 
+        if all_derives {
+            let serde_dep = r#"serde = { version = "1.0", features = ["derive"] }"#;
+            write!(toml_contents, "\n{serde_dep}")?;
+        }
+
         fs::write(cargo_toml_path, toml_contents).wrap_err("Failed to write Cargo.toml")?;
 
         let mut lib_contents = String::new();
@@ -166,7 +211,7 @@ edition = "2021"
         for instance in &self.instances {
             let contents = instance.expansion.as_ref().unwrap();
 
-            let name = instance.name.to_lowercase();
+            let name = instance.name.to_snake_case();
             let path = src.join(format!("{name}.rs"));
             let file = syn::parse2(contents.clone())
                 .wrap_err_with(|| parse_error(&format!("{}:{}", path.display(), name)))?;
@@ -223,7 +268,7 @@ edition = "2021"
         .to_string();
 
         for instance in &self.instances {
-            let name = instance.name.to_lowercase();
+            let name = instance.name.to_snake_case();
             if !single_file {
                 // Module
                 write_mod_name(&mut mod_contents, &name)?;
@@ -285,7 +330,7 @@ edition = "2021"
         )?;
         if !single_file {
             for instance in &self.instances {
-                let name = instance.name.to_lowercase();
+                let name = instance.name.to_snake_case();
                 let path = if is_mod {
                     crate_path.join(format!("{name}.rs"))
                 } else {
@@ -375,7 +420,7 @@ edition = "2021"
                 r#"alloy = {{ git = "https://github.com/alloy-rs/alloy", rev = "{alloy_rev}", features = ["sol-types", "contract"] }}"#,
             )
         } else {
-            r#"alloy = { git = "https://github.com/alloy-rs/alloy", features = ["sol-types", "contract"] }"#.to_string()
+            r#"alloy = { version = "1.0", features = ["sol-types", "contract"] }"#.to_string()
         }
     }
 }

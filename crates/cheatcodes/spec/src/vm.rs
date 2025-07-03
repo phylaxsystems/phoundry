@@ -6,7 +6,6 @@ use super::*;
 use crate::Vm::ForgeContext;
 use alloy_sol_types::sol;
 use foundry_macros::Cheatcode;
-use std::fmt;
 
 sol! {
 // Cheatcodes are marked as view/pure/none using the following rules:
@@ -223,6 +222,18 @@ interface Vm {
         uint256 chainId;
     }
 
+    /// Information about a blockchain.
+    struct Chain {
+        /// The chain name.
+        string name;
+        /// The chain's Chain ID.
+        uint256 chainId;
+        /// The chain's alias. (i.e. what gets specified in `foundry.toml`).
+        string chainAlias;
+        /// A default RPC endpoint for this chain.
+        string rpcUrl;
+    }
+
     /// The storage accessed during an `AccountAccess`.
     struct StorageAccess {
         /// The account whose storage was accessed.
@@ -403,9 +414,14 @@ interface Vm {
 
     // -------- Record Storage --------
 
-    /// Records all storage reads and writes.
+    /// Records all storage reads and writes. Use `accesses` to get the recorded data.
+    /// Subsequent calls to `record` will clear the previous data.
     #[cheatcode(group = Evm, safety = Safe)]
     function record() external;
+
+    /// Stops recording storage reads and writes.
+    #[cheatcode(group = Evm, safety = Safe)]
+    function stopRecord() external;
 
     /// Gets all accessed reads and write slot from a `vm.record` session, for a given address.
     #[cheatcode(group = Evm, safety = Safe)]
@@ -982,6 +998,14 @@ interface Vm {
     /// Returns all rpc urls and their aliases as structs.
     #[cheatcode(group = Testing, safety = Safe)]
     function rpcUrlStructs() external view returns (Rpc[] memory urls);
+
+    /// Returns a Chain struct for specific alias
+    #[cheatcode(group = Testing, safety = Safe)]
+    function getChain(string calldata chainAlias) external view returns (Chain memory chain);
+
+    /// Returns a Chain struct for specific chainId
+    #[cheatcode(group = Testing, safety = Safe)]
+    function getChain(uint256 chainId) external view returns (Chain memory chain);
 
     /// Suspends execution of the main thread for `duration` milliseconds.
     #[cheatcode(group = Testing, safety = Safe)]
@@ -2220,9 +2244,17 @@ interface Vm {
     #[cheatcode(group = Scripting)]
     function signDelegation(address implementation, uint256 privateKey, uint64 nonce) external returns (SignedDelegation memory signedDelegation);
 
+    /// Sign an EIP-7702 authorization for delegation, with optional cross-chain validity.
+    #[cheatcode(group = Scripting)]
+    function signDelegation(address implementation, uint256 privateKey, bool crossChain) external returns (SignedDelegation memory signedDelegation);
+
     /// Designate the next call as an EIP-7702 transaction
     #[cheatcode(group = Scripting)]
     function attachDelegation(SignedDelegation calldata signedDelegation) external;
+
+    /// Designate the next call as an EIP-7702 transaction, with optional cross-chain validity.
+    #[cheatcode(group = Scripting)]
+    function attachDelegation(SignedDelegation calldata signedDelegation, bool crossChain) external;
 
     /// Sign an EIP-7702 authorization and designate the next call as an EIP-7702 transaction
     #[cheatcode(group = Scripting)]
@@ -2231,6 +2263,14 @@ interface Vm {
     /// Sign an EIP-7702 authorization and designate the next call as an EIP-7702 transaction for specific nonce
     #[cheatcode(group = Scripting)]
     function signAndAttachDelegation(address implementation, uint256 privateKey, uint64 nonce) external returns (SignedDelegation memory signedDelegation);
+
+    /// Sign an EIP-7702 authorization and designate the next call as an EIP-7702 transaction, with optional cross-chain validity.
+    #[cheatcode(group = Scripting)]
+    function signAndAttachDelegation(address implementation, uint256 privateKey, bool crossChain) external returns (SignedDelegation memory signedDelegation);
+
+    /// Attach an EIP-4844 blob to the next call
+    #[cheatcode(group = Scripting)]
+    function attachBlob(bytes calldata blob) external;
 
     /// Returns addresses of available unlocked wallets in the script environment.
     #[cheatcode(group = Scripting)]
@@ -2855,6 +2895,10 @@ interface Vm {
     #[cheatcode(group = Utilities)]
     function shuffle(uint256[] calldata array) external returns (uint256[] memory);
 
+    /// Set RNG seed.
+    #[cheatcode(group = Utilities)]
+    function setSeed(uint256 seed) external;
+
     /// Causes the next contract creation (via new) to fail and return its initcode in the returndata buffer.
     /// This allows type-safe access to the initcode payload that would be used for contract creation.
     /// Example usage:
@@ -2864,6 +2908,55 @@ interface Vm {
     /// catch (bytes memory interceptedInitcode) { initcode = interceptedInitcode; }
     #[cheatcode(group = Utilities, safety = Unsafe)]
     function interceptInitcode() external;
+
+    /// Generates the hash of the canonical EIP-712 type representation.
+    ///
+    /// Supports 2 different inputs:
+    ///  1. Name of the type (i.e. "Transaction"):
+    ///     * requires previous binding generation with `forge bind-json`.
+    ///     * bindings will be retrieved from the path configured in `foundry.toml`.
+    ///
+    ///  2. String representation of the type (i.e. "Foo(Bar bar) Bar(uint256 baz)").
+    ///     * Note: the cheatcode will output the canonical type even if the input is malformated
+    ///             with the wrong order of elements or with extra whitespaces.
+    #[cheatcode(group = Utilities)]
+    function eip712HashType(string calldata typeNameOrDefinition) external pure returns (bytes32 typeHash);
+
+    /// Generates the hash of the canonical EIP-712 type representation.
+    /// Requires previous binding generation with `forge bind-json`.
+    ///
+    /// Params:
+    ///  * `bindingsPath`: path where the output of `forge bind-json` is stored.
+    ///  * `typeName`: Name of the type (i.e. "Transaction").
+    #[cheatcode(group = Utilities)]
+    function eip712HashType(string calldata bindingsPath, string calldata typeName) external pure returns (bytes32 typeHash);
+
+    /// Generates the struct hash of the canonical EIP-712 type representation and its abi-encoded data.
+    ///
+    /// Supports 2 different inputs:
+    ///  1. Name of the type (i.e. "PermitSingle"):
+    ///     * requires previous binding generation with `forge bind-json`.
+    ///     * bindings will be retrieved from the path configured in `foundry.toml`.
+    ///
+    ///  2. String representation of the type (i.e. "Foo(Bar bar) Bar(uint256 baz)").
+    ///     * Note: the cheatcode will use the canonical type even if the input is malformated
+    ///             with the wrong order of elements or with extra whitespaces.
+    #[cheatcode(group = Utilities)]
+    function eip712HashStruct(string calldata typeNameOrDefinition, bytes calldata abiEncodedData) external pure returns (bytes32 typeHash);
+
+    /// Generates the struct hash of the canonical EIP-712 type representation and its abi-encoded data.
+    /// Requires previous binding generation with `forge bind-json`.
+    ///
+    /// Params:
+    ///  * `bindingsPath`: path where the output of `forge bind-json` is stored.
+    ///  * `typeName`: Name of the type (i.e. "PermitSingle").
+    ///  * `abiEncodedData`: ABI-encoded data for the struct that is being hashed.
+    #[cheatcode(group = Utilities)]
+    function eip712HashStruct(string calldata bindingsPath, string calldata typeName, bytes calldata abiEncodedData) external pure returns (bytes32 typeHash);
+
+    /// Generates a ready-to-sign digest of human-readable typed data following the EIP-712 standard.
+    #[cheatcode(group = Utilities)]
+    function eip712HashTypedData(string calldata jsonData) external pure returns (bytes32 digest);
 }
 }
 

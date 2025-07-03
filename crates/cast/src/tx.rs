@@ -1,6 +1,7 @@
 use crate::traces::identifier::SignaturesIdentifier;
 use alloy_consensus::{SidecarBuilder, SignableTransaction, SimpleCoder};
 use alloy_dyn_abi::ErrorExt;
+use alloy_ens::NameOrAddress;
 use alloy_json_abi::Function;
 use alloy_network::{
     AnyNetwork, AnyTypedTransaction, TransactionBuilder, TransactionBuilder4844,
@@ -13,11 +14,12 @@ use alloy_serde::WithOtherFields;
 use alloy_signer::Signer;
 use alloy_transport::TransportError;
 use eyre::Result;
+use foundry_block_explorers::EtherscanApiVersion;
 use foundry_cli::{
     opts::{CliAuthorizationList, TransactionOpts},
     utils::{self, parse_function_args},
 };
-use foundry_common::{ens::NameOrAddress, fmt::format_tokens};
+use foundry_common::fmt::format_tokens;
 use foundry_config::{Chain, Config};
 use foundry_wallets::{WalletOpts, WalletSigner};
 use itertools::Itertools;
@@ -136,11 +138,13 @@ pub struct InputState {
 pub struct CastTxBuilder<P, S> {
     provider: P,
     tx: WithOtherFields<TransactionRequest>,
+    /// Whether the transaction should be sent as a legacy transaction.
     legacy: bool,
     blob: bool,
     auth: Option<CliAuthorizationList>,
     chain: Chain,
     etherscan_api_key: Option<String>,
+    etherscan_api_version: EtherscanApiVersion,
     access_list: Option<Option<AccessList>>,
     state: S,
 }
@@ -152,8 +156,10 @@ impl<P: Provider<AnyNetwork>> CastTxBuilder<P, InitState> {
         let mut tx = WithOtherFields::<TransactionRequest>::default();
 
         let chain = utils::get_chain(config.chain, &provider).await?;
+        let etherscan_api_version = config.get_etherscan_api_version(Some(chain));
         let etherscan_api_key = config.get_etherscan_api_key(Some(chain));
-        let legacy = tx_opts.legacy || chain.is_legacy();
+        // mark it as legacy if requested or the chain is legacy and no 7702 is provided.
+        let legacy = tx_opts.legacy || (chain.is_legacy() && tx_opts.auth.is_none());
 
         if let Some(gas_limit) = tx_opts.gas_limit {
             tx.set_gas_limit(gas_limit.to());
@@ -192,6 +198,7 @@ impl<P: Provider<AnyNetwork>> CastTxBuilder<P, InitState> {
             blob: tx_opts.blob,
             chain,
             etherscan_api_key,
+            etherscan_api_version,
             auth: tx_opts.auth,
             access_list: tx_opts.access_list,
             state: InitState,
@@ -208,6 +215,7 @@ impl<P: Provider<AnyNetwork>> CastTxBuilder<P, InitState> {
             blob: self.blob,
             chain: self.chain,
             etherscan_api_key: self.etherscan_api_key,
+            etherscan_api_version: self.etherscan_api_version,
             auth: self.auth,
             access_list: self.access_list,
             state: ToState { to },
@@ -233,6 +241,7 @@ impl<P: Provider<AnyNetwork>> CastTxBuilder<P, ToState> {
                 self.chain,
                 &self.provider,
                 self.etherscan_api_key.as_deref(),
+                self.etherscan_api_version,
             )
             .await?
         } else {
@@ -264,6 +273,7 @@ impl<P: Provider<AnyNetwork>> CastTxBuilder<P, ToState> {
             blob: self.blob,
             chain: self.chain,
             etherscan_api_key: self.etherscan_api_key,
+            etherscan_api_version: self.etherscan_api_version,
             auth: self.auth,
             access_list: self.access_list,
             state: InputState { kind: self.state.to.into(), input, func },
@@ -459,23 +469,18 @@ where
 
 /// Helper function that tries to decode custom error name and inputs from error payload data.
 async fn decode_execution_revert(data: &RawValue) -> Result<Option<String>> {
-    if let Some(err_data) = serde_json::from_str::<String>(data.get())?.strip_prefix("0x") {
-        let Some(selector) = err_data.get(..8) else { return Ok(None) };
-
-        if let Some(known_error) = SignaturesIdentifier::new(Config::foundry_cache_dir(), false)?
-            .write()
-            .await
-            .identify_error(&hex::decode(selector)?)
-            .await
-        {
-            let mut decoded_error = known_error.name.clone();
-            if !known_error.inputs.is_empty() {
-                if let Ok(error) = known_error.decode_error(&hex::decode(err_data)?) {
-                    write!(decoded_error, "({})", format_tokens(&error.body).format(", "))?;
-                }
+    let err_data = serde_json::from_str::<Bytes>(data.get())?;
+    let Some(selector) = err_data.get(..4) else { return Ok(None) };
+    if let Some(known_error) =
+        SignaturesIdentifier::new(false)?.identify_error(selector.try_into().unwrap()).await
+    {
+        let mut decoded_error = known_error.name.clone();
+        if !known_error.inputs.is_empty() {
+            if let Ok(error) = known_error.decode_error(&err_data) {
+                write!(decoded_error, "({})", format_tokens(&error.body).format(", "))?;
             }
-            return Ok(Some(decoded_error))
         }
+        return Ok(Some(decoded_error))
     }
     Ok(None)
 }
