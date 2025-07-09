@@ -1553,7 +1553,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-client"
 version = "0.2.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=70fe36e#70fe36ef7dbb7853eae2fec6cca16a27ef3e5b7f"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=6e4131d#6e4131d0e22a4a0ef913c497171749193ac55e1f"
 dependencies = [
  "alloy",
  "assertion-da-core",
@@ -1570,7 +1570,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-core"
 version = "0.2.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=70fe36e#70fe36ef7dbb7853eae2fec6cca16a27ef3e5b7f"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=6e4131d#6e4131d0e22a4a0ef913c497171749193ac55e1f"
 dependencies = [
  "alloy",
  "serde",
@@ -1579,7 +1579,7 @@ dependencies = [
 [[package]]
 name = "assertion-executor"
 version = "0.2.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=70fe36e#70fe36ef7dbb7853eae2fec6cca16a27ef3e5b7f"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=6e4131d#6e4131d0e22a4a0ef913c497171749193ac55e1f"
 dependencies = [
  "alloy",
  "alloy-consensus",
@@ -1602,6 +1602,7 @@ dependencies = [
  "bincode",
  "clap",
  "enum-as-inner",
+ "evm-glue",
  "moka",
  "op-revm",
  "parking_lot",
@@ -3835,6 +3836,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "evm-glue"
+version = "0.1.0"
+source = "git+https://git@github.com/Philogy/evm-glue.git?rev=6be3e8c89a7d193b591ca0415ec2a48b1540c01e#6be3e8c89a7d193b591ca0415ec2a48b1540c01e"
+dependencies = [
+ "hex",
+ "hex-literal",
+]
+
+[[package]]
 name = "evmole"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5263,6 +5273,12 @@ checksum = "5313b072ce3c597065a808dbf612c4c8e8590bdbf8b579508bf7a762c5eae6cd"
 dependencies = [
  "arrayvec",
 ]
+
+[[package]]
+name = "hex-literal"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
 
 [[package]]
 name = "hidapi-rusb"
