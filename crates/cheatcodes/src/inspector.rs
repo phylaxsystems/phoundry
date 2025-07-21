@@ -987,51 +987,40 @@ impl Cheatcodes {
         }
 
         if let Some(assertion) = self.assertion.take() {
-            let curr_depth = ecx.journaled_state.depth();
-            // allow multiple cheatcode calls at the same depth
-            if curr_depth <= assertion.depth {
-                // discard run if we're at the same depth as cheatcode, call reverted, and no
-                // specific reason was supplied
-                let tx_attributes = crate::credible::TxAttributes {
-                    value: call.call_value(),
-                    data: call.input.bytes(ecx),
-                    caller: call.caller,
-                    kind: TxKind::Call(call.target_address),
-                };
+            let tx_attributes = crate::credible::TxAttributes {
+                value: call.call_value(),
+                data: call.input.bytes(ecx),
+                caller: call.caller,
+                kind: TxKind::Call(call.target_address),
+            };
 
-                let call_outcome = match crate::credible::execute_assertion(
-                    &assertion,
-                    tx_attributes,
-                    ecx,
-                    executor,
-                    self,
-                    false,
-                ) {
-                    Ok(_) => Some(CallOutcome {
-                        result: InterpreterResult {
-                            result: InstructionResult::Return,
-                            output: Default::default(),
-                            gas,
-                        },
-                        memory_offset: call.return_memory_offset.clone(),
-                    }),
-                    Err(err) => Some(CallOutcome {
-                        result: InterpreterResult {
-                            result: InstructionResult::Revert,
-                            output: err.abi_encode().into(),
-                            gas,
-                        },
-                        memory_offset: call.return_memory_offset.clone(),
-                    }),
-                };
+            let call_outcome = match crate::credible::execute_assertion(
+                &assertion,
+                tx_attributes,
+                ecx,
+                executor,
+                self,
+                false,
+            ) {
+                Ok(_) => Some(CallOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Return,
+                        output: Default::default(),
+                        gas,
+                    },
+                    memory_offset: call.return_memory_offset.clone(),
+                }),
+                Err(err) => Some(CallOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Revert,
+                        output: err.abi_encode().into(),
+                        gas,
+                    },
+                    memory_offset: call.return_memory_offset.clone(),
+                }),
+            };
 
-                return call_outcome;
-            } else {
-                // We take from the option, so we need to put it back if not executing.
-                // We take so we don't simultaneously hold two mutable references to
-                // `self` when we call execute_assertion
-                self.assertion = Some(assertion);
-            }
+            return call_outcome;
         }
 
         None
@@ -1716,51 +1705,40 @@ impl Inspector<EthEvmContext<&mut dyn DatabaseExt>> for Cheatcodes {
             }]);
         }
         if let Some(assertion) = self.assertion.take() {
-            let curr_depth = ecx.journaled_state.depth();
-            // allow multiple cheatcode calls at the same depth
-            if curr_depth <= assertion.depth {
-                // discard run if we're at the same depth as cheatcode, call reverted, and no
-                // specific reason was supplied
-                let tx_attributes = crate::credible::TxAttributes {
-                    value: input.value(),
-                    data: input.init_code(),
-                    caller: input.caller(),
-                    kind: TxKind::Create,
-                };
-
-                let call_outcome = match crate::credible::execute_assertion(
-                    &assertion,
-                    tx_attributes,
-                    ecx,
-                    &mut TransparentCheatcodesExecutor,
-                    self,
-                    true,
-                ) {
-                    Ok(address) => Some(CreateOutcome {
-                        result: InterpreterResult {
-                            result: InstructionResult::Return,
-                            output: Default::default(),
-                            gas,
-                        },
-                        address: address,
-                    }),
-                    Err(err) => Some(CreateOutcome {
-                        result: InterpreterResult {
-                            result: InstructionResult::Revert,
-                            output: err.abi_encode().into(),
-                            gas,
-                        },
-                        address: None,
-                    }),
-                };
-
-                return call_outcome;
-            } else {
-                // We take from the option, so we need to put it back if not executing.
-                // We take so we don't simultaneously hold two mutable references to
-                // `self` when we call execute_assertion
-                self.assertion = Some(assertion);
+            let tx_attributes = crate::credible::TxAttributes {
+                value: input.value(),
+                data: input.init_code(),
+                caller: input.caller(),
+                kind: TxKind::Create,
             };
+
+            let call_outcome = match crate::credible::execute_assertion(
+                &assertion,
+                tx_attributes,
+                ecx,
+                &mut TransparentCheatcodesExecutor,
+                self,
+                true,
+            ) {
+                Ok(address) => Some(CreateOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Return,
+                        output: Default::default(),
+                        gas,
+                    },
+                    address,
+                }),
+                Err(err) => Some(CreateOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Revert,
+                        output: err.abi_encode().into(),
+                        gas,
+                    },
+                    address: None,
+                }),
+            };
+
+            return call_outcome;
         }
 
         None
