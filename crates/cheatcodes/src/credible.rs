@@ -207,12 +207,10 @@ pub fn execute_assertion(
         .first()
         .expect("Expected 1 assertion to be executed, but got 0");
 
-    for log in assertion_fn_result.as_result().logs() {
-        if Some(&Console::log::SIGNATURE_HASH) == log.topics().first() {
-            let decoded_log = Console::log::decode_log(log);
-            if let Ok(log_data) = decoded_log {
-                inspector.console_log(&format!("{}", log_data.val));
-            }
+    if !assertion_fn_result.console_logs.is_empty() {
+        inspector.console_log("Assertion function logs: ");
+        for log in assertion_fn_result.console_logs.iter() {
+            inspector.console_log(log);
         }
     }
 
