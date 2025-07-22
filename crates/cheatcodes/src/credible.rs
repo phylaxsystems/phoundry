@@ -1,6 +1,6 @@
 use crate::{inspector::Ecx, Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::{Bytes, FixedBytes, TxKind};
-use alloy_sol_types::{Revert, SolError, SolEvent, SolValue};
+use alloy_sol_types::{Revert, SolError, SolValue};
 use assertion_executor::{
     db::{fork_db::ForkDb, DatabaseCommit, DatabaseRef},
     primitives::{
@@ -11,10 +11,7 @@ use assertion_executor::{
     ExecutorConfig,
 };
 
-use foundry_evm_core::{
-    abi::console::ds::Console,
-    backend::{DatabaseError, DatabaseExt},
-};
+use foundry_evm_core::backend::{DatabaseError, DatabaseExt};
 use revm::context_interface::{ContextTr, JournalTr};
 use std::{
     cmp::max,
