@@ -187,7 +187,7 @@ pub fn execute_assertion(
     let tx_gas_used = tx_validation.result_and_state.result.gas_used();
 
     if total_assertions_ran != 1 {
-        // If assertions were not executed, we need to update expert revert depth to
+        // If assertions were not executed, we need to update expect revert depth to
         // allow for matching on this revert condition, as we will not execute against
         // test evm in this case.
         ecx.journaled_state.inner.checkpoint();
