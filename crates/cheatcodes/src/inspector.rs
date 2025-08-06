@@ -1595,22 +1595,14 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
                 kind: TxKind::Call(call.target_address),
             };
 
-            let call_outcome = match crate::credible::execute_assertion(
+            return match crate::credible::execute_assertion(
                 &assertion,
                 tx_attributes,
                 ecx,
                 executor,
                 self,
-                false,
             ) {
-                Ok(_) => Some(CallOutcome {
-                    result: InterpreterResult {
-                        result: InstructionResult::Return,
-                        output: Default::default(),
-                        gas,
-                    },
-                    memory_offset: call.return_memory_offset.clone(),
-                }),
+                Ok(_) => None,
                 Err(err) => Some(CallOutcome {
                     result: InterpreterResult {
                         result: InstructionResult::Revert,
@@ -1620,8 +1612,6 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
                     memory_offset: call.return_memory_offset.clone(),
                 }),
             };
-
-            return call_outcome;
         }
 
         None
@@ -2580,22 +2570,14 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 kind: TxKind::Create,
             };
 
-            let call_outcome = match crate::credible::execute_assertion(
+            return match crate::credible::execute_assertion(
                 &assertion,
                 tx_attributes,
                 ecx,
                 &mut TransparentCheatcodesExecutor,
                 self,
-                true,
             ) {
-                Ok(address) => Some(CreateOutcome {
-                    result: InterpreterResult {
-                        result: InstructionResult::Return,
-                        output: Default::default(),
-                        gas,
-                    },
-                    address,
-                }),
+                Ok(_) => None,
                 Err(err) => Some(CreateOutcome {
                     result: InterpreterResult {
                         result: InstructionResult::Revert,
@@ -2605,8 +2587,6 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                     address: None,
                 }),
             };
-
-            return call_outcome;
         }
 
         None
