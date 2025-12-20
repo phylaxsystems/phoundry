@@ -114,7 +114,12 @@ pub fn execute_assertion(
     let state = ecx.journaled_state.state.clone();
     let chain_id = ecx.cfg.chain_id;
 
-    let nonce = ecx.db().basic(tx_attributes.caller).unwrap_or_default().unwrap_or_default().nonce;
+    let nonce = ecx
+        .db()
+        .basic(tx_attributes.caller)
+        .ok()
+        .flatten()
+        .map_or(0, |info| info.nonce);
     // Setup assertion database
     let db = ThreadSafeDb::new(ecx.db());
 
@@ -124,22 +129,23 @@ pub fn execute_assertion(
 
     let store = AssertionStore::new_ephemeral().expect("Failed to create assertion store");
 
+    if assertion.create_data.is_empty() {
+        bail!("Assertion bytecode is empty");
+    }
+
     let mut assertion_state =
         AssertionState::new_active(assertion.create_data.clone().into(), &config)
             .expect("Failed to create assertion state");
 
-    let mut trigger_types_to_remove = Vec::new();
-    // Filter triggers for one fn selector
-    for (trigger_type, fn_selectors) in assertion_state.trigger_recorder.triggers.iter_mut() {
+    // Filter triggers to only keep those matching our fn_selector
+    assertion_state.trigger_recorder.triggers.retain(|_, fn_selectors| {
         if fn_selectors.contains(&assertion.fn_selector) {
             *fn_selectors = HashSet::from_iter([assertion.fn_selector]);
+            true
         } else {
-            trigger_types_to_remove.push(trigger_type.clone());
+            false
         }
-    }
-    for trigger_type in trigger_types_to_remove {
-        assertion_state.trigger_recorder.triggers.remove(&trigger_type);
-    }
+    });
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
     let tx_env = TxEnv {
@@ -167,18 +173,19 @@ pub fn execute_assertion(
     // TODO: Remove this once we have a proper way to handle this.
     let mut ext_db = revm::database::WrapDatabaseRef(fork_db.clone());
 
-    // Store assertions
+    // Execute assertion validation
     let tx_validation = assertion_executor
-        .validate_transaction_ext_db(block.clone(), tx_env.clone(), &mut fork_db, &mut ext_db)
+        .validate_transaction_ext_db(block, tx_env, &mut fork_db, &mut ext_db)
         .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
 
     let mut inspector = executor.get_inspector(cheats);
     // if transaction execution reverted, log the revert reason
     if !tx_validation.result_and_state.result.is_success() {
         inspector.console_log(&format!(
-            "Transaction reverted: {}",
+            "Mock Transaction Revert Reason: {}",
             decode_invalidated_assertion(&tx_validation.result_and_state.result).reason()
         ));
+        bail!("Mock Transaction Reverted");
     }
 
     // else get information about the assertion execution
@@ -192,11 +199,17 @@ pub fn execute_assertion(
         // test evm in this case.
         ecx.journaled_state.inner.checkpoint();
 
+        // Drop inspector first to release the borrow on cheats
         std::mem::drop(inspector);
         if let Some(expected) = &mut cheats.expected_revert {
             expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
         }
-        bail!("Expected 1 assertion to be executed, but {total_assertions_ran} were executed.");
+        // Get a new inspector for logging
+        let mut inspector = executor.get_inspector(cheats);
+        inspector.console_log(&format!(
+            "Expected 1 assertion fn to be executed, but {total_assertions_ran} were executed."
+        ));
+        bail!("Assertion Fn number mismatch");
     }
 
     //Expect is safe because we validate above that 1 assertion was ran.
@@ -217,10 +230,9 @@ pub fn execute_assertion(
         }
     }
 
-    let assertion_gas_message = format!(
-        "Transaction gas cost: {tx_gas_used}\n  Assertion gas cost: {total_assertion_gas}\n  "
-    );
-    inspector.console_log(&assertion_gas_message);
+    inspector.console_log(&format!(
+        "Transaction gas cost: {tx_gas_used}\n  Assertion gas cost: {total_assertion_gas}"
+    ));
 
     // Drop the inspector to avoid borrow checker issues
     std::mem::drop(inspector);
@@ -235,39 +247,33 @@ pub fn execute_assertion(
         }
 
         let mut inspector = executor.get_inspector(cheats);
-        match &assertion_fn_result.result {
-            AssertionFunctionExecutionResult::AssertionContractDeployFailure(result) => {
-                inspector.console_log(&format!(
-                    "Assertion contract deploy failed: {}",
-                    decode_invalidated_assertion(&result).reason()
-                ));
-                let output = result.output().unwrap_or_default();
-                return Err(crate::Error::from(output.clone()));
+        let (msg, result) = match &assertion_fn_result.result {
+            AssertionFunctionExecutionResult::AssertionContractDeployFailure(r) => {
+                ("Assertion contract deploy failed", r)
             }
-            AssertionFunctionExecutionResult::AssertionExecutionResult(result) => {
-                inspector.console_log(&format!(
-                    "Assertion function reverted: {}",
-                    decode_invalidated_assertion(&result).reason()
-                ));
-                let output = result.output().unwrap_or_default();
-                return Err(crate::Error::from(output.clone()));
+            AssertionFunctionExecutionResult::AssertionExecutionResult(r) => {
+                ("Assertion function reverted", r)
             }
-        }
+        };
+        inspector.console_log(&format!(
+            "{msg}: {}",
+            decode_invalidated_assertion(result).reason()
+        ));
+        return Err(crate::Error::from(result.output().unwrap_or_default().clone()));
     }
     Ok(())
 }
 
-fn decode_invalidated_assertion(execution_result: &ExecutionResult) -> Revert {
-    let result = execution_result;
+fn decode_invalidated_assertion(result: &ExecutionResult) -> Revert {
     match result {
-        ExecutionResult::Success{..} => Revert {
-            reason: "Tried to decode invalidated assertion, but result was success. This is a bug in phoundry. Please report to the Phylax team.".to_string(),
+        ExecutionResult::Success { .. } => Revert {
+            reason: "Tried to decode invalidated assertion, but result was success. \
+                     This is a bug in phoundry. Please report to the Phylax team."
+                .to_string(),
         },
-        ExecutionResult::Revert{output, ..} => {
-            Revert::abi_decode(output)
-                .unwrap_or(Revert::new(("Unknown Revert Reason".to_string(),)))
-        },
-        ExecutionResult::Halt{reason, ..} => Revert {
+        ExecutionResult::Revert { output, .. } => Revert::abi_decode(output)
+            .unwrap_or_else(|_| Revert::new(("Unknown Revert Reason".to_string(),))),
+        ExecutionResult::Halt { reason, .. } => Revert {
             reason: format!("Halt reason: {reason:#?}"),
         },
     }
