@@ -1,6 +1,6 @@
 use crate::{inspector::Ecx, Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::{Bytes, FixedBytes, TxKind};
-use alloy_sol_types::{Revert, SolError};
+use foundry_evm_core::decode::RevertDecoder;
 use assertion_executor::{
     db::{fork_db::ForkDb, DatabaseCommit, DatabaseRef},
     primitives::{
@@ -183,7 +183,7 @@ pub fn execute_assertion(
     if !tx_validation.result_and_state.result.is_success() {
         inspector.console_log(&format!(
             "Mock Transaction Revert Reason: {}",
-            decode_invalidated_assertion(&tx_validation.result_and_state.result).reason()
+            decode_invalidated_assertion(&tx_validation.result_and_state.result)
         ));
         bail!("Mock Transaction Reverted");
     }
@@ -257,37 +257,44 @@ pub fn execute_assertion(
         };
         inspector.console_log(&format!(
             "{msg}: {}",
-            decode_invalidated_assertion(result).reason()
+            decode_invalidated_assertion(result)
         ));
         return Err(crate::Error::from(result.output().unwrap_or_default().clone()));
     }
     Ok(())
 }
 
-fn decode_invalidated_assertion(result: &ExecutionResult) -> Revert {
+/// Decodes revert data from an assertion execution result.
+/// Uses foundry's RevertDecoder to handle all revert types:
+/// - Error(string) from revert()/require()
+/// - Panic(uint256) from assert()/overflow/etc
+/// - Custom errors
+/// - Raw bytes as fallback
+fn decode_invalidated_assertion(result: &ExecutionResult) -> String {
     match result {
-        ExecutionResult::Success { .. } => Revert {
-            reason: "Tried to decode invalidated assertion, but result was success. \
-                     This is a bug in phoundry. Please report to the Phylax team."
-                .to_string(),
-        },
-        ExecutionResult::Revert { output, .. } => Revert::abi_decode(output)
-            .unwrap_or_else(|_| Revert::new(("Unknown Revert Reason".to_string(),))),
-        ExecutionResult::Halt { reason, .. } => Revert {
-            reason: format!("Halt reason: {reason:#?}"),
-        },
+        ExecutionResult::Success { .. } => {
+            "Tried to decode invalidated assertion, but result was success. \
+             This is a bug in phoundry. Please report to the Phylax team."
+                .to_string()
+        }
+        ExecutionResult::Revert { output, .. } => {
+            RevertDecoder::default().decode(output, None)
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            format!("Halt reason: {reason:#?}")
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_sol_types::{Revert, SolError};
     use assertion_executor::primitives::HaltReason;
     use revm::context::result::{Output, SuccessReason};
 
     #[test]
     fn test_decode_revert_error_success() {
-        // Test case 1: When result is success
         let result = ExecutionResult::Success {
             gas_used: 0,
             gas_refunded: 0,
@@ -295,8 +302,8 @@ mod tests {
             output: Output::Call(Bytes::new()),
             reason: SuccessReason::Return,
         };
-        let revert = decode_invalidated_assertion(&result);
-        assert_eq!(revert.reason(), "Tried to decode invalidated assertion, but result was success. This is a bug in phoundry. Please report to the Phylax team.");
+        let decoded = decode_invalidated_assertion(&result);
+        assert!(decoded.contains("bug in phoundry"));
     }
 
     #[test]
@@ -304,16 +311,34 @@ mod tests {
         let revert_reason = "Something is a bit fky wuky";
         let revert_output = Revert::new((revert_reason.to_string(),)).abi_encode();
         let result = ExecutionResult::Revert { output: revert_output.into(), gas_used: 0 };
-        let revert = decode_invalidated_assertion(&result);
-        assert_eq!(revert.reason(), revert_reason);
+        let decoded = decode_invalidated_assertion(&result);
+        assert_eq!(decoded, revert_reason);
+    }
+
+    #[test]
+    fn test_decode_revert_panic() {
+        // Panic(uint256) with code 0x01 (assertion failed)
+        let panic_output = alloy_sol_types::Panic::from(0x01).abi_encode();
+        let result = ExecutionResult::Revert { output: panic_output.into(), gas_used: 0 };
+        let decoded = decode_invalidated_assertion(&result);
+        assert!(decoded.contains("Panic") || decoded.contains("panic"));
+    }
+
+    #[test]
+    fn test_decode_revert_raw_bytes() {
+        // Raw bytes that don't match any known format
+        let raw_bytes = vec![0xde, 0xad, 0xbe, 0xef];
+        let result = ExecutionResult::Revert { output: raw_bytes.into(), gas_used: 0 };
+        let decoded = decode_invalidated_assertion(&result);
+        // Should contain hex representation
+        assert!(decoded.contains("deadbeef") || decoded.contains("custom error"));
     }
 
     #[test]
     fn test_decode_revert_error_halt() {
         let halt_reason = HaltReason::CallTooDeep;
         let result = ExecutionResult::Halt { reason: halt_reason, gas_used: 0 };
-
-        let revert = decode_invalidated_assertion(&result);
-        assert_eq!(revert.reason(), "Halt reason: CallTooDeep");
+        let decoded = decode_invalidated_assertion(&result);
+        assert_eq!(decoded, "Halt reason: CallTooDeep");
     }
 }
