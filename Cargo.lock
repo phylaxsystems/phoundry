@@ -3983,6 +3983,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a3d7db9596fecd151c5f638c0ee5d5bd487b6e0ea232e5dc96d5250f6f94b1d"
 dependencies = [
  "crc32fast",
+ "libz-rs-sys",
  "miniz_oxide",
 ]
 
@@ -4084,7 +4085,6 @@ dependencies = [
  "solar-sema",
  "soldeer-commands",
  "strum 0.27.1",
- "svm-rs",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
@@ -4502,7 +4502,7 @@ dependencies = [
  "sha2 0.10.9",
  "solar-parse",
  "solar-sema",
- "svm-rs",
+ "svm-rs 0.5.16",
  "svm-rs-builds",
  "tempfile",
  "thiserror 2.0.12",
@@ -4574,7 +4574,7 @@ dependencies = [
  "semver 1.0.26",
  "serde",
  "serde_json",
- "svm-rs",
+ "svm-rs 0.5.16",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
@@ -6114,6 +6114,15 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "libz-rs-sys"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15413ef615ad868d4d65dce091cb233b229419c7c0c4bcaa746c0901c49ff39c"
+dependencies = [
+ "zlib-rs",
 ]
 
 [[package]]
@@ -9151,7 +9160,7 @@ dependencies = [
  "solar-config",
  "solar-data-structures",
  "solar-macros",
- "thiserror 2.0.12",
+ "thiserror 1.0.69",
  "tracing",
  "unicode-width 0.2.0",
 ]
@@ -9262,7 +9271,7 @@ dependencies = [
  "tokio",
  "toml_edit",
  "uuid 1.17.0",
- "zip",
+ "zip 2.4.2",
  "zip-extract",
 ]
 
@@ -9496,21 +9505,38 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
- "thiserror 2.0.12",
+ "thiserror 1.0.69",
  "url",
- "zip",
+ "zip 2.4.2",
+]
+
+[[package]]
+name = "svm-rs"
+version = "0.5.22"
+source = "git+https://github.com/alloy-rs/svm-rs?tag=v0.5.22#99fe67b6af86784ad1df18b9a1775cb627cd6b6d"
+dependencies = [
+ "const-hex",
+ "dirs",
+ "reqwest",
+ "semver 1.0.26",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 1.0.69",
+ "url",
+ "zip 4.6.1",
 ]
 
 [[package]]
 name = "svm-rs-builds"
-version = "0.5.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ed5035d2abae3cd98c201b116ff22a82861589c060f3e4b687ce951cf381a6e"
+version = "0.5.22"
+source = "git+https://github.com/alloy-rs/svm-rs?tag=v0.5.22#99fe67b6af86784ad1df18b9a1775cb627cd6b6d"
 dependencies = [
  "const-hex",
  "semver 1.0.26",
  "serde_json",
- "svm-rs",
+ "svm-rs 0.5.22",
 ]
 
 [[package]]
@@ -11280,6 +11306,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "zip"
+version = "4.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caa8cd6af31c3b31c6631b8f483848b91589021b28fffe50adada48d4f4d2ed1"
+dependencies = [
+ "arbitrary",
+ "crc32fast",
+ "flate2",
+ "indexmap 2.9.0",
+ "memchr",
+ "zopfli",
+]
+
+[[package]]
 name = "zip-extract"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11287,8 +11327,14 @@ checksum = "25a8c9e90f27d1435088a7b540b6cc8ae6ee525d992a695f16012d2f365b3d3c"
 dependencies = [
  "log",
  "thiserror 1.0.69",
- "zip",
+ "zip 2.4.2",
 ]
+
+[[package]]
+name = "zlib-rs"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51f936044d677be1a1168fae1d03b583a285a5dd9d8cbf7b24c23aa1fc775235"
 
 [[package]]
 name = "zopfli"
