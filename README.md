@@ -97,4 +97,21 @@ for inclusion in these crates by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
 </sub>
 
+## How to update upstream
+
+The default branch of this repository is `main`.
+
+To update the upstream repository, run the following commands:
+
+```terminal
+git remote add upstream https://github.com/foundry-rs/foundry.git
+git fetch upstream
+git checkout main
+# Backup branch
+git checkout -b upstream-update
+git checkout main
+git rebase upstream/master
+git push --force-with-lease origin main
+```
+
 [foundry-docs]: https://getfoundry.sh
