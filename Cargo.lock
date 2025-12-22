@@ -1679,6 +1679,89 @@ dependencies = [
 ]
 
 [[package]]
+name = "ascii-canvas"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef1e3e699d84ab1b0911a1010c5c106aa34ae89aeac103be5ce0c3859db1e891"
+dependencies = [
+ "term",
+]
+
+[[package]]
+name = "assertion-da-client"
+version = "0.9.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?tag=0.9.0#b934f6d8367940cdb8b3565b3748d6aec0e59fb9"
+dependencies = [
+ "alloy",
+ "assertion-da-core",
+ "http 1.4.0",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "assertion-da-core"
+version = "0.9.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?tag=0.9.0#b934f6d8367940cdb8b3565b3748d6aec0e59fb9"
+dependencies = [
+ "alloy",
+ "serde",
+]
+
+[[package]]
+name = "assertion-executor"
+version = "0.9.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?tag=0.9.0#b934f6d8367940cdb8b3565b3748d6aec0e59fb9"
+dependencies = [
+ "alloy",
+ "alloy-consensus",
+ "alloy-evm 0.24.2",
+ "alloy-network",
+ "alloy-network-primitives",
+ "alloy-node-bindings",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-pubsub",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-rpc-types-anvil",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "alloy-transport",
+ "alloy-transport-ws",
+ "assertion-da-client",
+ "bincode",
+ "clap",
+ "dashmap",
+ "enum-as-inner",
+ "evm-glue",
+ "futures",
+ "metrics",
+ "moka",
+ "op-revm",
+ "parking_lot",
+ "rapidhash",
+ "rayon",
+ "revm",
+ "serde",
+ "serde_json",
+ "sled",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "zerocopy 0.7.35",
+]
+
+[[package]]
 name = "async-compression"
 version = "0.4.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
