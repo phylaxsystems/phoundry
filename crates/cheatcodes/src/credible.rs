@@ -103,6 +103,24 @@ pub struct TxAttributes {
     pub kind: TxKind,
 }
 
+/// Maximum gas allowed for assertion execution (300k gas).
+/// Assertions exceeding this limit will cause the test to fail.
+const ASSERTION_GAS_LIMIT: u64 = 300_000;
+
+/// Checks if the assertion gas usage is within the allowed limit.
+/// Returns a detailed log message if the limit is exceeded, None otherwise.
+fn check_assertion_gas_limit(gas_used: u64) -> Option<String> {
+    if gas_used > ASSERTION_GAS_LIMIT {
+        let over_by = gas_used - ASSERTION_GAS_LIMIT;
+        let over_percent = (over_by as f64 / ASSERTION_GAS_LIMIT as f64) * 100.0;
+        Some(format!(
+            "Assertion used {gas_used} gas, exceeding limit of {ASSERTION_GAS_LIMIT} by {over_by} ({over_percent:.1}% over)"
+        ))
+    } else {
+        None
+    }
+}
+
 /// Used to handle assertion execution in inspector in calls after the cheatcode was called.
 pub fn execute_assertion(
     assertion: &Assertion,
@@ -126,7 +144,8 @@ pub fn execute_assertion(
 
     // Prepare assertion store
 
-    let config = ExecutorConfig { spec_id: spec_id.into(), chain_id, assertion_gas_limit: 300_000 };
+    let config =
+        ExecutorConfig { spec_id: spec_id.into(), chain_id, assertion_gas_limit: u64::MAX };
 
     let store = AssertionStore::new_ephemeral().expect("Failed to create assertion store");
 
@@ -259,6 +278,13 @@ pub fn execute_assertion(
         inspector.console_log(&format!("{msg}: {}", decode_invalidated_assertion(result)));
         return Err(crate::Error::from(result.output().unwrap_or_default().clone()));
     }
+
+    if let Some(log_msg) = check_assertion_gas_limit(total_assertion_gas) {
+        let mut inspector = executor.get_inspector(cheats);
+        inspector.console_log(&log_msg);
+        bail!("Assertion exceeded gas limit");
+    }
+
     Ok(())
 }
 
@@ -336,5 +362,61 @@ mod tests {
         let result = ExecutionResult::Halt { reason: halt_reason, gas_used: 0 };
         let decoded = decode_invalidated_assertion(&result);
         assert_eq!(decoded, "Halt reason: CallTooDeep");
+    }
+
+    #[test]
+    fn test_assertion_gas_limit_constant() {
+        // Ensure the gas limit is set to the expected value (300k)
+        assert_eq!(ASSERTION_GAS_LIMIT, 300_000);
+    }
+
+    #[test]
+    fn test_check_gas_limit_under() {
+        // Gas usage under limit should return None
+        assert!(check_assertion_gas_limit(100_000).is_none());
+        assert!(check_assertion_gas_limit(299_999).is_none());
+    }
+
+    #[test]
+    fn test_check_gas_limit_exact() {
+        // Gas usage exactly at limit should return None
+        assert!(check_assertion_gas_limit(300_000).is_none());
+    }
+
+    #[test]
+    fn test_check_gas_limit_over() {
+        // Gas usage over limit should return error message with details
+        let result = check_assertion_gas_limit(450_000);
+        assert!(result.is_some());
+        let msg = result.unwrap();
+        // Should contain: gas used, limit, absolute over, percentage
+        assert!(msg.contains("450000"), "should contain gas used");
+        assert!(msg.contains("300000"), "should contain limit");
+        assert!(msg.contains("150000"), "should contain absolute over amount");
+        assert!(msg.contains("50.0%"), "should contain percentage over");
+    }
+
+    #[test]
+    fn test_check_gas_limit_over_small() {
+        // Just 1 gas over the limit
+        let result = check_assertion_gas_limit(300_001);
+        assert!(result.is_some());
+        let msg = result.unwrap();
+        assert!(msg.contains("300001"));
+        assert!(msg.contains("by 1"));
+        assert!(msg.contains("0.0%")); // 1/300000 ≈ 0.0003%
+    }
+
+    #[test]
+    fn test_check_gas_limit_zero() {
+        // Zero gas should be fine
+        assert!(check_assertion_gas_limit(0).is_none());
+    }
+
+    #[test]
+    fn test_check_gas_limit_max() {
+        // Max u64 should definitely exceed
+        let result = check_assertion_gas_limit(u64::MAX);
+        assert!(result.is_some());
     }
 }
