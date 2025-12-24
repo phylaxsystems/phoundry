@@ -201,11 +201,10 @@ pub fn execute_assertion(
     let mut inspector = executor.get_inspector(cheats);
     // if transaction execution reverted, log the revert reason
     if !tx_validation.result_and_state.result.is_success() {
-        inspector.console_log(&format!(
-            "Mock Transaction Revert Reason: {}",
+        bail!(format!(
+            "Mock Transaction Reverted: {}",
             decode_invalidated_assertion(&tx_validation.result_and_state.result)
         ));
-        bail!("Mock Transaction Reverted");
     }
 
     // else get information about the assertion execution
