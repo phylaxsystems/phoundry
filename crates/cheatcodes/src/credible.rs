@@ -145,7 +145,7 @@ pub fn execute_assertion(
     // Prepare assertion store
 
     let block_gas_limit = block.gas_limit.try_into().unwrap_or(u64::MAX);
-    let assertion_gas_limit = ASSERTION_GAS_LIMIT.min(TX_GAS_LIMIT_CAP).min(block_gas_limit);
+    let assertion_gas_limit = TX_GAS_LIMIT_CAP.min(block_gas_limit);
     let config = ExecutorConfig { spec_id: spec_id.into(), chain_id, assertion_gas_limit };
 
     let store = AssertionStore::new_ephemeral();
