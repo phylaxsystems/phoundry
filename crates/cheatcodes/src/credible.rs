@@ -225,12 +225,7 @@ pub fn execute_assertion(
         if let Some(expected) = &mut cheats.expected_revert {
             expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
         }
-        // Get a new inspector for logging
-        let mut inspector = executor.get_inspector(cheats);
-        inspector.console_log(&format!(
-            "Expected 1 assertion fn to be executed, but {total_assertions_ran} were executed."
-        ));
-        bail!("Assertion Fn number mismatch");
+        bail!("Expected 1 assertion to be executed, but {total_assertions_ran} were executed.");
     }
 
     //Expect is safe because we validate above that 1 assertion was ran.
