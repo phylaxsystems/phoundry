@@ -169,9 +169,10 @@ pub fn execute_assertion(
     });
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
+    let tx_gas_limit = block.gas_limit.try_into().unwrap_or(u64::MAX).min(TX_GAS_LIMIT_CAP);
     let tx_env = TxEnv {
         caller: tx_attributes.caller,
-        gas_limit: block.gas_limit.try_into().unwrap_or(u64::MAX),
+        gas_limit: tx_gas_limit,
         gas_price: block.basefee.into(),
         chain_id: Some(chain_id),
         value: tx_attributes.value,
