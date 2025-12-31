@@ -298,7 +298,7 @@ alloy-evm = "0.25.2"
 alloy-op-evm = "0.25.2"
 
 # revm
-revm = { version = "33.1.0", default-features = false }
+revm = { version = "33.1.0", default-features = false, features = ["optional_block_gas_limit"] }
 revm-inspectors = { version = "0.33.2", features = ["serde"] }
 op-revm = { version = "14.1.0", default-features = false }
 
