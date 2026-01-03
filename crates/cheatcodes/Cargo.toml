@@ -45,7 +45,6 @@ parking_lot.workspace = true
 alloy-consensus = { workspace = true, features = ["k256", "kzg"] }
 alloy-network.workspace = true
 alloy-rlp.workspace = true
-alloy-chains.workspace = true
 alloy-ens.workspace = true
 
 base64.workspace = true
