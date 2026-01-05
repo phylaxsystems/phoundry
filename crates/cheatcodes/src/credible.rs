@@ -143,8 +143,7 @@ pub fn execute_assertion(
     let db = ThreadSafeDb::new(*ecx.db_mut());
 
     // Prepare assertion store
-    let assertion_gas_limit = TX_GAS_LIMIT_CAP;
-    let config = ExecutorConfig { spec_id: spec_id.into(), chain_id, assertion_gas_limit };
+    let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: TX_GAS_LIMIT_CAP };
 
     let store = AssertionStore::new_ephemeral();
 
@@ -167,7 +166,8 @@ pub fn execute_assertion(
     });
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
-    let tx_gas_limit = block.gas_limit.try_into().unwrap_or(u64::MAX).min(TX_GAS_LIMIT_CAP);
+    // transaction gas limit should respect new hardfork rules of max 16m gas
+    let tx_gas_limit = block.gas_limit.min(TX_GAS_LIMIT_CAP);
     let tx_env = TxEnv {
         caller: tx_attributes.caller,
         gas_limit: tx_gas_limit,
@@ -239,7 +239,7 @@ pub fn execute_assertion(
 
     if !assertion_fn_result.console_logs.is_empty() {
         inspector.console_log("Assertion function logs: ");
-        for log in assertion_fn_result.console_logs.iter() {
+        for log in &assertion_fn_result.console_logs {
             inspector.console_log(log);
         }
     }
