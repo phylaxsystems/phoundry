@@ -143,9 +143,7 @@ pub fn execute_assertion(
     let db = ThreadSafeDb::new(*ecx.db_mut());
 
     // Prepare assertion store
-
-    let config =
-        ExecutorConfig { spec_id: spec_id.into(), chain_id, assertion_gas_limit: TX_GAS_LIMIT_CAP };
+    let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: TX_GAS_LIMIT_CAP };
 
     let store = AssertionStore::new_ephemeral();
 
@@ -168,9 +166,11 @@ pub fn execute_assertion(
     });
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
+    // transaction gas limit should respect new hardfork rules of max 16m gas
+    let tx_gas_limit = block.gas_limit.min(TX_GAS_LIMIT_CAP);
     let tx_env = TxEnv {
         caller: tx_attributes.caller,
-        gas_limit: block.gas_limit.try_into().unwrap_or(u64::MAX),
+        gas_limit: tx_gas_limit,
         gas_price: block.basefee.into(),
         chain_id: Some(chain_id),
         value: tx_attributes.value,
@@ -223,12 +223,7 @@ pub fn execute_assertion(
         if let Some(expected) = &mut cheats.expected_revert {
             expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
         }
-        // Get a new inspector for logging
-        let mut inspector = executor.get_inspector(cheats);
-        inspector.console_log(&format!(
-            "Expected 1 assertion fn to be executed, but {total_assertions_ran} were executed."
-        ));
-        bail!("Assertion Fn number mismatch");
+        bail!("Expected 1 assertion to be executed, but {total_assertions_ran} were executed.");
     }
 
     //Expect is safe because we validate above that 1 assertion was ran.
@@ -244,7 +239,7 @@ pub fn execute_assertion(
 
     if !assertion_fn_result.console_logs.is_empty() {
         inspector.console_log("Assertion function logs: ");
-        for log in assertion_fn_result.console_logs.iter() {
+        for log in &assertion_fn_result.console_logs {
             inspector.console_log(log);
         }
     }
