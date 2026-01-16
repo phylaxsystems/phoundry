@@ -123,6 +123,24 @@ fn check_assertion_gas_limit(gas_used: u64) -> Option<String> {
     }
 }
 
+fn build_tx_env(
+    tx_attributes: TxAttributes,
+    base_tx_env: &TxEnv,
+    chain_id: u64,
+    nonce: u64,
+) -> TxEnv {
+    let tx_gas_limit = base_tx_env.gas_limit.min(TX_GAS_LIMIT_CAP);
+    let mut tx_env = base_tx_env.clone();
+    tx_env.caller = tx_attributes.caller;
+    tx_env.gas_limit = tx_gas_limit;
+    tx_env.chain_id = Some(chain_id);
+    tx_env.value = tx_attributes.value;
+    tx_env.data = tx_attributes.data;
+    tx_env.kind = tx_attributes.kind;
+    tx_env.nonce = nonce;
+    tx_env
+}
+
 /// Used to handle assertion execution in inspector in calls after the cheatcode was called.
 pub fn execute_assertion(
     assertion: &Assertion,
@@ -168,17 +186,7 @@ pub fn execute_assertion(
     });
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
-    let tx_env = TxEnv {
-        caller: tx_attributes.caller,
-        gas_limit: block.gas_limit.try_into().unwrap_or(u64::MAX),
-        gas_price: block.basefee.into(),
-        chain_id: Some(chain_id),
-        value: tx_attributes.value,
-        data: tx_attributes.data,
-        kind: tx_attributes.kind,
-        nonce,
-        ..Default::default()
-    };
+    let tx_env = build_tx_env(tx_attributes, &ecx.tx, chain_id, nonce);
 
     let mut assertion_executor = config.build(store);
 
@@ -361,6 +369,53 @@ mod tests {
         let result = ExecutionResult::Halt { reason: halt_reason, gas_used: 0 };
         let decoded = decode_invalidated_assertion(&result);
         assert_eq!(decoded, "Halt reason: CallTooDeep");
+    }
+
+    #[test]
+    fn test_build_tx_env_uses_base_gas_fields() {
+        let base_tx_env = TxEnv {
+            gas_limit: 50_000,
+            gas_price: 123,
+            gas_priority_fee: Some(7),
+            tx_type: 2,
+            ..Default::default()
+        };
+        let tx_attributes = TxAttributes {
+            value: U256::from(1),
+            data: Bytes::from(vec![0x01, 0x02]),
+            caller: Address::from([0x11; 20]),
+            kind: TxKind::Call(Address::from([0x22; 20])),
+        };
+        let tx_env = build_tx_env(tx_attributes, &base_tx_env, 1, 9);
+
+        assert_eq!(tx_env.gas_limit, 50_000);
+        assert_eq!(tx_env.gas_price, 123);
+        assert_eq!(tx_env.gas_priority_fee, Some(7));
+        assert_eq!(tx_env.tx_type, 2);
+        assert_eq!(tx_env.chain_id, Some(1));
+        assert_eq!(tx_env.nonce, 9);
+        assert_eq!(tx_env.caller, Address::from([0x11; 20]));
+        assert_eq!(tx_env.value, U256::from(1));
+        assert_eq!(tx_env.data, Bytes::from(vec![0x01, 0x02]));
+        assert_eq!(tx_env.kind, TxKind::Call(Address::from([0x22; 20])));
+    }
+
+    #[test]
+    fn test_build_tx_env_caps_gas_limit() {
+        let base_tx_env = TxEnv {
+            gas_limit: TX_GAS_LIMIT_CAP.saturating_add(1),
+            gas_price: 1,
+            ..Default::default()
+        };
+        let tx_attributes = TxAttributes {
+            value: U256::ZERO,
+            data: Bytes::new(),
+            caller: Address::from([0x33; 20]),
+            kind: TxKind::Call(Address::from([0x44; 20])),
+        };
+        let tx_env = build_tx_env(tx_attributes, &base_tx_env, 1, 0);
+
+        assert_eq!(tx_env.gas_limit, TX_GAS_LIMIT_CAP);
     }
 
     #[test]
