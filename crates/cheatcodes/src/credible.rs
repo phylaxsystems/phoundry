@@ -103,6 +103,7 @@ pub struct TxAttributes {
     pub data: Bytes,
     pub caller: Address,
     pub kind: TxKind,
+    pub gas_limit: u64,
 }
 
 /// Maximum gas allowed for assertion execution (300k gas).
@@ -129,7 +130,7 @@ fn build_tx_env(
     chain_id: u64,
     nonce: u64,
 ) -> TxEnv {
-    let tx_gas_limit = base_tx_env.gas_limit.min(TX_GAS_LIMIT_CAP);
+    let tx_gas_limit = tx_attributes.gas_limit.min(TX_GAS_LIMIT_CAP);
     let mut tx_env = base_tx_env.clone();
     tx_env.caller = tx_attributes.caller;
     tx_env.gas_limit = tx_gas_limit;
@@ -153,10 +154,12 @@ pub fn execute_assertion(
     let block = ecx.block.clone();
     let state = ecx.journaled_state.state.clone();
     let chain_id = ecx.cfg.chain_id;
+    let base_tx_env = ecx.tx.clone();
 
-    let (db, journal, _) = ecx.as_db_env_and_journal();
-    let nonce =
-        journal.load_account(db, tx_attributes.caller).map(|acc| acc.info.nonce).unwrap_or(0);
+    let nonce = {
+        let (db, journal, _) = ecx.as_db_env_and_journal();
+        journal.load_account(db, tx_attributes.caller).map(|acc| acc.info.nonce).unwrap_or(0)
+    };
     // Setup assertion database
     let db = ThreadSafeDb::new(*ecx.db_mut());
 
@@ -186,7 +189,7 @@ pub fn execute_assertion(
     });
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
-    let tx_env = build_tx_env(tx_attributes, &ecx.tx, chain_id, nonce);
+    let tx_env = build_tx_env(tx_attributes, &base_tx_env, chain_id, nonce);
 
     let mut assertion_executor = config.build(store);
 
@@ -385,10 +388,11 @@ mod tests {
             data: Bytes::from(vec![0x01, 0x02]),
             caller: Address::from([0x11; 20]),
             kind: TxKind::Call(Address::from([0x22; 20])),
+            gas_limit: 40_000,
         };
         let tx_env = build_tx_env(tx_attributes, &base_tx_env, 1, 9);
 
-        assert_eq!(tx_env.gas_limit, 50_000);
+        assert_eq!(tx_env.gas_limit, 40_000);
         assert_eq!(tx_env.gas_price, 123);
         assert_eq!(tx_env.gas_priority_fee, Some(7));
         assert_eq!(tx_env.tx_type, 2);
@@ -412,6 +416,7 @@ mod tests {
             data: Bytes::new(),
             caller: Address::from([0x33; 20]),
             kind: TxKind::Call(Address::from([0x44; 20])),
+            gas_limit: TX_GAS_LIMIT_CAP.saturating_add(1),
         };
         let tx_env = build_tx_env(tx_attributes, &base_tx_env, 1, 0);
 
