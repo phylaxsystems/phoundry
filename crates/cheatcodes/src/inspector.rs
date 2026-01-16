@@ -1252,6 +1252,7 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
                 data: call.input.bytes(ecx),
                 caller: call.caller,
                 kind: TxKind::Call(call.target_address),
+                gas_limit: call.gas_limit,
             };
 
             return match crate::credible::execute_assertion(
@@ -2105,6 +2106,7 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 data: input.init_code(),
                 caller: input.caller(),
                 kind: TxKind::Create,
+                gas_limit: input.gas_limit(),
             };
 
             return match crate::credible::execute_assertion(
