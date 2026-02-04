@@ -10,6 +10,10 @@ use assertion_executor::{
     store::{AssertionState, AssertionStore},
 };
 use foundry_evm_core::{ContextExt, decode::RevertDecoder};
+use foundry_evm_traces::{
+    TraceMode,
+    TracingInspector,
+};
 use foundry_fork_db::DatabaseError;
 
 use foundry_evm_core::backend::DatabaseExt;
@@ -35,9 +39,14 @@ impl std::fmt::Debug for ThreadSafeDb<'_> {
 }
 
 /// Separate implementation block for constructor and helper methods
-impl<'a> ThreadSafeDb<'a> {
-    /// Creates a new thread-safe database wrapper
-    pub fn new(db: &'a mut dyn DatabaseExt) -> Self {
+impl ThreadSafeDb<'static> {
+    /// Creates a new thread-safe database wrapper.
+    ///
+    /// # Safety
+    /// The returned wrapper must not outlive the `execute_assertion` call that created it.
+    pub fn new(db: &mut dyn DatabaseExt) -> Self {
+        // SAFETY: The wrapper is only used within `execute_assertion` and does not escape.
+        let db = unsafe { std::mem::transmute::<&mut dyn DatabaseExt, &'static mut dyn DatabaseExt>(db) };
         Self { db: Arc::new(Mutex::new(db)) }
     }
 }
@@ -182,6 +191,17 @@ pub fn execute_assertion(
 
     let mut assertion_executor = config.build(store);
 
+    let trace_config = executor
+        .tracing_inspector()
+        .map(|tracer| *tracer.config())
+        .or_else(|| {
+            TraceMode::default()
+                .with_verbosity(cheats.config.evm_opts.verbosity)
+                .with_state_changes(cheats.config.evm_opts.verbosity > 4)
+                .into_config()
+        });
+    let trace_store = trace_config.map(|_| Arc::new(Mutex::new(Vec::new())));
+
     // Commit current journal state so that it is available for assertions and
     // triggering tx
     let mut fork_db = ForkDb::new(db.clone());
@@ -194,9 +214,28 @@ pub fn execute_assertion(
     let mut ext_db = revm::database::WrapDatabaseRef(fork_db.clone());
 
     // Execute assertion validation
-    let tx_validation = assertion_executor
-        .validate_transaction_ext_db(block, tx_env, &mut fork_db, &mut ext_db)
-        .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+    let tx_validation = if let Some(trace_config) = trace_config {
+        let traces = trace_store.clone().expect("trace store should be initialized");
+        let inspector_factory = || TracingInspector::new(trace_config);
+        let inspector_handler = move |inspector: TracingInspector| {
+            traces.lock().unwrap().push(inspector.into_traces());
+        };
+
+        assertion_executor
+            .validate_transaction_ext_db_with_inspector(
+                block,
+                &tx_env,
+                &mut fork_db,
+                &mut ext_db,
+                &inspector_factory,
+                &inspector_handler,
+            )
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?
+    } else {
+        assertion_executor
+            .validate_transaction_ext_db(block, &tx_env, &mut fork_db, &mut ext_db)
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?
+    };
 
     let mut inspector = executor.get_inspector(cheats);
     // if transaction execution reverted, log the revert reason
@@ -258,6 +297,13 @@ pub fn execute_assertion(
 
         if let Some(expected) = &mut cheats.expected_revert {
             expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
+        }
+
+        if let Some(trace_store) = trace_store.as_ref() {
+            let traces = trace_store.lock().unwrap().drain(..).collect::<Vec<_>>();
+            if !traces.is_empty() {
+                cheats.push_assertion_traces(traces);
+            }
         }
 
         let mut inspector = executor.get_inspector(cheats);
@@ -413,4 +459,5 @@ mod tests {
         let result = check_assertion_gas_limit(u64::MAX);
         assert!(result.is_some());
     }
+
 }

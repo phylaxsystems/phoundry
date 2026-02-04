@@ -6,7 +6,7 @@ use crate::{
     multi_runner::matches_artifact,
     result::{SuiteResult, TestOutcome, TestStatus},
     traces::{
-        CallTraceDecoderBuilder, InternalTraceMode, TraceKind,
+        CallTraceDecoderBuilder, InternalTraceMode, SparsedTraceArena, TraceKind,
         debug::{ContractSources, DebugTraceIdentifier},
         decode_trace_arena, folded_stack_trace,
         identifier::SignaturesIdentifier,
@@ -52,6 +52,15 @@ use std::{
     time::{Duration, Instant},
 };
 use yansi::Paint;
+
+fn assertion_trace_header(arena: &SparsedTraceArena) -> Option<String> {
+    let signature = arena.nodes().first()?.trace.decoded.as_ref()?.call_data.as_ref()?.signature.as_str();
+    if !signature.starts_with("assertionCall") {
+        return None;
+    }
+    let name = signature.trim_end_matches("()");
+    Some(format!("Assertion trace: {name}"))
+}
 
 mod filter;
 mod summary;
@@ -661,6 +670,9 @@ impl TestArgs {
                             prune_trace_depth(arena, trace_depth);
                         }
 
+                        if let Some(header) = assertion_trace_header(arena) {
+                            decoded_traces.push(header);
+                        }
                         decoded_traces.push(render_trace_arena_inner(arena, false, verbosity > 4));
                     }
                 }
