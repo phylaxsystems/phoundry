@@ -5,11 +5,14 @@ use assertion_executor::{
     db::{DatabaseCommit, DatabaseRef, fork_db::ForkDb},
     primitives::{
         AccountInfo, Address, AssertionFunctionExecutionResult, B256, Bytecode, ExecutionResult,
-        TxEnv, U256,
+        TxEnv, TxValidationResult, U256,
     },
     store::{AssertionState, AssertionStore},
 };
 use foundry_evm_core::{ContextExt, decode::RevertDecoder};
+use foundry_evm_traces::{
+    SparsedTraceArena, TraceMode, TracingInspector, TracingInspectorConfig, render_trace_arena_inner,
+};
 use foundry_fork_db::DatabaseError;
 
 use foundry_evm_core::backend::DatabaseExt;
@@ -22,28 +25,38 @@ use std::{
 
 use revm::primitives::eip7825::TX_GAS_LIMIT_CAP;
 
-/// Wrapper around DatabaseExt to make it thread-safe
+/// Wrapper around DatabaseExt to make it thread-safe and 'static.
+/// Uses a leaked reference internally to satisfy 'static bounds required by
+/// the inspector API. This is safe because the wrapper is only used within
+/// a single function scope and the original database outlives this usage.
 #[derive(Clone)]
-struct ThreadSafeDb<'a> {
-    db: Arc<Mutex<&'a mut dyn DatabaseExt>>,
+struct ThreadSafeDb {
+    // Im fine with leaking this because it only lives for the duration
+    // of assex execution
+    db: Arc<Mutex<&'static mut dyn DatabaseExt>>,
 }
 
-impl std::fmt::Debug for ThreadSafeDb<'_> {
+impl std::fmt::Debug for ThreadSafeDb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ThreadSafeDb")
     }
 }
 
-/// Separate implementation block for constructor and helper methods
-impl<'a> ThreadSafeDb<'a> {
-    /// Creates a new thread-safe database wrapper
-    pub fn new(db: &'a mut dyn DatabaseExt) -> Self {
-        Self { db: Arc::new(Mutex::new(db)) }
+impl ThreadSafeDb {
+    /// Creates a new thread-safe database wrapper by leaking the reference.
+    /// # Safety
+    /// The caller must ensure the original database outlives all uses of this wrapper.
+    pub fn new(db: &mut dyn DatabaseExt) -> Self {
+        // SAFETY: We transmute the lifetime to 'static. This is safe because:
+        // 1. ThreadSafeDb is only used within execute_assertion's scope
+        // 2. The original ecx.db_mut() outlives this entire function
+        // 3. We don't store ThreadSafeDb beyond this function's execution
+        let static_ref: &'static mut dyn DatabaseExt = unsafe { std::mem::transmute(db) };
+        Self { db: Arc::new(Mutex::new(static_ref)) }
     }
 }
 
-/// Keep DatabaseRef implementation separate
-impl<'a> DatabaseRef for ThreadSafeDb<'a> {
+impl DatabaseRef for ThreadSafeDb {
     type Error = DatabaseError;
 
     fn basic_ref(
@@ -155,13 +168,12 @@ pub fn execute_assertion(
     let state = ecx.journaled_state.state.clone();
     let chain_id = ecx.cfg.chain_id;
     let base_tx_env = ecx.tx.clone();
+    let verbosity = cheats.config.evm_opts.verbosity;
 
     let nonce = {
         let (db, journal, _) = ecx.as_db_env_and_journal();
         journal.load_account(db, tx_attributes.caller).map(|acc| acc.info.nonce).unwrap_or(0)
     };
-    // Setup assertion database
-    let db = ThreadSafeDb::new(*ecx.db_mut());
 
     // Prepare assertion store
     let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: TX_GAS_LIMIT_CAP };
@@ -192,8 +204,10 @@ pub fn execute_assertion(
 
     let mut assertion_executor = config.build(store);
 
-    // Commit current journal state so that it is available for assertions and
-    // triggering tx
+    // Setup assertion database with 'static lifetime (via transmute in ThreadSafeDb::new)
+    let db = ThreadSafeDb::new(*ecx.db_mut());
+
+    // Commit current journal state so that it is available for assertions and triggering tx
     let mut fork_db = ForkDb::new(db.clone());
     fork_db.commit(state);
 
@@ -203,10 +217,37 @@ pub fn execute_assertion(
     // TODO: Remove this once we have a proper way to handle this.
     let mut ext_db = revm::database::WrapDatabaseRef(fork_db.clone());
 
-    // Execute assertion validation
-    let tx_validation = assertion_executor
-        .validate_transaction_ext_db(block, tx_env, &mut fork_db, &mut ext_db)
-        .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+    // Minimum verbosity for tracing (matches Foundry's -vvv)
+    const TRACING_VERBOSITY: u8 = 3;
+
+    // Execute assertion validation with optional tracing based on verbosity
+    let (tx_validation, tracing_inspectors): (TxValidationResult, Option<Vec<TracingInspector>>) =
+        if verbosity >= TRACING_VERBOSITY {
+            // Create tracing inspector configured based on verbosity
+            let tracing_config = TraceMode::Call
+                .with_verbosity(verbosity)
+                .into_config()
+                .unwrap_or_else(TracingInspectorConfig::default_parity);
+            let tracing_inspector = TracingInspector::new(tracing_config);
+
+            let result_with_inspectors = assertion_executor
+                .validate_transaction_with_inspector(
+                    block,
+                    &tx_env,
+                    &mut fork_db,
+                    &mut ext_db,
+                    tracing_inspector,
+                )
+                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+
+            (result_with_inspectors.result, Some(result_with_inspectors.inspectors))
+        } else {
+            // No tracing - use the standard path
+            let result = assertion_executor
+                .validate_transaction_ext_db(block, &tx_env, &mut fork_db, &mut ext_db)
+                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+            (result, None)
+        };
 
     let mut inspector = executor.get_inspector(cheats);
     // if transaction execution reverted, log the revert reason
@@ -257,6 +298,29 @@ pub fn execute_assertion(
     inspector.console_log(&format!(
         "Transaction gas cost: {tx_gas_used}\n  Assertion gas cost: {total_assertion_gas}"
     ));
+
+    // Print traces if tracing was enabled
+    if let Some(inspectors) = tracing_inspectors {
+        let with_storage_changes = verbosity > 4;
+        for (i, tracing_inspector) in inspectors.into_iter().enumerate() {
+            let arena = tracing_inspector.into_traces();
+            if arena.nodes().is_empty() {
+                continue;
+            }
+
+            let traces = SparsedTraceArena { arena, ignored: Default::default() };
+            let rendered = render_trace_arena_inner(&traces, false, with_storage_changes);
+
+            if !rendered.is_empty() {
+                if i == 0 {
+                    inspector.console_log("\nTransaction Execution Traces:");
+                } else {
+                    inspector.console_log(&format!("\nAssertion Function {} Traces:", i));
+                }
+                inspector.console_log(&rendered);
+            }
+        }
+    }
 
     // Drop the inspector to avoid borrow checker issues
     std::mem::drop(inspector);
