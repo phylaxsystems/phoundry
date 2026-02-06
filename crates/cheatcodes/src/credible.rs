@@ -10,9 +10,7 @@ use assertion_executor::{
     store::{AssertionState, AssertionStore},
 };
 use foundry_evm_core::{ContextExt, decode::RevertDecoder};
-use foundry_evm_traces::{
-    SparsedTraceArena, TraceMode, TracingInspector, TracingInspectorConfig, render_trace_arena_inner,
-};
+use foundry_evm_traces::{TraceMode, TracingInspector, TracingInspectorConfig};
 use foundry_fork_db::DatabaseError;
 
 use foundry_evm_core::backend::DatabaseExt;
@@ -299,29 +297,6 @@ pub fn execute_assertion(
         "Transaction gas cost: {tx_gas_used}\n  Assertion gas cost: {total_assertion_gas}"
     ));
 
-    // Print traces if tracing was enabled
-    if let Some(inspectors) = tracing_inspectors {
-        let with_storage_changes = verbosity > 4;
-        for (i, tracing_inspector) in inspectors.into_iter().enumerate() {
-            let arena = tracing_inspector.into_traces();
-            if arena.nodes().is_empty() {
-                continue;
-            }
-
-            let traces = SparsedTraceArena { arena, ignored: Default::default() };
-            let rendered = render_trace_arena_inner(&traces, false, with_storage_changes);
-
-            if !rendered.is_empty() {
-                if i == 0 {
-                    inspector.console_log("\nTransaction Execution Traces:");
-                } else {
-                    inspector.console_log(&format!("\nAssertion Function {} Traces:", i));
-                }
-                inspector.console_log(&rendered);
-            }
-        }
-    }
-
     // Drop the inspector to avoid borrow checker issues
     std::mem::drop(inspector);
 
@@ -332,6 +307,14 @@ pub fn execute_assertion(
 
         if let Some(expected) = &mut cheats.expected_revert {
             expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
+        }
+
+        if let Some(inspectors) = tracing_inspectors {
+            let traces = inspectors
+                .into_iter()
+                .map(|tracing_inspector| tracing_inspector.into_traces())
+                .filter(|arena| !arena.nodes().is_empty());
+            cheats.push_assertion_traces(traces);
         }
 
         let mut inspector = executor.get_inspector(cheats);
