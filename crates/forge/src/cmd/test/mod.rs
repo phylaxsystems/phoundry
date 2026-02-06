@@ -18,7 +18,7 @@ use crate::{
         collect_symbolic_artifacts_from_suites, emit_symbolic_regressions,
     },
     traces::{
-        CallTraceDecoderBuilder, InternalTraceMode, TraceKind,
+        CallTraceDecoderBuilder, InternalTraceMode, SparsedTraceArena, TraceKind,
         debug::{ContractSources, DebugTraceIdentifier},
         decode_trace_arena, folded_stack_trace,
         identifier::SignaturesIdentifier,
@@ -89,6 +89,16 @@ use tempfile::TempDir;
 use yansi::Paint;
 
 mod evm_profile_server;
+
+fn assertion_trace_header(arena: &SparsedTraceArena) -> Option<String> {
+    let signature =
+        arena.nodes().first()?.trace.decoded.as_ref()?.call_data.as_ref()?.signature.as_str();
+    if !signature.starts_with("assertionCall") {
+        return None;
+    }
+    let name = signature.trim_end_matches("()");
+    Some(format!("Assertion trace: {name}"))
+}
 mod filter;
 mod summary;
 use crate::{
@@ -2981,6 +2991,10 @@ impl TestArgs {
                         if renders_trace && should_include {
                             decoder.opcodes = self.opcodes.clone();
                             decode_trace_arena(arena, &decoder).await;
+
+                            if let Some(header) = assertion_trace_header(arena) {
+                                decoded_traces.push(header);
+                            }
 
                             if let Some(trace_depth) = tracing.trace_depth {
                                 let mut arena = arena.clone();

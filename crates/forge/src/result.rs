@@ -20,7 +20,7 @@ use foundry_evm::{
         CallDetails, CounterExample, FuzzCase, FuzzFixtures, FuzzTestResult,
         strategies::EvmFuzzState,
     },
-    traces::{CallTraceArena, CallTraceDecoder, TraceKind, Traces},
+    traces::{CallTraceArena, CallTraceDecoder, SparsedTraceArena, TraceKind, Traces},
 };
 use foundry_evm_symbolic::{
     PortfolioDiagnostics, SymbolicStats, SymbolicStopReason, SymbolicStorageAssignment,
@@ -2337,7 +2337,14 @@ impl TestResult {
         self.duration = Duration::default();
         self.gas_report_traces = Vec::new();
 
-        if let Some(cheatcodes) = raw_call_result.cheatcodes {
+        if let Some(mut cheatcodes) = raw_call_result.cheatcodes {
+            let assertion_traces = cheatcodes.take_assertion_traces();
+            if !assertion_traces.is_empty() {
+                self.traces.extend(assertion_traces.into_iter().map(|arena| {
+                    (TraceKind::Execution, SparsedTraceArena { arena, ignored: Default::default() })
+                }));
+            }
+
             self.breakpoints = cheatcodes.breakpoints;
             self.gas_snapshots = cheatcodes.gas_snapshots;
             self.deprecated_cheatcodes = cheatcodes.deprecated;
