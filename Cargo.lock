@@ -1689,8 +1689,8 @@ dependencies = [
 
 [[package]]
 name = "assertion-da-client"
-version = "0.9.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?tag=0.9.0#b934f6d8367940cdb8b3565b3748d6aec0e59fb9"
+version = "1.0.7"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
 dependencies = [
  "alloy",
  "assertion-da-core",
@@ -1706,8 +1706,8 @@ dependencies = [
 
 [[package]]
 name = "assertion-da-core"
-version = "0.9.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?tag=0.9.0#b934f6d8367940cdb8b3565b3748d6aec0e59fb9"
+version = "1.0.7"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
 dependencies = [
  "alloy",
  "serde",
@@ -1715,8 +1715,8 @@ dependencies = [
 
 [[package]]
 name = "assertion-executor"
-version = "0.9.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?tag=0.9.0#b934f6d8367940cdb8b3565b3748d6aec0e59fb9"
+version = "1.0.7"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
 dependencies = [
  "alloy",
  "alloy-consensus",

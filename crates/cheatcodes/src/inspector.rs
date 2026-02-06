@@ -44,7 +44,7 @@ use foundry_evm_core::{
     },
 };
 use foundry_evm_traces::{
-    TracingInspector, TracingInspectorConfig, identifier::SignaturesIdentifier,
+    CallTraceArena, TracingInspector, TracingInspectorConfig, identifier::SignaturesIdentifier,
 };
 use foundry_wallets::wallet_multi::MultiWallet;
 use itertools::Itertools;
@@ -628,6 +628,9 @@ pub struct Cheatcodes<FEN: FoundryEvmNetwork = EthEvmNetwork> {
     /// Ignored traces.
     pub ignored_traces: IgnoredTraces,
 
+    /// Assertion traces collected during assertion execution.
+    assertion_traces: Vec<CallTraceArena>,
+
     /// Addresses with arbitrary storage.
     pub arbitrary_storage: Option<ArbitraryStorage>,
 
@@ -727,6 +730,7 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             intercept_next_create_call: Default::default(),
             test_runner: Default::default(),
             ignored_traces: Default::default(),
+            assertion_traces: Default::default(),
             arbitrary_storage: Default::default(),
             deprecated: Default::default(),
             wallets: Default::default(),
@@ -770,6 +774,19 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
     /// Sets the unlocked wallets.
     pub fn set_wallets(&mut self, wallets: Wallets) {
         self.wallets = Some(wallets);
+    }
+
+    /// Stores assertion traces collected during execution.
+    pub fn push_assertion_traces<I>(&mut self, traces: I)
+    where
+        I: IntoIterator<Item = CallTraceArena>,
+    {
+        self.assertion_traces.extend(traces);
+    }
+
+    /// Drains assertion traces for inclusion in test output.
+    pub fn take_assertion_traces(&mut self) -> Vec<CallTraceArena> {
+        std::mem::take(&mut self.assertion_traces)
     }
 
     /// Adds a delegation to the active delegations list.

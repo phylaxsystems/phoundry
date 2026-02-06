@@ -654,6 +654,17 @@ impl CallTraceDecoder {
                 decoded[1] = DynSolValue::String("<pk>".to_string());
                 Some(decoded.iter().map(format_token).collect())
             }
+            "assertion" => {
+                if self.verbosity >= 5 {
+                    None
+                } else {
+                    let mut decoded = func.abi_decode_input(&data[SELECTOR_LEN..]).ok()?;
+                    if decoded.len() >= 2 {
+                        decoded[1] = DynSolValue::String("<assertion bytecode>".to_string());
+                    }
+                    Some(decoded.iter().map(format_token).collect())
+                }
+            }
             "parseJson" |
             "parseJsonUint" |
             "parseJsonUintArray" |
@@ -1583,5 +1594,30 @@ mod tests {
 
         // On Ethereum, Tempo precompile addresses are regular contracts — should NOT be filtered.
         assert_eq!(identifier.queried, vec![regular_addr, tempo_precompile]);
+    }
+
+    #[test]
+    fn test_assertion_bytecode_redacted() {
+        let decoder = CallTraceDecoder::new();
+        let function = Function::parse("assertion(address,bytes,bytes4)").unwrap();
+        let address = Address::repeat_byte(0x11);
+
+        let mut selector_word = [0u8; 32];
+        selector_word[..4].copy_from_slice(&[0x12, 0x34, 0x56, 0x78]);
+        let selector = B256::from(selector_word);
+
+        let data = function
+            .abi_encode_input(&[
+                DynSolValue::Address(address),
+                DynSolValue::Bytes(vec![0xde, 0xad, 0xbe, 0xef]),
+                DynSolValue::FixedBytes(selector, 4),
+            ])
+            .unwrap();
+
+        let decoded = decoder.decode_cheatcode_inputs(&function, &data).expect("decoded inputs");
+        assert_eq!(decoded.len(), 3);
+        assert_eq!(decoded[0], format_token(&DynSolValue::Address(address)));
+        assert_eq!(decoded[1], "\"<assertion bytecode>\"");
+        assert_eq!(decoded[2], format_token(&DynSolValue::FixedBytes(selector, 4)));
     }
 }
