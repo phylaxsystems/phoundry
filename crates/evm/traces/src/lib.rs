@@ -230,6 +230,7 @@ pub enum TraceKind {
     Deployment,
     Setup,
     Execution,
+    AssertionTrigger,
     Assertion,
 }
 
@@ -256,6 +257,14 @@ impl TraceKind {
     #[must_use]
     pub fn is_execution(self) -> bool {
         matches!(self, Self::Execution)
+    }
+
+    /// Returns `true` if the trace kind is [`AssertionTrigger`].
+    ///
+    /// [`AssertionTrigger`]: TraceKind::AssertionTrigger
+    #[must_use]
+    pub fn is_assertion_trigger(self) -> bool {
+        matches!(self, Self::AssertionTrigger)
     }
 
     /// Returns `true` if the trace kind is [`Assertion`].

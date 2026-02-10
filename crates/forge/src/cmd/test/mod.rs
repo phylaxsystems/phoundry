@@ -649,6 +649,7 @@ impl TestArgs {
 
                 // Identify addresses and decode traces.
                 let mut decoded_traces = Vec::with_capacity(result.traces.len());
+                let mut decoded_trigger_traces = Vec::new();
                 let mut decoded_assertion_traces = Vec::new();
                 for (kind, arena) in &mut result.traces {
                     if identify_addresses {
@@ -662,6 +663,9 @@ impl TestArgs {
                     // - 5..: display all traces for all tests, including storage changes
                     let should_include = match kind {
                         TraceKind::Execution => {
+                            (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
+                        }
+                        TraceKind::AssertionTrigger => {
                             (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
                         }
                         TraceKind::Assertion => {
@@ -687,6 +691,12 @@ impl TestArgs {
                                 false,
                                 verbosity > 4,
                             ));
+                        } else if matches!(kind, TraceKind::AssertionTrigger) {
+                            decoded_trigger_traces.push(render_trace_arena_inner(
+                                arena,
+                                false,
+                                verbosity > 4,
+                            ));
                         } else {
                             decoded_traces.push(render_trace_arena_inner(
                                 arena,
@@ -699,7 +709,9 @@ impl TestArgs {
 
                 if !silent
                     && show_traces
-                    && (!decoded_traces.is_empty() || !decoded_assertion_traces.is_empty())
+                    && (!decoded_traces.is_empty()
+                        || !decoded_trigger_traces.is_empty()
+                        || !decoded_assertion_traces.is_empty())
                 {
                     if !decoded_traces.is_empty() {
                         sh_println!("Traces:")?;
@@ -708,8 +720,18 @@ impl TestArgs {
                         }
                     }
 
-                    if !decoded_assertion_traces.is_empty() {
+                    if !decoded_trigger_traces.is_empty() {
                         if !decoded_traces.is_empty() {
+                            sh_println!()?;
+                        }
+                        sh_println!("Trigger Call:")?;
+                        for trace in &decoded_trigger_traces {
+                            sh_println!("{trace}")?;
+                        }
+                    }
+
+                    if !decoded_assertion_traces.is_empty() {
+                        if !decoded_traces.is_empty() || !decoded_trigger_traces.is_empty() {
                             sh_println!()?;
                         }
                         sh_println!("Assertion Traces:")?;

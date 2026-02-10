@@ -248,8 +248,14 @@ pub fn execute_assertion(
         };
 
     if let Some(inspectors) = tracing_inspectors {
+        let mut inspectors = inspectors.into_iter();
+        if let Some(trigger_inspector) = inspectors.next() {
+            let trigger_traces = std::iter::once(trigger_inspector.into_traces())
+                .filter(|arena| !arena.nodes().is_empty());
+            cheats.push_assertion_trigger_traces(trigger_traces);
+        }
+
         let traces = inspectors
-            .into_iter()
             .map(|tracing_inspector| tracing_inspector.into_traces())
             .filter(|arena| !arena.nodes().is_empty());
         cheats.push_assertion_traces(traces);

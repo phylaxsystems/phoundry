@@ -429,6 +429,7 @@ impl PreSimulationState {
                 let should_include = match kind {
                     TraceKind::Setup => verbosity >= 5,
                     TraceKind::Execution => verbosity > 3,
+                    TraceKind::AssertionTrigger => verbosity > 3,
                     TraceKind::Assertion => verbosity > 3,
                     _ => false,
                 } || !result.success;
