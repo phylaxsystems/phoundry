@@ -247,6 +247,14 @@ pub fn execute_assertion(
             (result, None)
         };
 
+    if let Some(inspectors) = tracing_inspectors {
+        let traces = inspectors
+            .into_iter()
+            .map(|tracing_inspector| tracing_inspector.into_traces())
+            .filter(|arena| !arena.nodes().is_empty());
+        cheats.push_assertion_traces(traces);
+    }
+
     let mut inspector = executor.get_inspector(cheats);
     // if transaction execution reverted, log the revert reason
     if !tx_validation.result_and_state.result.is_success() {
@@ -307,14 +315,6 @@ pub fn execute_assertion(
 
         if let Some(expected) = &mut cheats.expected_revert {
             expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
-        }
-
-        if let Some(inspectors) = tracing_inspectors {
-            let traces = inspectors
-                .into_iter()
-                .map(|tracing_inspector| tracing_inspector.into_traces())
-                .filter(|arena| !arena.nodes().is_empty());
-            cheats.push_assertion_traces(traces);
         }
 
         let mut inspector = executor.get_inspector(cheats);
