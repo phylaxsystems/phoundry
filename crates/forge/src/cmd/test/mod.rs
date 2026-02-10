@@ -53,14 +53,19 @@ use std::{
 };
 use yansi::Paint;
 
-fn assertion_trace_header(arena: &SparsedTraceArena) -> Option<String> {
-    let signature =
-        arena.nodes().first()?.trace.decoded.as_ref()?.call_data.as_ref()?.signature.as_str();
-    if !signature.starts_with("assertionCall") {
-        return None;
+fn label_assertion_trace(arena: &mut SparsedTraceArena) {
+    let Some(assertion_addr) = arena.nodes().first().map(|node| node.trace.address) else {
+        return;
+    };
+
+    for node in arena.nodes_mut() {
+        if node.trace.address == assertion_addr
+            && let Some(decoded) = node.trace.decoded.as_mut()
+            && decoded.label.is_none()
+        {
+            decoded.label = Some("Assertion".to_string());
+        }
     }
-    let name = signature.trim_end_matches("()");
-    Some(format!("Assertion trace: {name}"))
 }
 
 mod filter;
@@ -644,6 +649,7 @@ impl TestArgs {
 
                 // Identify addresses and decode traces.
                 let mut decoded_traces = Vec::with_capacity(result.traces.len());
+                let mut decoded_assertion_traces = Vec::new();
                 for (kind, arena) in &mut result.traces {
                     if identify_addresses {
                         decoder.identify(arena, &mut identifier);
@@ -656,6 +662,9 @@ impl TestArgs {
                     // - 5..: display all traces for all tests, including storage changes
                     let should_include = match kind {
                         TraceKind::Execution => {
+                            (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
+                        }
+                        TraceKind::Assertion => {
                             (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
                         }
                         TraceKind::Setup => {
@@ -671,17 +680,42 @@ impl TestArgs {
                             prune_trace_depth(arena, trace_depth);
                         }
 
-                        if let Some(header) = assertion_trace_header(arena) {
-                            decoded_traces.push(header);
+                        if matches!(kind, TraceKind::Assertion) {
+                            label_assertion_trace(arena);
+                            decoded_assertion_traces.push(render_trace_arena_inner(
+                                arena,
+                                false,
+                                verbosity > 4,
+                            ));
+                        } else {
+                            decoded_traces.push(render_trace_arena_inner(
+                                arena,
+                                false,
+                                verbosity > 4,
+                            ));
                         }
-                        decoded_traces.push(render_trace_arena_inner(arena, false, verbosity > 4));
                     }
                 }
 
-                if !silent && show_traces && !decoded_traces.is_empty() {
-                    sh_println!("Traces:")?;
-                    for trace in &decoded_traces {
-                        sh_println!("{trace}")?;
+                if !silent
+                    && show_traces
+                    && (!decoded_traces.is_empty() || !decoded_assertion_traces.is_empty())
+                {
+                    if !decoded_traces.is_empty() {
+                        sh_println!("Traces:")?;
+                        for trace in &decoded_traces {
+                            sh_println!("{trace}")?;
+                        }
+                    }
+
+                    if !decoded_assertion_traces.is_empty() {
+                        if !decoded_traces.is_empty() {
+                            sh_println!()?;
+                        }
+                        sh_println!("Assertion Traces:")?;
+                        for trace in &decoded_assertion_traces {
+                            sh_println!("{trace}")?;
+                        }
                     }
                 }
 

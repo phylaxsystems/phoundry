@@ -230,6 +230,7 @@ pub enum TraceKind {
     Deployment,
     Setup,
     Execution,
+    Assertion,
 }
 
 impl TraceKind {
@@ -255,6 +256,14 @@ impl TraceKind {
     #[must_use]
     pub fn is_execution(self) -> bool {
         matches!(self, Self::Execution)
+    }
+
+    /// Returns `true` if the trace kind is [`Assertion`].
+    ///
+    /// [`Assertion`]: TraceKind::Assertion
+    #[must_use]
+    pub fn is_assertion(self) -> bool {
+        matches!(self, Self::Assertion)
     }
 }
 
