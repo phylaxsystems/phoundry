@@ -575,10 +575,20 @@ impl TestResult {
         self.gas_report_traces = Vec::new();
 
         if let Some(mut cheatcodes) = raw_call_result.cheatcodes {
+            let assertion_trigger_traces = cheatcodes.take_assertion_trigger_traces();
+            if !assertion_trigger_traces.is_empty() {
+                self.traces.extend(assertion_trigger_traces.into_iter().map(|arena| {
+                    (
+                        TraceKind::AssertionTrigger,
+                        SparsedTraceArena { arena, ignored: Default::default() },
+                    )
+                }));
+            }
+
             let assertion_traces = cheatcodes.take_assertion_traces();
             if !assertion_traces.is_empty() {
                 self.traces.extend(assertion_traces.into_iter().map(|arena| {
-                    (TraceKind::Execution, SparsedTraceArena { arena, ignored: Default::default() })
+                    (TraceKind::Assertion, SparsedTraceArena { arena, ignored: Default::default() })
                 }));
             }
 
