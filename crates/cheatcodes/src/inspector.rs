@@ -630,6 +630,8 @@ pub struct Cheatcodes<FEN: FoundryEvmNetwork = EthEvmNetwork> {
 
     /// Assertion traces collected during assertion execution.
     assertion_traces: Vec<CallTraceArena>,
+    /// Trigger call traces collected during assertion execution.
+    assertion_trigger_traces: Vec<CallTraceArena>,
 
     /// Addresses with arbitrary storage.
     pub arbitrary_storage: Option<ArbitraryStorage>,
@@ -731,6 +733,7 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             test_runner: Default::default(),
             ignored_traces: Default::default(),
             assertion_traces: Default::default(),
+            assertion_trigger_traces: Default::default(),
             arbitrary_storage: Default::default(),
             deprecated: Default::default(),
             wallets: Default::default(),
@@ -784,9 +787,22 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
         self.assertion_traces.extend(traces);
     }
 
+    /// Stores trigger call traces collected during assertion execution.
+    pub fn push_assertion_trigger_traces<I>(&mut self, traces: I)
+    where
+        I: IntoIterator<Item = CallTraceArena>,
+    {
+        self.assertion_trigger_traces.extend(traces);
+    }
+
     /// Drains assertion traces for inclusion in test output.
     pub fn take_assertion_traces(&mut self) -> Vec<CallTraceArena> {
         std::mem::take(&mut self.assertion_traces)
+    }
+
+    /// Drains trigger call traces for inclusion in test output.
+    pub fn take_assertion_trigger_traces(&mut self) -> Vec<CallTraceArena> {
+        std::mem::take(&mut self.assertion_trigger_traces)
     }
 
     /// Adds a delegation to the active delegations list.
