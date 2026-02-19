@@ -2,7 +2,7 @@ use crate::{
     Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, DatabaseExt, Result, Vm::*,
     json::json_value_to_token,
 };
-use alloy_chains::Chain;
+use alloy_chains::Chain as AlloyChain;
 use alloy_dyn_abi::DynSolValue;
 use alloy_network::AnyNetwork;
 use alloy_primitives::{B256, U256};
@@ -335,7 +335,7 @@ fn create_select_fork(ccx: &mut CheatsCtxt, url_or_alias: &str, block: Option<u6
 
 fn create_select_fork_chain(ccx: &mut CheatsCtxt, chain_id: u64, block: Option<u64>) -> Result {
     if let Some(chains) = ccx.state.config.valid_chains_by_url.as_ref() {
-        let chain = Chain::from_id(chain_id);
+        let chain = AlloyChain::from_id(chain_id);
         if let Some(url) = chains.get(&chain).cloned() {
             return create_select_fork(ccx, &url, block);
         }
@@ -352,7 +352,7 @@ fn create_fork(ccx: &mut CheatsCtxt, url_or_alias: &str, block: Option<u64>) -> 
 
 fn create_fork_chain(ccx: &mut CheatsCtxt, chain_id: u64, block: Option<u64>) -> Result {
     if let Some(chains) = ccx.state.config.valid_chains_by_url.as_ref() {
-        let chain = Chain::from_id(chain_id);
+        let chain = AlloyChain::from_id(chain_id);
         if let Some(url) = chains.get(&chain).cloned() {
             return create_fork(ccx, &url, block);
         }

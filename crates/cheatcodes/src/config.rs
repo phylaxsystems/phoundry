@@ -1,6 +1,6 @@
 use super::Result;
 use crate::Vm::Rpc;
-use alloy_chains::Chain;
+use alloy_chains::Chain as AlloyChain;
 use alloy_primitives::{U256, map::AddressHashMap};
 use foundry_common::{ContractsByArtifact, fs::normalize_path};
 use foundry_compilers::{ArtifactId, ProjectPathsConfig, utils::canonicalize};
@@ -59,7 +59,7 @@ pub struct CheatsConfig {
     /// Whether to allow `expectRevert` to work for internal calls.
     pub internal_expect_revert: bool,
     /// If provided, restricts CreateFork and related cheatcodes to this chain URL map.
-    pub valid_chains_by_url: Option<HashMap<Chain, String>>,
+    pub valid_chains_by_url: Option<HashMap<AlloyChain, String>>,
 }
 
 impl CheatsConfig {
