@@ -11,6 +11,7 @@ use alloy_rpc_types::Filter;
 use alloy_sol_types::SolValue;
 use foundry_common::provider::ProviderBuilder;
 use foundry_evm_core::{AsEnvMut, ContextExt, fork::CreateFork};
+use std::collections::HashMap;
 
 impl Cheatcode for activeForkCall {
     fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
@@ -97,6 +98,9 @@ impl Cheatcode for createSelectFork_4Call {
 impl Cheatcode for rollFork_0Call {
     fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
         let Self { blockNumber } = self;
+        ensure_roll_fork_block_form_allowed(is_phylax_mode(
+            ccx.state.config.valid_chains_by_url.as_ref(),
+        ))?;
         persist_caller(ccx);
         let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
         db.roll_fork(None, (*blockNumber).to(), &mut env, journal)?;
@@ -117,6 +121,9 @@ impl Cheatcode for rollFork_1Call {
 impl Cheatcode for rollFork_2Call {
     fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
         let Self { forkId, blockNumber } = self;
+        ensure_roll_fork_block_form_allowed(is_phylax_mode(
+            ccx.state.config.valid_chains_by_url.as_ref(),
+        ))?;
         persist_caller(ccx);
         let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
         db.roll_fork(Some(*forkId), (*blockNumber).to(), &mut env, journal)?;
@@ -130,6 +137,46 @@ impl Cheatcode for rollFork_3Call {
         persist_caller(ccx);
         let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
         db.roll_fork_to_transaction(Some(*forkId), *txHash, &mut env, journal)?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkAt_0Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { blockNumber } = self;
+        persist_caller(ccx);
+        let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
+        db.roll_fork(None, (*blockNumber).to(), &mut env, journal)?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkAt_1Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { forkId, blockNumber } = self;
+        persist_caller(ccx);
+        let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
+        db.roll_fork(Some(*forkId), (*blockNumber).to(), &mut env, journal)?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkBack_0Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { blocksInThePast } = self;
+        persist_caller(ccx);
+        let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
+        db.roll_fork_back(None, (*blocksInThePast).to(), &mut env, journal)?;
+        Ok(Default::default())
+    }
+}
+
+impl Cheatcode for rollForkBack_1Call {
+    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+        let Self { forkId, blocksInThePast } = self;
+        persist_caller(ccx);
+        let (db, journal, mut env) = ccx.ecx.as_db_env_and_journal();
+        db.roll_fork_back(Some(*forkId), (*blocksInThePast).to(), &mut env, journal)?;
         Ok(Default::default())
     }
 }
@@ -334,13 +381,8 @@ fn create_select_fork(ccx: &mut CheatsCtxt, url_or_alias: &str, block: Option<u6
 }
 
 fn create_select_fork_chain(ccx: &mut CheatsCtxt, chain_id: u64, block: Option<u64>) -> Result {
-    if let Some(chains) = ccx.state.config.valid_chains_by_url.as_ref() {
-        let chain = AlloyChain::from_id(chain_id);
-        if let Some(url) = chains.get(&chain).cloned() {
-            return create_select_fork(ccx, &url, block);
-        }
-    }
-    Err(fmt_err!("There was not a valid chain with id {chain_id}"))
+    let url = resolve_chain_url_for_id(ccx.state.config.valid_chains_by_url.as_ref(), chain_id)?;
+    create_select_fork(ccx, &url, block)
 }
 
 /// Creates a new fork
@@ -351,13 +393,8 @@ fn create_fork(ccx: &mut CheatsCtxt, url_or_alias: &str, block: Option<u64>) -> 
 }
 
 fn create_fork_chain(ccx: &mut CheatsCtxt, chain_id: u64, block: Option<u64>) -> Result {
-    if let Some(chains) = ccx.state.config.valid_chains_by_url.as_ref() {
-        let chain = AlloyChain::from_id(chain_id);
-        if let Some(url) = chains.get(&chain).cloned() {
-            return create_fork(ccx, &url, block);
-        }
-    }
-    Err(fmt_err!("There was not a valid chain with id {chain_id}"))
+    let url = resolve_chain_url_for_id(ccx.state.config.valid_chains_by_url.as_ref(), chain_id)?;
+    create_fork(ccx, &url, block)
 }
 
 /// Creates and then also selects the new fork at the given transaction
@@ -417,6 +454,86 @@ fn check_broadcast(state: &Cheatcodes) -> Result<()> {
         Ok(())
     } else {
         Err(fmt_err!("cannot select forks during a broadcast"))
+    }
+}
+
+fn is_phylax_mode(valid_chains_by_url: Option<&HashMap<AlloyChain, String>>) -> bool {
+    valid_chains_by_url.is_some()
+}
+
+fn ensure_roll_fork_block_form_allowed(is_phylax_mode: bool) -> Result<()> {
+    if is_phylax_mode {
+        Err(fmt_err!(
+            "rollFork(blockNumber) and rollFork(forkId, blockNumber) are disabled in Phylax mode; use rollForkAt(...) or rollForkBack(...)"
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn resolve_chain_url_for_id(
+    valid_chains_by_url: Option<&HashMap<AlloyChain, String>>,
+    chain_id: u64,
+) -> Result<String> {
+    let chains = valid_chains_by_url
+        .ok_or_else(|| fmt_err!("There was not a valid chain with id {chain_id}"))?;
+    let chain = AlloyChain::from_id(chain_id);
+    chains
+        .get(&chain)
+        .cloned()
+        .ok_or_else(|| fmt_err!("There was not a valid chain with id {chain_id}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_chains::NamedChain;
+
+    #[test]
+    fn resolve_chain_url_for_id_succeeds_for_configured_chain() {
+        let mainnet = AlloyChain::from(NamedChain::Mainnet);
+        let chains = HashMap::from([(mainnet, "https://rpc.example".to_string())]);
+
+        let resolved = resolve_chain_url_for_id(Some(&chains), mainnet.id()).unwrap();
+        assert_eq!(resolved, "https://rpc.example");
+    }
+
+    #[test]
+    fn resolve_chain_url_for_id_errors_when_no_chain_map() {
+        let err =
+            resolve_chain_url_for_id(None, AlloyChain::from(NamedChain::Mainnet).id()).unwrap_err();
+        assert!(err.to_string().contains("There was not a valid chain with id"));
+    }
+
+    #[test]
+    fn resolve_chain_url_for_id_errors_when_chain_not_configured() {
+        let mainnet = AlloyChain::from(NamedChain::Mainnet);
+        let optimism = AlloyChain::from(NamedChain::Optimism);
+        let chains = HashMap::from([(mainnet, "https://rpc.example".to_string())]);
+
+        let err = resolve_chain_url_for_id(Some(&chains), optimism.id()).unwrap_err();
+        assert!(err.to_string().contains("There was not a valid chain with id"));
+    }
+
+    #[test]
+    fn roll_fork_block_forms_are_blocked_in_phylax_mode() {
+        let err = ensure_roll_fork_block_form_allowed(true).unwrap_err();
+        assert!(err.to_string().contains("disabled in Phylax mode"));
+    }
+
+    #[test]
+    fn roll_fork_block_forms_are_allowed_outside_phylax_mode() {
+        ensure_roll_fork_block_form_allowed(false).unwrap();
+    }
+
+    #[test]
+    fn is_phylax_mode_depends_on_chain_map_presence() {
+        let chains = HashMap::from([(
+            AlloyChain::from(NamedChain::Mainnet),
+            "https://rpc.example".to_string(),
+        )]);
+        assert!(is_phylax_mode(Some(&chains)));
+        assert!(!is_phylax_mode(None));
     }
 }
 

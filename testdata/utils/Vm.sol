@@ -461,9 +461,13 @@ interface Vm {
     function revokePersistent(address[] calldata accounts) external;
     function roll(uint256 newHeight) external;
     function rollFork(uint256 blockNumber) external;
+    function rollForkAt(uint256 blockNumber) external;
     function rollFork(bytes32 txHash) external;
     function rollFork(uint256 forkId, uint256 blockNumber) external;
+    function rollForkAt(uint256 forkId, uint256 blockNumber) external;
     function rollFork(uint256 forkId, bytes32 txHash) external;
+    function rollForkBack(uint256 blocksInThePast) external;
+    function rollForkBack(uint256 forkId, uint256 blocksInThePast) external;
     function rpcUrl(string calldata rpcAlias) external view returns (string memory json);
     function rpcUrlStructs() external view returns (Rpc[] memory urls);
     function rpcUrls() external view returns (string[2][] memory urls);

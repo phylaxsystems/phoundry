@@ -893,6 +893,10 @@ interface Vm {
     /// This is similar to `roll` but for the currently active fork.
     #[cheatcode(group = Evm, safety = Unsafe)]
     function rollFork(uint256 blockNumber) external;
+    /// Updates the currently active fork to given block number.
+    /// Alias of `rollFork(uint256)`.
+    #[cheatcode(group = Evm, safety = Unsafe)]
+    function rollForkAt(uint256 blockNumber) external;
     /// Updates the currently active fork to given transaction. This will `rollFork` with the number
     /// of the block the transaction was mined in and replays all transaction mined before it in the block.
     #[cheatcode(group = Evm, safety = Unsafe)]
@@ -900,9 +904,19 @@ interface Vm {
     /// Updates the given fork to given block number.
     #[cheatcode(group = Evm, safety = Unsafe)]
     function rollFork(uint256 forkId, uint256 blockNumber) external;
+    /// Updates the given fork to given block number.
+    /// Alias of `rollFork(uint256,uint256)`.
+    #[cheatcode(group = Evm, safety = Unsafe)]
+    function rollForkAt(uint256 forkId, uint256 blockNumber) external;
     /// Updates the given fork to block number of the given transaction and replays all transaction mined before it in the block.
     #[cheatcode(group = Evm, safety = Unsafe)]
     function rollFork(uint256 forkId, bytes32 txHash) external;
+    /// Rolls back the currently active fork by the given number of blocks.
+    #[cheatcode(group = Evm, safety = Unsafe)]
+    function rollForkBack(uint256 blocksInThePast) external;
+    /// Rolls back the given fork by the given number of blocks.
+    #[cheatcode(group = Evm, safety = Unsafe)]
+    function rollForkBack(uint256 forkId, uint256 blocksInThePast) external;
 
     /// Takes a fork identifier created by `createFork` and sets the corresponding forked state as active.
     #[cheatcode(group = Evm, safety = Unsafe)]

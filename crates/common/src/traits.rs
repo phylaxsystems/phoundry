@@ -163,6 +163,7 @@ impl TestFunctionKind {
     /// Classify a function.
     pub fn classify(name: &str, has_inputs: bool) -> Self {
         match () {
+            _ if name.starts_with("alert") && !has_inputs => Self::UnitTest { should_fail: false },
             _ if name.starts_with("test") => {
                 let should_fail = name.starts_with("testFail");
                 if has_inputs {
@@ -298,5 +299,14 @@ mod tests {
         // setUp(bytes memory) with params should NOT be classified as Setup
         // This is common in Gnosis Safe/Zodiac modules
         assert_eq!(TestFunctionKind::classify("setUp", true), TestFunctionKind::Unknown);
+    }
+
+    #[test]
+    fn test_alert_classification() {
+        assert_eq!(
+            TestFunctionKind::classify("alertInvariant", false),
+            TestFunctionKind::UnitTest { should_fail: false }
+        );
+        assert_eq!(TestFunctionKind::classify("alertInvariant", true), TestFunctionKind::Unknown);
     }
 }

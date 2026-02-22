@@ -187,6 +187,21 @@ pub trait DatabaseExt: Database<Error = DatabaseError> + DatabaseCommit + Debug 
         journaled_state: &mut JournaledState,
     ) -> eyre::Result<()>;
 
+    /// Rolls the fork back by a fixed number of blocks from its current head.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no matching fork was found.
+    ///
+    /// Returns an error if the requested rollback would underflow block zero.
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        blocks_in_the_past: u64,
+        env: &mut EnvMut<'_>,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()>;
+
     /// Updates the fork to given transaction hash
     ///
     /// This will essentially create a new fork at the block this transaction was mined and replays
@@ -1230,6 +1245,39 @@ impl DatabaseExt for Backend {
             }
         }
         Ok(())
+    }
+
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        blocks_in_the_past: u64,
+        env: &mut EnvMut<'_>,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        trace!(?id, ?blocks_in_the_past, "roll fork back");
+        let id = self.ensure_fork(id)?;
+
+        let current_block: u64 = if self.is_active_fork(id) {
+            env.block.number.saturating_to()
+        } else {
+            let fork_id = self.ensure_fork_id(id).cloned()?;
+            let fork_env = self
+                .forks
+                .get_env(fork_id)?
+                .ok_or_else(|| eyre::eyre!("Requested fork `{}` does not exist", id))?;
+            fork_env.evm_env.block_env.number.saturating_to()
+        };
+
+        let target_block = current_block.checked_sub(blocks_in_the_past).ok_or_else(|| {
+            eyre::eyre!(
+                "cannot roll fork {} back by {} blocks from block {}",
+                id,
+                blocks_in_the_past,
+                current_block
+            )
+        })?;
+
+        self.roll_fork(Some(id), target_block, env, journaled_state)
     }
 
     fn roll_fork_to_transaction(

@@ -6,7 +6,7 @@ use crate::{
     gas_report::GasReport,
 };
 use alloy_primitives::{
-    Address, I256, Log, U256,
+    Address, Bytes, I256, Log, U256,
     map::{AddressHashMap, HashMap},
 };
 use eyre::Report;
@@ -429,6 +429,9 @@ pub struct TestResult {
     /// What kind of test this was
     pub kind: TestKind,
 
+    /// Raw return data from the top-level test function call, when available.
+    pub return_data: Option<Bytes>,
+
     /// Traces
     pub traces: Traces,
 
@@ -598,6 +601,7 @@ impl TestResult {
         reason: Option<String>,
         raw_call_result: RawCallResult,
     ) {
+        let return_data = raw_call_result.result.clone();
         self.kind = TestKind::Unit {
             gas: raw_call_result.gas_used.saturating_sub(raw_call_result.stipend),
         };
@@ -611,6 +615,7 @@ impl TestResult {
         self.reason = reason;
         self.duration = Duration::default();
         self.gas_report_traces = Vec::new();
+        self.return_data = Some(return_data);
 
         if let Some(cheatcodes) = raw_call_result.cheatcodes {
             self.breakpoints = cheatcodes.breakpoints;

@@ -174,6 +174,16 @@ impl DatabaseExt for CowBackend<'_> {
         self.backend_mut(env).roll_fork(id, block_number, env, journaled_state)
     }
 
+    fn roll_fork_back(
+        &mut self,
+        id: Option<LocalForkId>,
+        blocks_in_the_past: u64,
+        env: &mut EnvMut<'_>,
+        journaled_state: &mut JournaledState,
+    ) -> eyre::Result<()> {
+        self.backend_mut(env).roll_fork_back(id, blocks_in_the_past, env, journaled_state)
+    }
+
     fn roll_fork_to_transaction(
         &mut self,
         id: Option<LocalForkId>,
