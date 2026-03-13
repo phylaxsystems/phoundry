@@ -187,6 +187,22 @@ pub fn render_trace_arena(arena: &SparsedTraceArena) -> String {
     render_trace_arena_inner(arena, false, false)
 }
 
+/// Render a collection of call traces to a string with ANSI colors always enabled.
+///
+/// Use this when rendering traces outside of a TTY context (e.g. server-side) where
+/// `shell::color_choice()` would default to `Never`.
+pub fn render_trace_arena_with_colors(
+    arena: &SparsedTraceArena,
+    with_storage_changes: bool,
+) -> String {
+    let mut w = TraceWriter::new(Vec::<u8>::new())
+        .color_cheatcodes(true)
+        .use_colors(revm_inspectors::ColorChoice::Always)
+        .with_storage_changes(with_storage_changes);
+    w.write_arena(&arena.resolve_arena()).expect("Failed to write traces");
+    String::from_utf8(w.into_writer()).expect("trace writer wrote invalid UTF-8")
+}
+
 /// Prunes trace depth if depth is provided as an argument
 pub fn prune_trace_depth(arena: &mut CallTraceArena, depth: usize) {
     for node in arena.nodes_mut() {
