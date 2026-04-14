@@ -409,7 +409,8 @@ pub struct Cheatcodes {
     /// Expected revert information
     pub expected_revert: Option<ExpectedRevert>,
 
-    /// Assertion information
+    /// Assertion information (only available with `credible` feature)
+    #[cfg(feature = "credible")]
     pub assertion: Option<crate::credible::Assertion>,
 
     /// Assume next call can revert and discard fuzz run if it does.
@@ -560,6 +561,7 @@ impl Cheatcodes {
             mocked_functions: Default::default(),
             expected_calls: Default::default(),
             expected_emits: Default::default(),
+            #[cfg(feature = "credible")]
             assertion: Default::default(),
             expected_creates: Default::default(),
             allowed_mem_writes: Default::default(),
@@ -1078,6 +1080,7 @@ impl Cheatcodes {
             }]);
         }
 
+        #[cfg(feature = "credible")]
         if let Some(assertion) = self.assertion.take() {
             let tx_attributes = crate::credible::TxAttributes {
                 value: call.call_value(),
@@ -1818,6 +1821,7 @@ impl Inspector<EthEvmContext<&mut dyn DatabaseExt>> for Cheatcodes {
                 depth: curr_depth as u64,
             }]);
         }
+        #[cfg(feature = "credible")]
         if let Some(assertion) = self.assertion.take() {
             let tx_attributes = crate::credible::TxAttributes {
                 value: input.value(),
