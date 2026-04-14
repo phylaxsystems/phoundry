@@ -14,13 +14,17 @@ exclude.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+credible = ["dep:assertion-executor"]
+
 [build-dependencies]
 
 [dependencies]
 foundry-fork-db.workspace = true
 # sdk version 1.0.7 with custom inspector commit
 # done to not have cyclical version bumps between sdk and phoundry
-assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "5ace6939c7027f1ba0bcf6f8751904dd4ca4f986", features = ["phoundry"] }
+assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "5ace6939c7027f1ba0bcf6f8751904dd4ca4f986", features = ["phoundry"], optional = true }
 
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
