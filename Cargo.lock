@@ -529,7 +529,6 @@ dependencies = [
  "alloy-primitives",
  "alloy-pubsub",
  "alloy-rpc-client",
- "alloy-rpc-types-anvil",
  "alloy-rpc-types-debug",
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
@@ -638,7 +637,6 @@ checksum = "052c031d1f7c5611997056bbcb8814e5cbf20f7efeee8c3de690555172038cf2"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-anvil",
- "alloy-rpc-types-debug",
  "alloy-rpc-types-engine",
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
@@ -1689,10 +1687,10 @@ dependencies = [
 
 [[package]]
 name = "assertion-da-client"
-version = "1.0.7"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
+version = "1.3.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa#3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa"
 dependencies = [
- "alloy",
+ "alloy-primitives",
  "assertion-da-core",
  "http 1.4.0",
  "reqwest",
@@ -1706,59 +1704,43 @@ dependencies = [
 
 [[package]]
 name = "assertion-da-core"
-version = "1.0.7"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
+version = "1.3.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa#3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa"
 dependencies = [
- "alloy",
+ "alloy-primitives",
  "serde",
 ]
 
 [[package]]
 name = "assertion-executor"
-version = "1.0.7"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
+version = "1.3.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa#3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa"
 dependencies = [
- "alloy",
  "alloy-consensus",
- "alloy-evm 0.24.2",
+ "alloy-evm",
  "alloy-network",
  "alloy-network-primitives",
- "alloy-node-bindings",
  "alloy-primitives",
  "alloy-provider",
- "alloy-pubsub",
- "alloy-rpc-client",
  "alloy-rpc-types",
- "alloy-rpc-types-anvil",
  "alloy-signer",
- "alloy-signer-local",
  "alloy-sol-types",
- "alloy-transport",
- "alloy-transport-ws",
  "assertion-da-client",
  "bincode",
- "clap",
+ "bumpalo",
  "dashmap",
  "enum-as-inner",
- "evm-glue",
- "futures",
  "metrics",
- "moka",
  "op-revm",
- "parking_lot",
  "rapidhash",
  "rayon",
  "revm",
  "serde",
  "serde_json",
  "sled",
- "tempfile",
  "thiserror 2.0.17",
  "tokio",
- "tokio-util",
  "tracing",
- "url",
- "zerocopy 0.7.35",
 ]
 
 [[package]]
