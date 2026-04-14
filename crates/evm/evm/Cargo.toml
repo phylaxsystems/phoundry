@@ -64,6 +64,7 @@ tokio.workspace = true
 
 [features]
 default = ["optimism"]
+credible = ["foundry-cheatcodes/credible"]
 optimism = [
     "foundry-evm-core/optimism",
     "foundry-evm-hardforks/optimism",

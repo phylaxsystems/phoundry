@@ -121,3 +121,4 @@ optimism = [
     "foundry-evm/optimism",
     "foundry-cli/optimism",
 ]
+credible = ["foundry-evm/credible"]
