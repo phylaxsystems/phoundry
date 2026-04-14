@@ -19,6 +19,20 @@ ignore = [
     # https://rustsec.org/advisories/RUSTSEC-2018-0017 tempdir deprecated
     # Transitive dep: sled -> assertion-executor. Not fixable until sled updates.
     "RUSTSEC-2018-0017",
+    # aws-lc-sys vulnerabilities — transitive dep via rustls. Upgrade blocked by alloy pinning aws-lc-rs.
+    "RUSTSEC-2026-0044",
+    "RUSTSEC-2026-0045",
+    "RUSTSEC-2026-0046",
+    "RUSTSEC-2026-0047",
+    "RUSTSEC-2026-0048",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0007 bytes integer overflow — awaiting upstream update
+    "RUSTSEC-2026-0007",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0097 rand unsoundness with custom logger — awaiting upstream update
+    "RUSTSEC-2026-0097",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0049 rustls-webpki CRL bypass — awaiting upstream update
+    "RUSTSEC-2026-0049",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0009 time DoS via stack exhaustion — awaiting upstream update
+    "RUSTSEC-2026-0009",
 ]
 
 # This section is considered when running `cargo deny check bans`.
