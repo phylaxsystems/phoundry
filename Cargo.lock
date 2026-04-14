@@ -66,34 +66,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "alloy"
-version = "1.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f07655fedc35188f3c50ff8fc6ee45703ae14ef1bc7ae7d80e23a747012184e3"
-dependencies = [
- "alloy-consensus",
- "alloy-contract",
- "alloy-core",
- "alloy-eips",
- "alloy-genesis",
- "alloy-json-rpc",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-provider",
- "alloy-pubsub",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-serde",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-transport",
- "alloy-transport-http",
- "alloy-transport-ipc",
- "alloy-transport-ws",
- "alloy-trie",
-]
-
-[[package]]
 name = "alloy-chains"
 version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -168,19 +140,6 @@ dependencies = [
  "futures-util",
  "serde_json",
  "thiserror 2.0.17",
-]
-
-[[package]]
-name = "alloy-core"
-version = "1.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a651e1d9e50e6d0a78bd23cd08facb70459a94501c4036c7799a093e569a310"
-dependencies = [
- "alloy-dyn-abi",
- "alloy-json-abi",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-sol-types",
 ]
 
 [[package]]
@@ -301,7 +260,7 @@ checksum = "e6ccc4c702c840148af1ce784cc5c6ed9274a020ef32417c5b1dbeab8c317673"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-op-hardforks",
  "alloy-primitives",
  "alloy-rpc-types-engine",
@@ -328,19 +287,6 @@ dependencies = [
  "borsh",
  "serde",
  "serde_with",
-]
-
-[[package]]
-name = "alloy-hardforks"
-version = "0.2.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3165210652f71dfc094b051602bafd691f506c54050a174b1cba18fb5ef706a3"
-dependencies = [
- "alloy-chains",
- "alloy-eip2124",
- "alloy-primitives",
- "auto_impl",
- "dyn-clone",
 ]
 
 [[package]]
@@ -423,27 +369,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-node-bindings"
-version = "1.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2b000c0790644bd4effe719f4272f0023167567ca9534e4e071f6f18c4f7e44"
-dependencies = [
- "alloy-genesis",
- "alloy-hardforks 0.2.13",
- "alloy-network",
- "alloy-primitives",
- "alloy-signer",
- "alloy-signer-local",
- "k256",
- "rand 0.8.5",
- "serde_json",
- "tempfile",
- "thiserror 2.0.17",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "alloy-op-evm"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -468,7 +393,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f96fb2fce4024ada5b2c11d4076acf778a0d3e4f011c6dfd2ffce6d0fcf84ee9"
 dependencies = [
  "alloy-chains",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-primitives",
  "auto_impl",
 ]
@@ -516,11 +441,9 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-network",
  "alloy-network-primitives",
- "alloy-node-bindings",
  "alloy-primitives",
  "alloy-pubsub",
  "alloy-rpc-client",
- "alloy-rpc-types-anvil",
  "alloy-rpc-types-debug",
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
@@ -629,7 +552,6 @@ checksum = "39cf1398cb33aacb139a960fa3d8cf8b1202079f320e77e952a0b95967bf7a9f"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-anvil",
- "alloy-rpc-types-debug",
  "alloy-rpc-types-engine",
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
@@ -1638,10 +1560,10 @@ dependencies = [
 
 [[package]]
 name = "assertion-da-client"
-version = "1.0.7"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
+version = "1.3.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa#3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa"
 dependencies = [
- "alloy",
+ "alloy-primitives",
  "assertion-da-core",
  "http 1.4.0",
  "reqwest",
@@ -1655,38 +1577,32 @@ dependencies = [
 
 [[package]]
 name = "assertion-da-core"
-version = "1.0.7"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
+version = "1.3.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa#3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa"
 dependencies = [
- "alloy",
+ "alloy-primitives",
  "serde",
 ]
 
 [[package]]
 name = "assertion-executor"
-version = "1.0.7"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=5ace6939c7027f1ba0bcf6f8751904dd4ca4f986#5ace6939c7027f1ba0bcf6f8751904dd4ca4f986"
+version = "1.3.0"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa#3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa"
 dependencies = [
- "alloy",
  "alloy-consensus",
  "alloy-evm",
  "alloy-network",
  "alloy-network-primitives",
- "alloy-node-bindings",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types",
- "alloy-rpc-types-anvil",
  "alloy-signer",
  "alloy-sol-types",
- "alloy-transport",
- "alloy-transport-ws",
  "assertion-da-client",
  "bincode",
- "clap",
+ "bumpalo",
  "dashmap",
  "enum-as-inner",
- "futures",
  "metrics",
  "op-revm",
  "rapidhash",
@@ -1695,7 +1611,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sled",
- "tempfile",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -2750,7 +2665,7 @@ dependencies = [
  "alloy-dyn-abi",
  "alloy-eips",
  "alloy-ens",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-json-abi",
  "alloy-json-rpc",
  "alloy-network",
@@ -4439,7 +4354,7 @@ version = "1.5.1"
 dependencies = [
  "alloy-chains",
  "alloy-dyn-abi",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-json-abi",
  "alloy-network",
  "alloy-primitives",
@@ -5121,7 +5036,7 @@ dependencies = [
  "alloy-dyn-abi",
  "alloy-evm",
  "alloy-genesis",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-json-abi",
  "alloy-network",
  "alloy-op-evm",
@@ -5246,7 +5161,7 @@ checksum = "8df2fd495cf7337b247d960f90355329cc625fe27fe7da9fe5e598c42df21526"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types",
@@ -8864,7 +8779,7 @@ version = "1.9.3"
 source = "git+https://github.com/paradigmxyz/reth?rev=64909d3#64909d33e6b7ab60774e37f5508fb5ad17f41897"
 dependencies = [
  "alloy-eip2124",
- "alloy-hardforks 0.4.5",
+ "alloy-hardforks",
  "alloy-primitives",
  "auto_impl",
  "once_cell",
