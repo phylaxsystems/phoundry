@@ -98,8 +98,10 @@ exceptions = [
     { allow = ["CC0-1.0"], name = "aurora-engine-modexp" },
 ]
 
-# Crates from credible-sdk and evm-glue don't have license fields
-# These are internal/trusted dependencies - ignore unlicensed crates from these sources
+# Crates from credible-sdk and evm-glue don't have license fields.
+# These are internal/trusted dependencies - ignore unlicensed crates from these sources.
+# Note: these entries are git source identifiers used for matching crate origin,
+# they are not fetched by cargo-deny at runtime.
 [licenses.private]
 ignore = true
 registries = []
@@ -140,7 +142,9 @@ allow-git = [
     "https://github.com/tempoxyz/tempo",
     # Transitive dependency of Tempo
     "https://github.com/paradigmxyz/reth",
-    # Assertion executor and its dependencies
+    # Assertion executor and its dependencies.
+    # Note: these are git source identifiers used by cargo-deny for matching;
+    # cargo-deny does not fetch them at runtime.
     "https://github.com/phylaxsystems/credible-sdk",
     "https://git@github.com/Philogy/evm-glue",
 ]
