@@ -433,7 +433,8 @@ fn create_fork_request(
     let rpc_endpoint = ccx.state.config.rpc_endpoint(url_or_alias)?;
     let url = rpc_endpoint.url()?;
     let mut evm_opts = ccx.state.config.evm_opts.clone();
-    evm_opts.fork_block_number = block;
+    evm_opts.fork_block_number =
+        fork_block_number(block, ccx.state.config.default_fork_block_number);
     evm_opts.fork_retries = rpc_endpoint.config.retries;
     evm_opts.fork_retry_backoff = rpc_endpoint.config.retry_backoff;
     if let Some(Ok(auth)) = rpc_endpoint.auth {
@@ -447,6 +448,10 @@ fn create_fork_request(
         evm_opts,
     };
     Ok(fork)
+}
+
+fn fork_block_number(explicit_block: Option<u64>, default_block: Option<u64>) -> Option<u64> {
+    explicit_block.or(default_block)
 }
 
 fn check_broadcast(state: &Cheatcodes) -> Result<()> {
@@ -488,6 +493,16 @@ fn resolve_chain_url_for_id(
 mod tests {
     use super::*;
     use alloy_chains::NamedChain;
+
+    #[test]
+    fn explicit_fork_block_overrides_phylax_default() {
+        assert_eq!(fork_block_number(Some(42), Some(100)), Some(42));
+    }
+
+    #[test]
+    fn phylax_default_fork_block_pins_unspecified_forks() {
+        assert_eq!(fork_block_number(None, Some(100)), Some(100));
+    }
 
     #[test]
     fn resolve_chain_url_for_id_succeeds_for_configured_chain() {

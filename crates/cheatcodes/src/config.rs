@@ -60,6 +60,8 @@ pub struct CheatsConfig {
     pub internal_expect_revert: bool,
     /// If provided, restricts CreateFork and related cheatcodes to this chain URL map.
     pub valid_chains_by_url: Option<HashMap<AlloyChain, String>>,
+    /// Default fork block used by Phylax when alert execution is pinned to a watched block.
+    pub default_fork_block_number: Option<u64>,
 }
 
 impl CheatsConfig {
@@ -97,6 +99,7 @@ impl CheatsConfig {
             seed: config.fuzz.seed,
             internal_expect_revert: config.allow_internal_expect_revert,
             valid_chains_by_url: None,
+            default_fork_block_number: None,
         }
     }
 
@@ -234,6 +237,7 @@ impl Default for CheatsConfig {
             seed: None,
             internal_expect_revert: false,
             valid_chains_by_url: None,
+            default_fork_block_number: None,
         }
     }
 }
