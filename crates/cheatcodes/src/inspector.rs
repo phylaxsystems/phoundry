@@ -1167,6 +1167,37 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             }]);
         }
 
+        #[cfg(feature = "credible")]
+        if let Some(assertion) = self.assertion.take() {
+            let tx_attributes = crate::credible::TxAttributes {
+                value: call.call_value(),
+                data: call.input.bytes(ecx),
+                caller: call.caller,
+                kind: TxKind::Call(call.target_address),
+                gas_limit: call.gas_limit,
+            };
+
+            return match crate::credible::execute_assertion(
+                &assertion,
+                tx_attributes,
+                ecx,
+                executor,
+                self,
+            ) {
+                Ok(()) => None,
+                Err(err) => Some(CallOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Revert,
+                        output: err.abi_encode().into(),
+                        gas,
+                    },
+                    memory_offset: call.return_memory_offset.clone(),
+                    was_precompile_called: false,
+                    precompile_call_logs: vec![],
+                }),
+            };
+        }
+
         None
     }
 
@@ -1899,6 +1930,35 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 storageAccesses: vec![],    // updated on create_end
                 depth: curr_depth as u64,
             }]);
+        }
+
+        #[cfg(feature = "credible")]
+        if let Some(assertion) = self.assertion.take() {
+            let tx_attributes = crate::credible::TxAttributes {
+                value: input.value(),
+                data: input.init_code(),
+                caller: input.caller(),
+                kind: TxKind::Create,
+                gas_limit: input.gas_limit(),
+            };
+
+            return match crate::credible::execute_assertion(
+                &assertion,
+                tx_attributes,
+                ecx,
+                &mut TransparentCheatcodesExecutor,
+                self,
+            ) {
+                Ok(()) => None,
+                Err(err) => Some(CreateOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Revert,
+                        output: err.abi_encode().into(),
+                        gas,
+                    },
+                    address: None,
+                }),
+            };
         }
 
         None
