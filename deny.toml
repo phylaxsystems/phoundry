@@ -19,6 +19,8 @@ ignore = [
     "RUSTSEC-2018-0017",
     # https://rustsec.org/advisories/RUSTSEC-2026-0049 rustls-webpki CRL bypass — awaiting upstream update
     "RUSTSEC-2026-0049",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0097 rand unsoundness with custom logger — awaiting upstream update
+    "RUSTSEC-2026-0097",
     # https://rustsec.org/advisories/RUSTSEC-2026-0012 keccak ARMv8 asm — off-by-default `asm` feature, not enabled
     "RUSTSEC-2026-0012",
     # https://rustsec.org/advisories/RUSTSEC-2026-0098 rustls-webpki URI name constraint — awaiting upstream update
@@ -96,14 +98,13 @@ exceptions = [
     { allow = ["CC-BY-4.0"], name = "font-awesome-as-a-crate" },
 ]
 
-# Crates from credible-sdk and evm-glue don't have license fields
+# Crates from credible-sdk don't have license fields
 # These are internal/trusted dependencies - ignore unlicensed crates from these sources
 [licenses.private]
 ignore = true
 registries = []
 ignore-sources = [
     "https://github.com/phylaxsystems/credible-sdk",
-    "https://git@github.com/Philogy/evm-glue",
 ]
 # copyleft = "deny"
 
@@ -146,5 +147,4 @@ allow-git = [
     "https://github.com/ethereum-optimism/optimism",
     # Assertion executor and its dependencies
     "https://github.com/phylaxsystems/credible-sdk",
-    "https://git@github.com/Philogy/evm-glue",
 ]
