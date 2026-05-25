@@ -591,6 +591,7 @@ rexpect = { git = "https://github.com/rust-cli/rexpect", rev = "2ed0b1898d7edaf6
 
 ## reth-core
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
+reth-rpc-traits = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
 reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }
 reth-zstd-compressors = { git = "https://github.com/paradigmxyz/reth-core", rev = "6b12498" }

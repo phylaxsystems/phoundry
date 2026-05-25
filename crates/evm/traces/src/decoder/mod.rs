@@ -100,6 +100,13 @@ impl CallTraceDecoderBuilder {
         self
     }
 
+    /// Sets the chain ID for chain-specific precompile decoding.
+    #[inline]
+    pub fn with_chain_id(mut self, chain_id: Option<u64>) -> Self {
+        self.decoder.chain_id = chain_id;
+        self
+    }
+
     /// Build the decoder.
     #[inline]
     pub fn build(self) -> CallTraceDecoder {
@@ -150,6 +157,9 @@ pub struct CallTraceDecoder {
 
     /// Disable showing of labels.
     pub disable_labels: bool,
+
+    /// Chain ID used for chain-specific precompile decoding.
+    pub chain_id: Option<u64>,
 }
 
 impl CallTraceDecoder {
@@ -207,6 +217,7 @@ impl CallTraceDecoder {
             debug_identifier: None,
 
             disable_labels: false,
+            chain_id: None,
         }
     }
 
@@ -381,7 +392,7 @@ impl CallTraceDecoder {
             return DecodedCallTrace { label, ..Default::default() };
         }
 
-        if let Some(trace) = precompiles::decode(trace, 1) {
+        if let Some(trace) = precompiles::decode(trace, self.chain_id) {
             return trace;
         }
 
@@ -774,7 +785,7 @@ impl CallTraceDecoder {
                 // Ignore known addresses.
                 if n.trace.address == DEFAULT_CREATE2_DEPLOYER
                     || n.is_precompile()
-                    || precompiles::is_known_precompile(n.trace.address, 1)
+                    || precompiles::is_known_precompile(n.trace.address, self.chain_id)
                 {
                     return false;
                 }
