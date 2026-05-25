@@ -7,10 +7,32 @@ yanked = "warn"
 ignore = [
     # https://rustsec.org/advisories/RUSTSEC-2024-0436 paste! is unmaintained
     "RUSTSEC-2024-0436",
-    # https://rustsec.org/advisories/RUSTSEC-2025-0141 bincode is unmaintained
+    # https://rustsec.org/advisories/RUSTSEC-2024-0437 protobuf! Crash due to uncontrolled recursion in protobuf crate.
+    "RUSTSEC-2024-0437",
+    # https://rustsec.org/advisories/RUSTSEC-2025-0141 bincode is unmaintained, need to transition all deps to wincode first
     "RUSTSEC-2025-0141",
-    # https://rustsec.org/advisories/RUSTSEC-2026-0097 rand is unsound with a custom logger
+    # https://rustsec.org/advisories/RUSTSEC-2023-0018 remove_dir_all vulnerability
+    # Transitive dep: sled -> assertion-executor. Not fixable until sled updates.
+    "RUSTSEC-2023-0018",
+    # https://rustsec.org/advisories/RUSTSEC-2025-0137 `reciprocal_mg10` OOB, unused
+    "RUSTSEC-2025-0137",
+    # https://rustsec.org/advisories/RUSTSEC-2018-0017 tempdir deprecated
+    # Transitive dep: sled -> assertion-executor. Not fixable until sled updates.
+    "RUSTSEC-2018-0017",
+    # aws-lc-sys vulnerabilities — transitive dep via rustls. Upgrade blocked by alloy pinning aws-lc-rs.
+    "RUSTSEC-2026-0044",
+    "RUSTSEC-2026-0045",
+    "RUSTSEC-2026-0046",
+    "RUSTSEC-2026-0047",
+    "RUSTSEC-2026-0048",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0007 bytes integer overflow — awaiting upstream update
+    "RUSTSEC-2026-0007",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0097 rand unsoundness with custom logger — awaiting upstream update
     "RUSTSEC-2026-0097",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0049 rustls-webpki CRL bypass — awaiting upstream update
+    "RUSTSEC-2026-0049",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0009 time DoS via stack exhaustion — awaiting upstream update
+    "RUSTSEC-2026-0009",
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -23,7 +45,11 @@ multiple-versions = "allow"
 wildcards = "allow"
 highlight = "all"
 # List of crates to deny
-deny = [{ name = "openssl" }]
+deny = [
+    # openssl is banned but allowed when wrapped by native-tls
+    # (transitive dep from assertion-executor -> alloy -> reqwest -> native-tls)
+    { name = "openssl", wrappers = ["native-tls"] },
+]
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = []
 # Similarly to `skip` allows you to skip certain crates during duplicate
@@ -65,12 +91,21 @@ exceptions = [
     # CC0 is a permissive license but somewhat unclear status for source code
     # so we prefer to not have dependencies using it
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
+    { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["CC0-1.0"], name = "trezor-client" },
     { allow = ["CC0-1.0"], name = "notify" },
     { allow = ["CC0-1.0"], name = "dunce" },
     { allow = ["CC0-1.0"], name = "aurora-engine-modexp" },
-    # Rendered mdBook HTML source code includes attribution as required by CC-BY-4.0
-    { allow = ["CC-BY-4.0", "MIT"], name = "font-awesome-as-a-crate" },
+]
+
+# Crates from credible-sdk and evm-glue don't have license fields
+# These are internal/trusted dependencies - ignore unlicensed crates from these sources
+[licenses.private]
+ignore = true
+registries = []
+ignore-sources = [
+    "https://github.com/phylaxsystems/credible-sdk",
+    "https://git@github.com/Philogy/evm-glue",
 ]
 # copyleft = "deny"
 
@@ -98,20 +133,14 @@ unknown-registry = "warn"
 # in the allow list is encountered
 unknown-git = "deny"
 allow-git = [
-    "https://github.com/alloy-rs/alloy",
-    "https://github.com/alloy-rs/evm",
-    "https://github.com/foundry-rs/foundry-core",
-    "https://github.com/paradigmxyz/revm-inspectors",
     "https://github.com/paradigmxyz/solar",
-    "https://github.com/bluealloy/revm",
     # Only for tests.
     "https://github.com/rust-cli/rexpect",
     # Tempo
     "https://github.com/tempoxyz/tempo",
-    "https://github.com/tempoxyz/mpp-rs",
     # Transitive dependency of Tempo
     "https://github.com/paradigmxyz/reth",
-    "https://github.com/paradigmxyz/reth-core",
-    # Temporary: upstream OP crates until release is published.
-    "https://github.com/ethereum-optimism/optimism",
+    # Assertion executor and its dependencies
+    "https://github.com/phylaxsystems/credible-sdk",
+    "https://git@github.com/Philogy/evm-glue",
 ]

@@ -14,7 +14,17 @@ exclude.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+credible = ["dep:assertion-executor"]
+
+[build-dependencies]
+
 [dependencies]
+foundry-fork-db.workspace = true
+# pinned to avoid cyclical version bumps between sdk and phoundry
+assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa", features = ["phoundry"], optional = true }
+
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
 foundry-compilers.workspace = true

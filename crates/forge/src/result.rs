@@ -16,7 +16,7 @@ use foundry_evm::{
     decode::SkipReason,
     executors::{RawCallResult, invariant::InvariantMetrics},
     fuzz::{CounterExample, FuzzCase, FuzzFixtures, FuzzTestResult},
-    traces::{CallTraceArena, CallTraceDecoder, TraceKind, Traces},
+    traces::{CallTraceArena, CallTraceDecoder, SparsedTraceArena, TraceKind, Traces},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -618,7 +618,24 @@ impl TestResult {
         self.duration = Duration::default();
         self.gas_report_traces = Vec::new();
 
-        if let Some(cheatcodes) = raw_call_result.cheatcodes {
+        if let Some(mut cheatcodes) = raw_call_result.cheatcodes {
+            let assertion_trigger_traces = cheatcodes.take_assertion_trigger_traces();
+            if !assertion_trigger_traces.is_empty() {
+                self.traces.extend(assertion_trigger_traces.into_iter().map(|arena| {
+                    (
+                        TraceKind::AssertionTrigger,
+                        SparsedTraceArena { arena, ignored: Default::default() },
+                    )
+                }));
+            }
+
+            let assertion_traces = cheatcodes.take_assertion_traces();
+            if !assertion_traces.is_empty() {
+                self.traces.extend(assertion_traces.into_iter().map(|arena| {
+                    (TraceKind::Assertion, SparsedTraceArena { arena, ignored: Default::default() })
+                }));
+            }
+
             self.breakpoints = cheatcodes.breakpoints;
             self.gas_snapshots = cheatcodes.gas_snapshots;
             self.deprecated_cheatcodes = cheatcodes.deprecated;

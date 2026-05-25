@@ -6,7 +6,7 @@ use crate::{
     multi_runner::matches_artifact,
     result::{SuiteResult, TestOutcome, TestStatus},
     traces::{
-        CallTraceDecoderBuilder, InternalTraceMode, TraceKind,
+        CallTraceDecoderBuilder, InternalTraceMode, SparsedTraceArena, TraceKind,
         debug::{ContractSources, DebugTraceIdentifier},
         decode_trace_arena, folded_stack_trace,
         identifier::SignaturesIdentifier,
@@ -58,6 +58,21 @@ use std::{
     time::{Duration, Instant},
 };
 use yansi::Paint;
+
+fn label_assertion_trace(arena: &mut SparsedTraceArena) {
+    let Some(assertion_addr) = arena.nodes().first().map(|node| node.trace.address) else {
+        return;
+    };
+
+    for node in arena.nodes_mut() {
+        if node.trace.address == assertion_addr
+            && let Some(decoded) = node.trace.decoded.as_mut()
+            && decoded.label.is_none()
+        {
+            decoded.label = Some("Assertion".to_string());
+        }
+    }
+}
 
 mod filter;
 mod summary;
@@ -704,6 +719,8 @@ impl TestArgs {
 
                 // Identify addresses and decode traces.
                 let mut decoded_traces = Vec::with_capacity(result.traces.len());
+                let mut decoded_trigger_traces = Vec::new();
+                let mut decoded_assertion_traces = Vec::new();
                 for (kind, arena) in &mut result.traces {
                     if identify_addresses {
                         decoder.identify(arena, &mut identifier);
@@ -716,6 +733,12 @@ impl TestArgs {
                     // - 5..: display all traces for all tests, including storage changes
                     let should_include = match kind {
                         TraceKind::Execution => {
+                            (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
+                        }
+                        TraceKind::AssertionTrigger => {
+                            (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
+                        }
+                        TraceKind::Assertion => {
                             (verbosity == 3 && result.status.is_failure()) || verbosity >= 4
                         }
                         TraceKind::Setup => {
@@ -731,14 +754,60 @@ impl TestArgs {
                             prune_trace_depth(arena, trace_depth);
                         }
 
-                        decoded_traces.push(render_trace_arena_inner(arena, false, verbosity > 4));
+                        if matches!(kind, TraceKind::Assertion) {
+                            label_assertion_trace(arena);
+                            decoded_assertion_traces.push(render_trace_arena_inner(
+                                arena,
+                                false,
+                                verbosity > 4,
+                            ));
+                        } else if matches!(kind, TraceKind::AssertionTrigger) {
+                            decoded_trigger_traces.push(render_trace_arena_inner(
+                                arena,
+                                false,
+                                verbosity > 4,
+                            ));
+                        } else {
+                            decoded_traces.push(render_trace_arena_inner(
+                                arena,
+                                false,
+                                verbosity > 4,
+                            ));
+                        }
                     }
                 }
 
-                if !silent && show_traces && !decoded_traces.is_empty() {
-                    sh_println!("Traces:")?;
-                    for trace in &decoded_traces {
-                        sh_println!("{trace}")?;
+                if !silent
+                    && show_traces
+                    && (!decoded_traces.is_empty()
+                        || !decoded_trigger_traces.is_empty()
+                        || !decoded_assertion_traces.is_empty())
+                {
+                    if !decoded_traces.is_empty() {
+                        sh_println!("Traces:")?;
+                        for trace in &decoded_traces {
+                            sh_println!("{trace}")?;
+                        }
+                    }
+
+                    if !decoded_trigger_traces.is_empty() {
+                        if !decoded_traces.is_empty() {
+                            sh_println!()?;
+                        }
+                        sh_println!("Trigger Call:")?;
+                        for trace in &decoded_trigger_traces {
+                            sh_println!("{trace}")?;
+                        }
+                    }
+
+                    if !decoded_assertion_traces.is_empty() {
+                        if !decoded_traces.is_empty() || !decoded_trigger_traces.is_empty() {
+                            sh_println!()?;
+                        }
+                        sh_println!("Assertion Traces:")?;
+                        for trace in &decoded_assertion_traces {
+                            sh_println!("{trace}")?;
+                        }
                     }
                 }
 

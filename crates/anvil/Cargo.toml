@@ -139,3 +139,4 @@ cmd = [
     "tokio/signal",
 ]
 js-tracer = ["revm-inspectors/js-tracer"]
+credible = ["foundry-evm/credible"]
