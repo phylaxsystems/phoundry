@@ -211,6 +211,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: taiki-e/install-action@763e3324d4fd026c9bd284c504378585777a87d5 # v2
         with:
           tool: cargo-deny
