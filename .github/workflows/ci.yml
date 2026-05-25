@@ -131,6 +131,10 @@ jobs:
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878 # v1
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2
+      - name: Configure git for private cargo deps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - name: forge fmt
         shell: bash
         run: ./.github/scripts/format.sh --check
@@ -160,9 +164,22 @@ jobs:
       - run: cargo hack check
 
   deny:
-    uses: ithacaxyz/ci/.github/workflows/deny.yml@9c8d0dc20e7ad02455d3fdab2378a05f29907630 # main
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Configure git for private cargo deps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+      - uses: taiki-e/install-action@763e3324d4fd026c9bd284c504378585777a87d5 # v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny --all-features check
 
   codeql:
     name: analyze (${{ matrix.language }})

@@ -30,6 +30,10 @@ jobs:
         with:
           toolchain: nightly
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+      - name: Configure git for private cargo deps
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       - name: Build documentation
         run: cargo doc --workspace --all-features --no-deps --document-private-items --locked
         env:
