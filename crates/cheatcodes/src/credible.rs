@@ -120,15 +120,13 @@ const ASSERTION_GAS_LIMIT: u64 = 300_000;
 /// Checks if the assertion gas usage is within the allowed limit.
 /// Returns a detailed log message if the limit is exceeded, None otherwise.
 fn check_assertion_gas_limit(gas_used: u64) -> Option<String> {
-    if gas_used > ASSERTION_GAS_LIMIT {
+    (gas_used > ASSERTION_GAS_LIMIT).then(|| {
         let over_by = gas_used - ASSERTION_GAS_LIMIT;
         let over_percent = (over_by as f64 / ASSERTION_GAS_LIMIT as f64) * 100.0;
-        Some(format!(
+        format!(
             "Assertion used {gas_used} gas, exceeding limit of {ASSERTION_GAS_LIMIT} by {over_by} ({over_percent:.1}% over)"
-        ))
-    } else {
-        None
-    }
+        )
+    })
 }
 
 fn build_tx_env(
@@ -138,33 +136,35 @@ fn build_tx_env(
     nonce: u64,
 ) -> TxEnv {
     let tx_gas_limit = tx_attributes.gas_limit.min(TX_GAS_LIMIT_CAP);
-    let mut tx_env = TxEnv::default();
-    tx_env.tx_type = base_tx_env.tx_type();
-    tx_env.caller = tx_attributes.caller;
-    tx_env.gas_limit = tx_gas_limit;
-    tx_env.gas_price = base_tx_env.gas_price();
-    tx_env.chain_id = Some(chain_id);
-    tx_env.value = tx_attributes.value;
-    tx_env.data = tx_attributes.data;
-    tx_env.kind = tx_attributes.kind;
-    tx_env.nonce = nonce;
-    tx_env.gas_priority_fee = base_tx_env.max_priority_fee_per_gas();
-    tx_env.blob_hashes = base_tx_env.blob_versioned_hashes().to_vec();
-    tx_env.max_fee_per_blob_gas = base_tx_env.max_fee_per_blob_gas();
-    tx_env
+    TxEnv {
+        tx_type: base_tx_env.tx_type(),
+        caller: tx_attributes.caller,
+        gas_limit: tx_gas_limit,
+        gas_price: base_tx_env.gas_price(),
+        chain_id: Some(chain_id),
+        value: tx_attributes.value,
+        data: tx_attributes.data,
+        kind: tx_attributes.kind,
+        nonce,
+        gas_priority_fee: base_tx_env.max_priority_fee_per_gas(),
+        blob_hashes: base_tx_env.blob_versioned_hashes().to_vec(),
+        max_fee_per_blob_gas: base_tx_env.max_fee_per_blob_gas(),
+        ..Default::default()
+    }
 }
 
 fn build_block_env(block: &impl Block) -> BlockEnv {
-    let mut block_env = BlockEnv::default();
-    block_env.number = block.number();
-    block_env.beneficiary = block.beneficiary();
-    block_env.timestamp = block.timestamp();
-    block_env.gas_limit = block.gas_limit();
-    block_env.basefee = block.basefee();
-    block_env.difficulty = block.difficulty();
-    block_env.prevrandao = block.prevrandao();
-    block_env.blob_excess_gas_and_price = block.blob_excess_gas_and_price();
-    block_env
+    BlockEnv {
+        number: block.number(),
+        beneficiary: block.beneficiary(),
+        timestamp: block.timestamp(),
+        gas_limit: block.gas_limit(),
+        basefee: block.basefee(),
+        difficulty: block.difficulty(),
+        prevrandao: block.prevrandao(),
+        blob_excess_gas_and_price: block.blob_excess_gas_and_price(),
+        ..Default::default()
+    }
 }
 
 /// Used to handle assertion execution in inspector in calls after the cheatcode was called.
@@ -337,13 +337,12 @@ mod tests {
     use super::*;
     use alloy_sol_types::{Revert, SolError};
     use assertion_executor::primitives::HaltReason;
-    use revm::context_interface::result::{Output, SuccessReason};
+    use revm::context_interface::result::{Output, ResultGas, SuccessReason};
 
     #[test]
     fn test_decode_revert_error_success() {
         let result = ExecutionResult::Success {
-            gas_used: 0,
-            gas_refunded: 0,
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
             logs: vec![],
             output: Output::Call(Bytes::new()),
             reason: SuccessReason::Return,
@@ -356,7 +355,11 @@ mod tests {
     fn test_decode_revert_error_revert() {
         let revert_reason = "Something is a bit fky wuky";
         let revert_output = Revert::new((revert_reason.to_string(),)).abi_encode();
-        let result = ExecutionResult::Revert { output: revert_output.into(), gas_used: 0 };
+        let result = ExecutionResult::Revert {
+            output: revert_output.into(),
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         assert_eq!(decoded, revert_reason);
     }
@@ -365,7 +368,11 @@ mod tests {
     fn test_decode_revert_panic() {
         // Panic(uint256) with code 0x01 (assertion failed)
         let panic_output = alloy_sol_types::Panic::from(0x01).abi_encode();
-        let result = ExecutionResult::Revert { output: panic_output.into(), gas_used: 0 };
+        let result = ExecutionResult::Revert {
+            output: panic_output.into(),
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         assert!(decoded.contains("Panic") || decoded.contains("panic"));
     }
@@ -374,7 +381,11 @@ mod tests {
     fn test_decode_revert_raw_bytes() {
         // Raw bytes that don't match any known format
         let raw_bytes = vec![0xde, 0xad, 0xbe, 0xef];
-        let result = ExecutionResult::Revert { output: raw_bytes.into(), gas_used: 0 };
+        let result = ExecutionResult::Revert {
+            output: raw_bytes.into(),
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         // Should contain hex representation
         assert!(decoded.contains("deadbeef") || decoded.contains("custom error"));
@@ -383,7 +394,11 @@ mod tests {
     #[test]
     fn test_decode_revert_error_halt() {
         let halt_reason = HaltReason::CallTooDeep;
-        let result = ExecutionResult::Halt { reason: halt_reason, gas_used: 0 };
+        let result = ExecutionResult::Halt {
+            reason: halt_reason,
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         assert_eq!(decoded, "Halt reason: CallTooDeep");
     }

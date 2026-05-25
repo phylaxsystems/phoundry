@@ -5801,8 +5801,6 @@ dependencies = [
  "serde_json",
  "solar-compiler",
  "tempfile",
- "tempo-contracts",
- "tempo-precompiles",
  "tokio",
  "tracing",
  "yansi",
