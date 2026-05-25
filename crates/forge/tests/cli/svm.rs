@@ -33,21 +33,13 @@ async fn ensure_latest_release(platform: Platform) {
 }
 
 // ensures all platform have the latest solc release version
-//
-// `test_svm_releases_linux_aarch64` is skipped until svm-builds publishes
-// linux-aarch64 binaries for `LATEST_SOLC`; the other platforms ship sooner.
 ensure_svm_releases!(
     test_svm_releases_linux_amd64 => LinuxAmd64,
+    test_svm_releases_linux_aarch64 => LinuxAarch64,
     test_svm_releases_macos_amd64 => MacOsAmd64,
     test_svm_releases_macos_aarch64 => MacOsAarch64,
     test_svm_releases_windows_amd64 => WindowsAmd64
 );
-
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "awaiting svm-builds publishing linux-aarch64 for LATEST_SOLC"]
-async fn test_svm_releases_linux_aarch64() {
-    ensure_latest_release(Platform::LinuxAarch64).await
-}
 
 // Ensures we can always test with the latest solc build
 forgetest_init!(can_test_with_latest_solc, |prj, cmd| {
