@@ -535,6 +535,12 @@ pub struct Cheatcodes<FEN: FoundryEvmNetwork = EthEvmNetwork> {
     #[cfg(feature = "credible")]
     pub assertion: Option<crate::credible::Assertion>,
 
+    /// Anomaly scores staged via `cl.setAnomalyScore(...)`. Read by the phoundry
+    /// anomaly subsystem during the next `cl.assertion(...)` invocation. Cleared
+    /// after the assertion executes.
+    #[cfg(feature = "credible")]
+    pub anomaly_scores: std::collections::HashMap<alloy_primitives::Address, u16>,
+
     /// Assume next call can revert and discard fuzz run if it does.
     pub assume_no_revert: Option<AssumeNoRevert>,
 
@@ -718,6 +724,8 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             expected_emits: Default::default(),
             #[cfg(feature = "credible")]
             assertion: Default::default(),
+            #[cfg(feature = "credible")]
+            anomaly_scores: Default::default(),
             expected_creates: Default::default(),
             allowed_mem_writes: Default::default(),
             broadcast: Default::default(),

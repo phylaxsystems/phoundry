@@ -69,8 +69,8 @@ mod utils;
 #[cfg(feature = "credible")]
 pub mod credible;
 
-/// Stub implementation when the `credible` feature is disabled.
-/// `vm.assertion()` is kept in the ABI but reverts with a clear error at runtime.
+/// Stub implementations when the `credible` feature is disabled.
+/// The cheatcodes are kept in the ABI but revert with a clear error at runtime.
 #[cfg(not(feature = "credible"))]
 mod credible_stub {
     use crate::{Cheatcode, CheatsCtxt, Result, Vm::*};
@@ -79,6 +79,15 @@ mod credible_stub {
         fn apply_stateful(&self, _ccx: &mut CheatsCtxt) -> Result {
             bail!(
                 "vm.assertion() requires Phylax-built forge with the `credible` feature enabled. \
+                 Install from: https://github.com/phylaxsystems/phoundry"
+            )
+        }
+    }
+
+    impl Cheatcode for setAnomalyScoreCall {
+        fn apply_stateful(&self, _ccx: &mut CheatsCtxt) -> Result {
+            bail!(
+                "vm.setAnomalyScore() requires Phylax-built forge with the `credible` feature enabled. \
                  Install from: https://github.com/phylaxsystems/phoundry"
             )
         }

@@ -25,6 +25,13 @@ interface Vm {
     #[cheatcode(group = Credible, safety = Safe)]
     function assertion(address adopter, bytes calldata createData, bytes4 fnSelector) external;
 
+    /// Stages an anomaly score (basis points, `0..=10_000`) for `target` that the executor's
+    /// `AnomalySubsystem` will return on the next `cl.assertion(...)` invocation. Targets not
+    /// staged with this cheatcode are not scored (fail open). Call multiple times to stage
+    /// scores for multiple targets before invoking `cl.assertion`.
+    #[cheatcode(group = Credible, safety = Safe)]
+    function setAnomalyScore(address target, uint16 scoreBps) external;
+
 
     //  ======== Types ========
 
