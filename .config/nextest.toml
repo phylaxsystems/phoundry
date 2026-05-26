@@ -17,6 +17,17 @@ slow-timeout = { period = "5m", terminate-after = 4 }
 filter = "test(/vaddr_e2e::/)"
 slow-timeout = { period = "5m", terminate-after = 4 }
 
+# These tests do nested heavy work after the command under test succeeds:
+# `can_bind_e2e` builds generated bindings with Cargo, and the clone test
+# depends on external verified-source fetching.
+[[profile.default.overrides]]
+filter = "test(/cmd::can_bind_e2e/)"
+slow-timeout = { period = "5m", terminate-after = 4 }
+
+[[profile.default.overrides]]
+filter = "test(/cmd::clone::tests::test_clone_contract_with_original_remappings/)"
+slow-timeout = { period = "5m", terminate-after = 4 }
+
 # Do not re-run so that `cargo cheats` is ran locally.
 [[profile.default.overrides]]
 filter = "package(foundry-cheatcodes-spec)"
