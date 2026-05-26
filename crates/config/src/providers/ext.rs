@@ -365,24 +365,28 @@ impl Provider for DappHardhatDirProvider<'_> {
 
     fn data(&self) -> Result<Map<Profile, Dict>, Error> {
         let mut dict = Dict::new();
-        dict.insert(
-            "src".to_string(),
-            ProjectPathsConfig::find_source_dir(self.0)
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-                .into(),
-        );
-        dict.insert(
-            "out".to_string(),
-            ProjectPathsConfig::find_artifacts_dir(self.0)
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-                .into(),
-        );
+        if self.0.join("src").exists() || self.0.join("contracts").exists() {
+            dict.insert(
+                "src".to_string(),
+                ProjectPathsConfig::find_source_dir(self.0)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+                    .into(),
+            );
+        }
+        if self.0.join("out").exists() || self.0.join("artifacts").exists() {
+            dict.insert(
+                "out".to_string(),
+                ProjectPathsConfig::find_artifacts_dir(self.0)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+                    .into(),
+            );
+        }
 
         // detect libs folders:
         //   if `lib` _and_ `node_modules` exists: include both

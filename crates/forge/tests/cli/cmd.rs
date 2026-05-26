@@ -298,6 +298,9 @@ forgetest!(
 // checks that init works
 forgetest!(can_init_repo_with_config, |prj, cmd| {
     let foundry_toml = prj.root().join(Config::FILE_NAME);
+    // `TestProject::new` pre-writes a foundry.toml to match the project's PathStyle; remove it
+    // so this test exercises `forge init`'s empty-directory path.
+    let _ = fs::remove_file(&foundry_toml);
     assert!(!foundry_toml.exists());
 
     cmd.args(["init", "--force"])

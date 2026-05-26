@@ -7,10 +7,30 @@ yanked = "warn"
 ignore = [
     # https://rustsec.org/advisories/RUSTSEC-2024-0436 paste! is unmaintained
     "RUSTSEC-2024-0436",
-    # https://rustsec.org/advisories/RUSTSEC-2025-0141 bincode is unmaintained
+    # https://rustsec.org/advisories/RUSTSEC-2025-0141 bincode is unmaintained, need to transition all deps to wincode first
     "RUSTSEC-2025-0141",
-    # https://rustsec.org/advisories/RUSTSEC-2026-0097 rand is unsound with a custom logger
+    # https://rustsec.org/advisories/RUSTSEC-2023-0018 remove_dir_all vulnerability
+    # Transitive dep: sled -> assertion-executor. Not fixable until sled updates.
+    "RUSTSEC-2023-0018",
+    # https://rustsec.org/advisories/RUSTSEC-2025-0137 `reciprocal_mg10` OOB, unused
+    "RUSTSEC-2025-0137",
+    # https://rustsec.org/advisories/RUSTSEC-2018-0017 tempdir deprecated
+    # Transitive dep: sled -> assertion-executor. Not fixable until sled updates.
+    "RUSTSEC-2018-0017",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0049 rustls-webpki CRL bypass — awaiting upstream update
+    "RUSTSEC-2026-0049",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0097 rand unsoundness with custom logger — awaiting upstream update
     "RUSTSEC-2026-0097",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0012 keccak ARMv8 asm — off-by-default `asm` feature, not enabled
+    "RUSTSEC-2026-0012",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0098 rustls-webpki URI name constraint — awaiting upstream update
+    "RUSTSEC-2026-0098",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0099 rustls-webpki wildcard name constraint — awaiting upstream update
+    "RUSTSEC-2026-0099",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0103 thin-vec IntoIter UAF — awaiting upstream update
+    "RUSTSEC-2026-0103",
+    # https://rustsec.org/advisories/RUSTSEC-2026-0104 rustls-webpki CRL panic — awaiting upstream update
+    "RUSTSEC-2026-0104",
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -23,7 +43,11 @@ multiple-versions = "allow"
 wildcards = "allow"
 highlight = "all"
 # List of crates to deny
-deny = [{ name = "openssl" }]
+deny = [
+    # openssl is banned but allowed when wrapped by native-tls
+    # (transitive dep from assertion-executor -> alloy -> reqwest -> native-tls)
+    { name = "openssl", wrappers = ["native-tls"] },
+]
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = []
 # Similarly to `skip` allows you to skip certain crates during duplicate
@@ -65,12 +89,22 @@ exceptions = [
     # CC0 is a permissive license but somewhat unclear status for source code
     # so we prefer to not have dependencies using it
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
+    { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["CC0-1.0"], name = "trezor-client" },
     { allow = ["CC0-1.0"], name = "notify" },
     { allow = ["CC0-1.0"], name = "dunce" },
     { allow = ["CC0-1.0"], name = "aurora-engine-modexp" },
-    # Rendered mdBook HTML source code includes attribution as required by CC-BY-4.0
-    { allow = ["CC-BY-4.0", "MIT"], name = "font-awesome-as-a-crate" },
+    # font-awesome icons embedded as a crate; CC-BY-4.0 applies to the icon set.
+    { allow = ["CC-BY-4.0"], name = "font-awesome-as-a-crate" },
+]
+
+# Crates from credible-sdk don't have license fields
+# These are internal/trusted dependencies - ignore unlicensed crates from these sources
+[licenses.private]
+ignore = true
+registries = []
+ignore-sources = [
+    "https://github.com/phylaxsystems/credible-sdk",
 ]
 # copyleft = "deny"
 
@@ -98,20 +132,19 @@ unknown-registry = "warn"
 # in the allow list is encountered
 unknown-git = "deny"
 allow-git = [
-    "https://github.com/alloy-rs/alloy",
-    "https://github.com/alloy-rs/evm",
-    "https://github.com/foundry-rs/foundry-core",
-    "https://github.com/paradigmxyz/revm-inspectors",
     "https://github.com/paradigmxyz/solar",
-    "https://github.com/bluealloy/revm",
     # Only for tests.
     "https://github.com/rust-cli/rexpect",
     # Tempo
     "https://github.com/tempoxyz/tempo",
+    # Tempo transitive: mpp-rs
     "https://github.com/tempoxyz/mpp-rs",
     # Transitive dependency of Tempo
     "https://github.com/paradigmxyz/reth",
+    # reth-core split crates pinned for 1.7.1-compatible API
     "https://github.com/paradigmxyz/reth-core",
-    # Temporary: upstream OP crates until release is published.
+    # OP fork: op-revm / alloy-op-evm / alloy-op-hardforks / op-alloy-* aligned with phoundry 1.7.1
     "https://github.com/ethereum-optimism/optimism",
+    # Assertion executor and its dependencies
+    "https://github.com/phylaxsystems/credible-sdk",
 ]

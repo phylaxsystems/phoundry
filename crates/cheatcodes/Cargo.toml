@@ -14,7 +14,17 @@ exclude.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+credible = ["dep:assertion-executor"]
+
+[build-dependencies]
+
 [dependencies]
+foundry-fork-db.workspace = true
+# tracks the credible-sdk ENG-3169 rebase branch during the revm/alloy bump
+assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", branch = "lea/eng-3169-featcredible-sdk-update-revm-and-alloy-dependencies", features = ["phoundry"], optional = true }
+
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
 foundry-compilers.workspace = true

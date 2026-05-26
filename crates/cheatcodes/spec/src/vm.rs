@@ -19,6 +19,13 @@ sol! {
 #[derive(Debug, Cheatcode)] // Keep this list small to avoid unnecessary bloat.
 #[sol(abi)]
 interface Vm {
+
+    /// Used to execute assertion against the next call or contract creation.
+    /// Will revert if the assertion is not triggered.
+    #[cheatcode(group = Credible, safety = Safe)]
+    function assertion(address adopter, bytes calldata createData, bytes4 fnSelector) external;
+
+
     //  ======== Types ========
 
     /// Error thrown by cheatcodes.

@@ -44,7 +44,7 @@ use foundry_evm_core::{
     },
 };
 use foundry_evm_traces::{
-    TracingInspector, TracingInspectorConfig, identifier::SignaturesIdentifier,
+    CallTraceArena, TracingInspector, TracingInspectorConfig, identifier::SignaturesIdentifier,
 };
 use foundry_wallets::wallet_multi::MultiWallet;
 use itertools::Itertools;
@@ -464,6 +464,10 @@ pub struct Cheatcodes<FEN: FoundryEvmNetwork = EthEvmNetwork> {
     /// Expected revert information
     pub expected_revert: Option<ExpectedRevert>,
 
+    /// Assertion information (only available with `credible` feature)
+    #[cfg(feature = "credible")]
+    pub assertion: Option<crate::credible::Assertion>,
+
     /// Assume next call can revert and discard fuzz run if it does.
     pub assume_no_revert: Option<AssumeNoRevert>,
 
@@ -558,6 +562,11 @@ pub struct Cheatcodes<FEN: FoundryEvmNetwork = EthEvmNetwork> {
     /// Ignored traces.
     pub ignored_traces: IgnoredTraces,
 
+    /// Assertion traces collected during assertion execution.
+    assertion_traces: Vec<CallTraceArena>,
+    /// Trigger call traces collected during assertion execution.
+    assertion_trigger_traces: Vec<CallTraceArena>,
+
     /// Addresses with arbitrary storage.
     pub arbitrary_storage: Option<ArbitraryStorage>,
 
@@ -607,6 +616,8 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             mocked_functions: Default::default(),
             expected_calls: Default::default(),
             expected_emits: Default::default(),
+            #[cfg(feature = "credible")]
+            assertion: Default::default(),
             expected_creates: Default::default(),
             allowed_mem_writes: Default::default(),
             broadcast: Default::default(),
@@ -623,6 +634,8 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             intercept_next_create_call: Default::default(),
             test_runner: Default::default(),
             ignored_traces: Default::default(),
+            assertion_traces: Default::default(),
+            assertion_trigger_traces: Default::default(),
             arbitrary_storage: Default::default(),
             deprecated: Default::default(),
             wallets: Default::default(),
@@ -652,6 +665,32 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
     /// Sets the unlocked wallets.
     pub fn set_wallets(&mut self, wallets: Wallets) {
         self.wallets = Some(wallets);
+    }
+
+    /// Stores assertion traces collected during execution.
+    pub fn push_assertion_traces<I>(&mut self, traces: I)
+    where
+        I: IntoIterator<Item = CallTraceArena>,
+    {
+        self.assertion_traces.extend(traces);
+    }
+
+    /// Stores trigger call traces collected during assertion execution.
+    pub fn push_assertion_trigger_traces<I>(&mut self, traces: I)
+    where
+        I: IntoIterator<Item = CallTraceArena>,
+    {
+        self.assertion_trigger_traces.extend(traces);
+    }
+
+    /// Drains assertion traces for inclusion in test output.
+    pub fn take_assertion_traces(&mut self) -> Vec<CallTraceArena> {
+        std::mem::take(&mut self.assertion_traces)
+    }
+
+    /// Drains trigger call traces for inclusion in test output.
+    pub fn take_assertion_trigger_traces(&mut self) -> Vec<CallTraceArena> {
+        std::mem::take(&mut self.assertion_trigger_traces)
     }
 
     /// Adds a delegation to the active delegations list.
@@ -1126,6 +1165,37 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
                 storageAccesses: vec![], // updated on step
                 depth: ecx.journal().depth().try_into().expect("journaled state depth exceeds u64"),
             }]);
+        }
+
+        #[cfg(feature = "credible")]
+        if let Some(assertion) = self.assertion.take() {
+            let tx_attributes = crate::credible::TxAttributes {
+                value: call.call_value(),
+                data: call.input.bytes(ecx),
+                caller: call.caller,
+                kind: TxKind::Call(call.target_address),
+                gas_limit: call.gas_limit,
+            };
+
+            return match crate::credible::execute_assertion(
+                &assertion,
+                tx_attributes,
+                ecx,
+                executor,
+                self,
+            ) {
+                Ok(()) => None,
+                Err(err) => Some(CallOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Revert,
+                        output: err.abi_encode().into(),
+                        gas,
+                    },
+                    memory_offset: call.return_memory_offset.clone(),
+                    was_precompile_called: false,
+                    precompile_call_logs: vec![],
+                }),
+            };
         }
 
         None
@@ -1860,6 +1930,35 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 storageAccesses: vec![],    // updated on create_end
                 depth: curr_depth as u64,
             }]);
+        }
+
+        #[cfg(feature = "credible")]
+        if let Some(assertion) = self.assertion.take() {
+            let tx_attributes = crate::credible::TxAttributes {
+                value: input.value(),
+                data: input.init_code(),
+                caller: input.caller(),
+                kind: TxKind::Create,
+                gas_limit: input.gas_limit(),
+            };
+
+            return match crate::credible::execute_assertion(
+                &assertion,
+                tx_attributes,
+                ecx,
+                &mut TransparentCheatcodesExecutor,
+                self,
+            ) {
+                Ok(()) => None,
+                Err(err) => Some(CreateOutcome {
+                    result: InterpreterResult {
+                        result: InstructionResult::Revert,
+                        output: err.abi_encode().into(),
+                        gas,
+                    },
+                    address: None,
+                }),
+            };
         }
 
         None

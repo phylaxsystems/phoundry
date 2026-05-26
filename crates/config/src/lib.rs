@@ -1925,14 +1925,24 @@ impl Config {
     fn _with_root(root: &Path) -> Self {
         // autodetect paths
         let paths = ProjectPathsConfig::builder().build_with_root::<()>(root);
-        let artifacts: PathBuf = paths.artifacts.file_name().unwrap().into();
+        let default = Self::default();
+        let src = if root.join("src").exists() || root.join("contracts").exists() {
+            ProjectPathsConfig::find_source_dir(root).file_name().unwrap().into()
+        } else {
+            default.src.clone()
+        };
+        let out = if root.join("out").exists() || root.join("artifacts").exists() {
+            ProjectPathsConfig::find_artifacts_dir(root).file_name().unwrap().into()
+        } else {
+            default.out.clone()
+        };
         Self {
             root: paths.root,
-            src: paths.sources.file_name().unwrap().into(),
-            out: artifacts.clone(),
+            src,
+            out: out.clone(),
             libs: paths.libraries.into_iter().map(|lib| lib.file_name().unwrap().into()).collect(),
-            fs_permissions: FsPermissions::new([PathPermission::read(artifacts)]),
-            ..Self::default()
+            fs_permissions: FsPermissions::new([PathPermission::read(out)]),
+            ..default
         }
     }
 
@@ -2629,20 +2639,20 @@ impl Default for Config {
         Self {
             profile: Self::DEFAULT_PROFILE,
             profiles: vec![Self::DEFAULT_PROFILE],
-            fs_permissions: FsPermissions::new([PathPermission::read("out")]),
+            fs_permissions: FsPermissions::new([PathPermission::read("assertions/out")]),
             isolate: cfg!(feature = "isolate-by-default"),
             root: root_default(),
             extends: None,
-            src: "src".into(),
-            test: "test".into(),
-            script: "script".into(),
-            out: "out".into(),
+            src: "assertions/src".into(),
+            test: "assertions/test".into(),
+            script: "assertions/script".into(),
+            out: "assertions/out".into(),
             libs: vec!["lib".into()],
             cache: true,
             dynamic_test_linking: false,
-            cache_path: "cache".into(),
-            broadcast: "broadcast".into(),
-            snapshots: "snapshots".into(),
+            cache_path: "assertions/cache".into(),
+            broadcast: "assertions/broadcast".into(),
+            snapshots: "assertions/snapshots".into(),
             gas_snapshot_check: false,
             gas_snapshot_emit: true,
             allow_paths: vec![],
@@ -2672,11 +2682,11 @@ impl Default for Config {
             path_pattern: None,
             path_pattern_inverse: None,
             coverage_pattern_inverse: None,
-            test_failures_file: "cache/test-failures".into(),
+            test_failures_file: "assertions/cache/test-failures".into(),
             threads: None,
             show_progress: false,
-            fuzz: FuzzConfig::new("cache/fuzz".into()),
-            invariant: InvariantConfig::new("cache/invariant".into()),
+            fuzz: FuzzConfig::new("assertions/cache/fuzz".into()),
+            invariant: InvariantConfig::new("assertions/cache/invariant".into()),
             always_use_create_2_factory: false,
             ffi: false,
             live_logs: false,
@@ -3102,7 +3112,7 @@ mod tests {
         figment::Jail::expect_with(|_| {
             let config = Config::default();
             let paths_config = config.project_paths::<Solc>();
-            assert_eq!(paths_config.tests, PathBuf::from(r"test"));
+            assert_eq!(paths_config.tests, PathBuf::from(r"assertions/test"));
             Ok(())
         });
     }
@@ -4982,7 +4992,7 @@ mod tests {
                 InvariantConfig {
                     runs: 512,
                     depth: 10,
-                    failure_persist_dir: Some(PathBuf::from("cache/invariant")),
+                    failure_persist_dir: Some(PathBuf::from("assertions/cache/invariant")),
                     ..Default::default()
                 }
             );

@@ -187,6 +187,22 @@ pub fn render_trace_arena(arena: &SparsedTraceArena) -> String {
     render_trace_arena_inner(arena, false, false)
 }
 
+/// Render a collection of call traces to a string with ANSI colors always enabled.
+///
+/// Use this when rendering traces outside of a TTY context (e.g. server-side) where
+/// `shell::color_choice()` would default to `Never`.
+pub fn render_trace_arena_with_colors(
+    arena: &SparsedTraceArena,
+    with_storage_changes: bool,
+) -> String {
+    let mut w = TraceWriter::new(Vec::<u8>::new())
+        .color_cheatcodes(true)
+        .use_colors(revm_inspectors::ColorChoice::Always)
+        .with_storage_changes(with_storage_changes);
+    w.write_arena(&arena.resolve_arena()).expect("Failed to write traces");
+    String::from_utf8(w.into_writer()).expect("trace writer wrote invalid UTF-8")
+}
+
 /// Prunes trace depth if depth is provided as an argument
 pub fn prune_trace_depth(arena: &mut CallTraceArena, depth: usize) {
     for node in arena.nodes_mut() {
@@ -230,6 +246,8 @@ pub enum TraceKind {
     Deployment,
     Setup,
     Execution,
+    AssertionTrigger,
+    Assertion,
 }
 
 impl TraceKind {
@@ -255,6 +273,22 @@ impl TraceKind {
     #[must_use]
     pub const fn is_execution(self) -> bool {
         matches!(self, Self::Execution)
+    }
+
+    /// Returns `true` if the trace kind is [`AssertionTrigger`].
+    ///
+    /// [`AssertionTrigger`]: TraceKind::AssertionTrigger
+    #[must_use]
+    pub const fn is_assertion_trigger(self) -> bool {
+        matches!(self, Self::AssertionTrigger)
+    }
+
+    /// Returns `true` if the trace kind is [`Assertion`].
+    ///
+    /// [`Assertion`]: TraceKind::Assertion
+    #[must_use]
+    pub const fn is_assertion(self) -> bool {
+        matches!(self, Self::Assertion)
     }
 }
 

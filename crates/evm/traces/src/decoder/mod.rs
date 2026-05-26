@@ -18,22 +18,13 @@ use foundry_evm_core::{
     constants::{CALLER, CHEATCODE_ADDRESS, DEFAULT_CREATE2_DEPLOYER, HARDHAT_CONSOLE_ADDRESS},
     decode::RevertDecoder,
     precompiles::{
-        BLAKE_2F, BLS12_G1ADD, BLS12_G1MSM, BLS12_G2ADD, BLS12_G2MSM, BLS12_MAP_FP_TO_G1,
-        BLS12_MAP_FP2_TO_G2, BLS12_PAIRING_CHECK, EC_ADD, EC_MUL, EC_PAIRING, EC_RECOVER, IDENTITY,
-        MOD_EXP, P256_VERIFY, POINT_EVALUATION, RIPEMD_160, SHA_256,
+        BLAKE_2F, EC_ADD, EC_MUL, EC_PAIRING, EC_RECOVER, IDENTITY, MOD_EXP, POINT_EVALUATION,
+        RIPEMD_160, SHA_256,
     },
 };
 use itertools::Itertools;
 use revm_inspectors::tracing::types::{DecodedCallLog, DecodedCallTrace};
 use std::{collections::BTreeMap, sync::OnceLock};
-use tempo_contracts::precompiles::{
-    IAccountKeychain, IFeeManager, IStablecoinDEX, ITIP20Factory, ITIP403Registry, IValidatorConfig,
-};
-use tempo_precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS, STABLECOIN_DEX_ADDRESS,
-    TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS, TIP403_REGISTRY_ADDRESS,
-    VALIDATOR_CONFIG_ADDRESS, nonce::INonce, tip20::ITIP20,
-};
 
 mod precompiles;
 
@@ -102,17 +93,17 @@ impl CallTraceDecoderBuilder {
         self
     }
 
-    /// Sets the chain ID for network-specific precompile detection.
-    #[inline]
-    pub const fn with_chain_id(mut self, chain_id: Option<u64>) -> Self {
-        self.decoder.chain_id = chain_id;
-        self
-    }
-
     /// Sets the debug identifier for the decoder.
     #[inline]
     pub fn with_debug_identifier(mut self, identifier: DebugTraceIdentifier) -> Self {
         self.decoder.debug_identifier = Some(identifier);
+        self
+    }
+
+    /// Sets the chain ID for chain-specific precompile decoding.
+    #[inline]
+    pub const fn with_chain_id(mut self, chain_id: Option<u64>) -> Self {
+        self.decoder.chain_id = chain_id;
         self
     }
 
@@ -167,7 +158,7 @@ pub struct CallTraceDecoder {
     /// Disable showing of labels.
     pub disable_labels: bool,
 
-    /// The chain ID, used to determine network-specific precompiles.
+    /// Chain ID used for chain-specific precompile decoding.
     pub chain_id: Option<u64>,
 }
 
@@ -202,23 +193,6 @@ impl CallTraceDecoder {
                 (EC_PAIRING, "ECPairing".to_string()),
                 (BLAKE_2F, "Blake2F".to_string()),
                 (POINT_EVALUATION, "PointEvaluation".to_string()),
-                (BLS12_G1ADD, "BLS12_G1ADD".to_string()),
-                (BLS12_G1MSM, "BLS12_G1MSM".to_string()),
-                (BLS12_G2ADD, "BLS12_G2ADD".to_string()),
-                (BLS12_G2MSM, "BLS12_G2MSM".to_string()),
-                (BLS12_PAIRING_CHECK, "BLS12_PAIRING_CHECK".to_string()),
-                (BLS12_MAP_FP_TO_G1, "BLS12_MAP_FP_TO_G1".to_string()),
-                (BLS12_MAP_FP2_TO_G2, "BLS12_MAP_FP2_TO_G2".to_string()),
-                (P256_VERIFY, "P256VERIFY".to_string()),
-                // Tempo
-                (TIP_FEE_MANAGER_ADDRESS, "FeeManager".to_string()),
-                (TIP403_REGISTRY_ADDRESS, "TIP403Registry".to_string()),
-                (TIP20_FACTORY_ADDRESS, "TIP20Factory".to_string()),
-                (STABLECOIN_DEX_ADDRESS, "StablecoinDex".to_string()),
-                (NONCE_PRECOMPILE_ADDRESS, "Nonce".to_string()),
-                (VALIDATOR_CONFIG_ADDRESS, "ValidatorConfig".to_string()),
-                (ACCOUNT_KEYCHAIN_ADDRESS, "AccountKeychain".to_string()),
-                (PATH_USD_ADDRESS, "PathUSD".to_string()),
             ]),
             receive_contracts: Default::default(),
             fallback_contracts: Default::default(),
@@ -227,29 +201,11 @@ impl CallTraceDecoder {
             functions: console::hh::abi::functions()
                 .into_values()
                 .chain(Vm::abi::functions().into_values())
-                // Tempo
-                .chain(IFeeManager::abi::functions().into_values())
-                .chain(ITIP20::abi::functions().into_values())
-                .chain(ITIP403Registry::abi::functions().into_values())
-                .chain(ITIP20Factory::abi::functions().into_values())
-                .chain(IStablecoinDEX::abi::functions().into_values())
-                .chain(INonce::abi::functions().into_values())
-                .chain(IValidatorConfig::abi::functions().into_values())
-                .chain(IAccountKeychain::abi::functions().into_values())
                 .flatten()
                 .map(|func| (func.selector(), vec![func]))
                 .collect(),
             events: console::ds::abi::events()
                 .into_values()
-                // Tempo
-                .chain(IFeeManager::abi::events().into_values())
-                .chain(ITIP20::abi::events().into_values())
-                .chain(ITIP403Registry::abi::events().into_values())
-                .chain(ITIP20Factory::abi::events().into_values())
-                .chain(IStablecoinDEX::abi::events().into_values())
-                .chain(INonce::abi::events().into_values())
-                .chain(IValidatorConfig::abi::events().into_values())
-                .chain(IAccountKeychain::abi::events().into_values())
                 .flatten()
                 .map(|event| ((event.selector(), indexed_inputs(&event)), vec![event]))
                 .collect(),
@@ -261,7 +217,6 @@ impl CallTraceDecoder {
             debug_identifier: None,
 
             disable_labels: false,
-
             chain_id: None,
         }
     }
@@ -277,7 +232,6 @@ impl CallTraceDecoder {
 
         self.receive_contracts.clear();
         self.fallback_contracts.clear();
-        self.non_fallback_contracts.clear();
     }
 
     /// Identify unknown addresses in the specified call trace using the specified identifier.
@@ -296,12 +250,6 @@ impl CallTraceDecoder {
         identifier: &'a mut impl TraceIdentifier,
     ) -> Vec<IdentifiedAddress<'a>> {
         let nodes = arena.nodes().iter().filter(|node| {
-            // Skip precompile addresses, they will never resolve externally.
-            if node.is_precompile()
-                || precompiles::is_known_precompile(node.trace.address, self.chain_id)
-            {
-                return false;
-            }
             let address = &node.trace.address;
             !self.labels.contains_key(address) || !self.contracts.contains_key(address)
         });
@@ -377,7 +325,7 @@ impl CallTraceDecoder {
                 self.contracts.entry(address).or_insert(contract);
             }
 
-            if let Some(label) = label.filter(|s| !s.is_empty()) {
+            if let Some(label) = label {
                 self.labels.entry(address).or_insert(label);
             }
 
@@ -565,28 +513,7 @@ impl CallTraceDecoder {
     /// Custom decoding for cheatcode inputs.
     fn decode_cheatcode_inputs(&self, func: &Function, data: &[u8]) -> Option<Vec<String>> {
         match func.name.as_str() {
-            "expectRevert" => {
-                let decoded = match data.get(SELECTOR_LEN..) {
-                    Some(data) => func.abi_decode_input(data).ok(),
-                    None => None,
-                };
-                let Some(decoded) = decoded else {
-                    return Some(vec![self.revert_decoder.decode(data, None)]);
-                };
-                let Some(first) = decoded.first() else {
-                    return Some(vec![self.revert_decoder.decode(data, None)]);
-                };
-                let expected_revert = match first {
-                    DynSolValue::Bytes(bytes) => bytes.as_slice(),
-                    DynSolValue::FixedBytes(word, size) => &word[..*size],
-                    _ => return None,
-                };
-                Some(
-                    std::iter::once(self.revert_decoder.decode(expected_revert, None))
-                        .chain(decoded.iter().skip(1).map(|value| self.format_value(value)))
-                        .collect(),
-                )
-            }
+            "expectRevert" => Some(vec![self.revert_decoder.decode(data, None)]),
             "addr" | "createWallet" | "deriveKey" | "rememberKey" => {
                 // Redact private key in all cases
                 Some(vec!["<pk>".to_string()])
@@ -594,12 +521,14 @@ impl CallTraceDecoder {
             "broadcast" | "startBroadcast" => {
                 // Redact private key if defined
                 // broadcast(uint256) / startBroadcast(uint256)
-                (!func.inputs.is_empty() && func.inputs[0].ty == "uint256").then(|| vec!["<pk>".to_string()])
+                (!func.inputs.is_empty() && func.inputs[0].ty == "uint256")
+                    .then(|| vec!["<pk>".to_string()])
             }
             "getNonce" => {
                 // Redact private key if defined
                 // getNonce(Wallet)
-                (!func.inputs.is_empty() && func.inputs[0].ty == "tuple").then(|| vec!["<pk>".to_string()])
+                (!func.inputs.is_empty() && func.inputs[0].ty == "tuple")
+                    .then(|| vec!["<pk>".to_string()])
             }
             "sign" | "signP256" => {
                 let mut decoded = func.abi_decode_input(&data[SELECTOR_LEN..]).ok()?;
@@ -621,6 +550,17 @@ impl CallTraceDecoder {
                 // signDelegation(address implementation, uint256 privateKey)
                 decoded[1] = DynSolValue::String("<pk>".to_string());
                 Some(decoded.iter().map(format_token).collect())
+            }
+            "assertion" => {
+                if self.verbosity >= 5 {
+                    None
+                } else {
+                    let mut decoded = func.abi_decode_input(&data[SELECTOR_LEN..]).ok()?;
+                    if decoded.len() >= 2 {
+                        decoded[1] = DynSolValue::String("<assertion bytecode>".to_string());
+                    }
+                    Some(decoded.iter().map(format_token).collect())
+                }
             }
             "parseJson" |
             "parseJsonUint" |
@@ -985,113 +925,8 @@ mod tests {
     fn test_should_redact() {
         let decoder = CallTraceDecoder::new();
 
-        let expected_revert_bytes4 = vec![0xde, 0xad, 0xbe, 0xef];
-        let expect_revert_bytes4_data = Function::parse("expectRevert(bytes4)")
-            .unwrap()
-            .abi_encode_input(&[DynSolValue::FixedBytes(
-                B256::right_padding_from(expected_revert_bytes4.as_slice()),
-                4,
-            )])
-            .unwrap();
-
-        let expected_revert_bytes = hex!(
-            "08c379a000000000000000000000000000000000000000000000000000000000\
-             0000002000000000000000000000000000000000000000000000000000000000\
-             00000004626f6f6d000000000000000000000000000000000000000000000000"
-        )
-        .to_vec();
-        let expect_revert_bytes_data = Function::parse("expectRevert(bytes)")
-            .unwrap()
-            .abi_encode_input(&[DynSolValue::Bytes(expected_revert_bytes.clone())])
-            .unwrap();
-
-        let reverter = Address::from([0x11; 20]);
-        let expect_revert_bytes4_address_data = Function::parse("expectRevert(bytes4,address)")
-            .unwrap()
-            .abi_encode_input(&[
-                DynSolValue::FixedBytes(
-                    B256::right_padding_from(expected_revert_bytes4.as_slice()),
-                    4,
-                ),
-                DynSolValue::Address(reverter),
-            ])
-            .unwrap();
-
-        let count = 42_u64;
-        let expect_revert_bytes_count_data = Function::parse("expectRevert(bytes,uint64)")
-            .unwrap()
-            .abi_encode_input(&[
-                DynSolValue::Bytes(expected_revert_bytes.clone()),
-                DynSolValue::Uint(alloy_primitives::U256::from(count), 64),
-            ])
-            .unwrap();
-
-        let expect_revert_bytes_address_count_data =
-            Function::parse("expectRevert(bytes,address,uint64)")
-                .unwrap()
-                .abi_encode_input(&[
-                    DynSolValue::Bytes(expected_revert_bytes.clone()),
-                    DynSolValue::Address(reverter),
-                    DynSolValue::Uint(alloy_primitives::U256::from(count), 64),
-                ])
-                .unwrap();
-
-        let expect_revert_runtime_data = expected_revert_bytes4.clone();
-
         // [function_signature, data, expected]
         let cheatcode_input_test_cases = vec![
-            // Should decode the expected revert payload, not full cheatcode calldata:
-            (
-                "expectRevert(bytes4)",
-                expect_revert_bytes4_data,
-                Some(vec![decoder.revert_decoder.decode(expected_revert_bytes4.as_slice(), None)]),
-            ),
-            (
-                "expectRevert(bytes)",
-                expect_revert_bytes_data,
-                Some(vec![decoder.revert_decoder.decode(expected_revert_bytes.as_slice(), None)]),
-            ),
-            (
-                "expectRevert(bytes4)",
-                expect_revert_runtime_data.clone(),
-                Some(vec![
-                    decoder.revert_decoder.decode(expect_revert_runtime_data.as_slice(), None),
-                ]),
-            ),
-            (
-                "expectRevert(bytes4,address)",
-                expect_revert_bytes4_address_data,
-                Some(vec![
-                    decoder.revert_decoder.decode(expected_revert_bytes4.as_slice(), None),
-                    decoder.format_value(&DynSolValue::Address(reverter)),
-                ]),
-            ),
-            (
-                "expectRevert(bytes,uint64)",
-                expect_revert_bytes_count_data,
-                Some(vec![
-                    decoder.revert_decoder.decode(expected_revert_bytes.as_slice(), None),
-                    decoder
-                        .format_value(&DynSolValue::Uint(alloy_primitives::U256::from(count), 64)),
-                ]),
-            ),
-            (
-                "expectRevert(bytes,address,uint64)",
-                expect_revert_bytes_address_count_data,
-                Some(vec![
-                    decoder.revert_decoder.decode(expected_revert_bytes.as_slice(), None),
-                    decoder.format_value(&DynSolValue::Address(reverter)),
-                    decoder
-                        .format_value(&DynSolValue::Uint(alloy_primitives::U256::from(count), 64)),
-                ]),
-            ),
-            (
-                "expectRevert()",
-                expect_revert_runtime_data.clone(),
-                Some(vec![
-                    decoder.revert_decoder.decode(expect_revert_runtime_data.as_slice(), None),
-                ]),
-            ),
             // Should redact private key from traces in all cases:
             ("addr(uint256)", vec![], Some(vec!["<pk>".to_string()])),
             ("createWallet(string)", vec![], Some(vec!["<pk>".to_string()])),
@@ -1438,118 +1273,28 @@ mod tests {
         }
     }
 
-    // A mock identifier that records which addresses it was asked to identify.
-    struct RecordingIdentifier {
-        queried: Vec<Address>,
-    }
-    impl TraceIdentifier for RecordingIdentifier {
-        fn identify_addresses(&mut self, nodes: &[&CallTraceNode]) -> Vec<IdentifiedAddress<'_>> {
-            self.queried.extend(nodes.iter().map(|n| n.trace.address));
-            Vec::new()
-        }
-    }
-
     #[test]
-    fn test_identify_addresses_skips_evm_precompiles() {
-        use foundry_evm_core::precompiles::SHA_256;
-
+    fn test_assertion_bytecode_redacted() {
         let decoder = CallTraceDecoder::new();
+        let function = Function::parse("assertion(address,bytes,bytes4)").unwrap();
+        let address = Address::repeat_byte(0x11);
 
-        let mut arena = CallTraceArena::default();
-        let regular_addr = Address::from([0x42; 20]);
-        arena.nodes_mut()[0].trace.address = regular_addr;
+        let mut selector_word = [0u8; 32];
+        selector_word[..4].copy_from_slice(&[0x12, 0x34, 0x56, 0x78]);
+        let selector = B256::from(selector_word);
 
-        // Standard EVM precompile flagged by the inspector.
-        arena.nodes_mut().push(CallTraceNode {
-            trace: CallTrace {
-                address: SHA_256,
-                depth: 1,
-                maybe_precompile: Some(true),
-                ..Default::default()
-            },
-            idx: 1,
-            ..Default::default()
-        });
+        let data = function
+            .abi_encode_input(&[
+                DynSolValue::Address(address),
+                DynSolValue::Bytes(vec![0xde, 0xad, 0xbe, 0xef]),
+                DynSolValue::FixedBytes(selector, 4),
+            ])
+            .unwrap();
 
-        // Standard EVM precompile NOT flagged, caught by is_known_precompile.
-        arena.nodes_mut().push(CallTraceNode {
-            trace: CallTrace {
-                address: SHA_256,
-                depth: 1,
-                maybe_precompile: None,
-                ..Default::default()
-            },
-            idx: 2,
-            ..Default::default()
-        });
-
-        let mut identifier = RecordingIdentifier { queried: Vec::new() };
-        decoder.identify_addresses(&arena, &mut identifier);
-
-        assert_eq!(identifier.queried, vec![regular_addr]);
-    }
-
-    #[test]
-    fn test_identify_addresses_skips_tempo_precompiles() {
-        use foundry_evm_core::tempo::TEMPO_PRECOMPILE_ADDRESSES;
-
-        // Decoder with Tempo chain ID (4217).
-        let mut decoder = CallTraceDecoder::new().clone();
-        decoder.chain_id = Some(4217);
-
-        let mut arena = CallTraceArena::default();
-        let regular_addr = Address::from([0x42; 20]);
-        arena.nodes_mut()[0].trace.address = regular_addr;
-
-        // Tempo precompile — not flagged by inspector, caught by is_known_precompile
-        // only when chain_id is a Tempo chain.
-        let tempo_precompile = TEMPO_PRECOMPILE_ADDRESSES[0];
-        arena.nodes_mut().push(CallTraceNode {
-            trace: CallTrace {
-                address: tempo_precompile,
-                depth: 1,
-                maybe_precompile: None,
-                ..Default::default()
-            },
-            idx: 1,
-            ..Default::default()
-        });
-
-        let mut identifier = RecordingIdentifier { queried: Vec::new() };
-        decoder.identify_addresses(&arena, &mut identifier);
-
-        // On a Tempo chain, the Tempo precompile should be filtered out.
-        assert_eq!(identifier.queried, vec![regular_addr]);
-    }
-
-    #[test]
-    fn test_identify_addresses_does_not_skip_tempo_precompiles_on_other_chains() {
-        use foundry_evm_core::tempo::TEMPO_PRECOMPILE_ADDRESSES;
-
-        // Decoder with Ethereum mainnet chain ID (1).
-        let mut decoder = CallTraceDecoder::new().clone();
-        decoder.chain_id = Some(1);
-
-        let mut arena = CallTraceArena::default();
-        let regular_addr = Address::from([0x42; 20]);
-        arena.nodes_mut()[0].trace.address = regular_addr;
-
-        let tempo_precompile = TEMPO_PRECOMPILE_ADDRESSES[0];
-        arena.nodes_mut().push(CallTraceNode {
-            trace: CallTrace {
-                address: tempo_precompile,
-                depth: 1,
-                maybe_precompile: None,
-                ..Default::default()
-            },
-            idx: 1,
-            ..Default::default()
-        });
-
-        let mut identifier = RecordingIdentifier { queried: Vec::new() };
-        decoder.identify_addresses(&arena, &mut identifier);
-
-        // On Ethereum, Tempo precompile addresses are regular contracts — should NOT be filtered.
-        assert_eq!(identifier.queried, vec![regular_addr, tempo_precompile]);
+        let decoded = decoder.decode_cheatcode_inputs(&function, &data).expect("decoded inputs");
+        assert_eq!(decoded.len(), 3);
+        assert_eq!(decoded[0], format_token(&DynSolValue::Address(address)));
+        assert_eq!(decoded[1], "\"<assertion bytecode>\"");
+        assert_eq!(decoded[2], format_token(&DynSolValue::FixedBytes(selector, 4)));
     }
 }
