@@ -223,20 +223,14 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
     let db = ThreadSafeDb::new(raw_db);
 
     // Commit current journal state so that it is available for assertions and triggering tx
-    let mut fork_db = ForkDb::new(db.clone());
+    let mut fork_db = ForkDb::new(db);
     fork_db.commit(state);
-
-    // Odysseas: This is a hack to use the new unified codepath for validate_transaction_ext_db
-    // Effectively, we are applying the transaction in a clone of the currently running database
-    // which is then used by the fork_db.
-    // TODO: Remove this once we have a proper way to handle this.
-    let mut ext_db = revm::database::WrapDatabaseRef(fork_db.clone());
 
     // TODO: restore -vvv assertion tracing once credible-sdk's
     // `validate_transaction_with_inspector` relaxes the `for<'db>` HRTB on the inspector
     // (FEN-generic `ThreadSafeDb<'db, DB>` is tied to ecx's lifetime, not `'static`).
     let tx_validation: TxValidationResult = assertion_executor
-        .validate_transaction_ext_db(block, &tx_env, &mut fork_db, &mut ext_db)
+        .validate_transaction(block, &tx_env, &mut fork_db, /* commit */ false)
         .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
 
     // if transaction execution reverted, log the revert reason
