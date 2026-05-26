@@ -17,7 +17,7 @@ workspace = true
 [build-dependencies]
 
 [dependencies]
-foundry-fork-db.workspace = true
+foundry-fork-db = { workspace = true, optional = true }
 # tracks the credible-sdk ENG-3169 rebase branch during the revm/alloy bump
 assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", branch = "lea/eng-3169-featcredible-sdk-update-revm-and-alloy-dependencies", features = ["phoundry"], optional = true }
 
@@ -77,7 +77,7 @@ serde.workspace = true
 
 [features]
 default = ["optimism"]
-credible = ["dep:assertion-executor"]
+credible = ["dep:assertion-executor", "dep:foundry-fork-db"]
 optimism = [
     "foundry-common/optimism",
     "foundry-evm-core/optimism",
