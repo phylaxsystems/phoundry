@@ -70,7 +70,7 @@ pub enum Status<'a> {
 pub enum Group {
     /// Cheatcodes that are related to the Phylax Credible Layer
     ///
-    /// Examples: `assertionEx`.
+    /// Examples: `assertion`.
     ///
     /// Safety: safe
     Credible,

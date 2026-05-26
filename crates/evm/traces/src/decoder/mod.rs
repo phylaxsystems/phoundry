@@ -116,6 +116,13 @@ impl CallTraceDecoderBuilder {
         self
     }
 
+    /// Sets the chain ID for chain-specific precompile decoding.
+    #[inline]
+    pub const fn with_chain_id(mut self, chain_id: Option<u64>) -> Self {
+        self.decoder.chain_id = chain_id;
+        self
+    }
+
     /// Build the decoder.
     #[inline]
     pub fn build(self) -> CallTraceDecoder {
@@ -264,7 +271,6 @@ impl CallTraceDecoder {
             debug_identifier: None,
 
             disable_labels: false,
-
             chain_id: None,
         }
     }
@@ -626,12 +632,14 @@ impl CallTraceDecoder {
             "broadcast" | "startBroadcast" => {
                 // Redact private key if defined
                 // broadcast(uint256) / startBroadcast(uint256)
-                (!func.inputs.is_empty() && func.inputs[0].ty == "uint256").then(|| vec!["<pk>".to_string()])
+                (!func.inputs.is_empty() && func.inputs[0].ty == "uint256")
+                    .then(|| vec!["<pk>".to_string()])
             }
             "getNonce" => {
                 // Redact private key if defined
                 // getNonce(Wallet)
-                (!func.inputs.is_empty() && func.inputs[0].ty == "tuple").then(|| vec!["<pk>".to_string()])
+                (!func.inputs.is_empty() && func.inputs[0].ty == "tuple")
+                    .then(|| vec!["<pk>".to_string()])
             }
             "sign" | "signP256" => {
                 let mut decoded = func.abi_decode_input(&data[SELECTOR_LEN..]).ok()?;

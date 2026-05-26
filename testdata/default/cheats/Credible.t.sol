@@ -13,12 +13,17 @@ contract MockAssertion is Assertion {
     }
 
     function fnSelectors() external pure override returns (bytes4[] memory selectors) {
-        selectors = new bytes4[](1);
+        selectors = new bytes4[](2);
         selectors[0] = this.assertIsOne.selector;
+        selectors[1] = this.assertIsTwo.selector;
     }
 
     function assertIsOne() external view returns (bool) {
         return mockContract.value() == 1;
+    }
+
+    function assertIsTwo() external view returns (bool) {
+        return mockContract.value() == 2;
     }
 }
 
@@ -37,36 +42,23 @@ contract CredibleTest is DSTest {
 
     address constant caller = address(0xdead);
 
-    struct SimpleTransaction {
-        address from;
-        address to;
-        uint256 value;
-        bytes data;
-    }
-
     function setUp() public {
         assertionAdopter = address(new MockContract());
         vm.deal(caller, 1 ether);
     }
 
     function testAssertionPass() public {
-        SimpleTransaction memory transaction = SimpleTransaction({
-            from: address(caller),
-            to: address(assertionAdopter),
-            value: 0,
-            data: abi.encodeWithSelector(MockContract.increment.selector)
-        });
-
         emit log_address(assertionAdopter);
 
         bytes memory assertion = abi.encodePacked(type(MockAssertion).creationCode, abi.encode(assertionAdopter));
 
-        vm.assertionEx(abi.encode(transaction), assertionAdopter, assertion, "MockAssertion");
+        vm.assertion(assertionAdopter, assertion, MockAssertion.assertIsOne.selector);
         assertTrue(MockContract(assertionAdopter).value() == 1);
 
         MockContract(assertionAdopter).increment();
         assertTrue(MockContract(assertionAdopter).value() == 2);
 
-        vm.assertionEx(abi.encode(transaction), assertionAdopter, assertion, "MockAssertion");
+        vm.assertion(assertionAdopter, assertion, MockAssertion.assertIsTwo.selector);
+        assertTrue(MockContract(assertionAdopter).value() == 2);
     }
 }
