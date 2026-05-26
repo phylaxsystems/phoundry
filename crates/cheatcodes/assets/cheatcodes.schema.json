@@ -227,7 +227,7 @@
       "description": "Cheatcode groups.\nInitially derived and modified from inline comments in [`forge-std`'s `Vm.sol`][vmsol].\n\n[vmsol]: https://github.com/foundry-rs/forge-std/blob/dcb0d52bc4399d37a6545848e3b8f9d03c77b98d/src/Vm.sol",
       "oneOf": [
         {
-          "description": "Cheatcodes that are related to the Phylax Credible Layer\n\nExamples: `assertionEx`.\n\nSafety: safe",
+          "description": "Cheatcodes that are related to the Phylax Credible Layer\n\nExamples: `assertion`.\n\nSafety: safe",
           "type": "string",
           "enum": [
             "credible"

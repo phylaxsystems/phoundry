@@ -16,7 +16,7 @@ use foundry_config::{
 use foundry_evm::opts::EvmOpts;
 use foundry_test_utils::{
     foundry_compilers::artifacts::{EvmVersion, remappings::Remapping},
-    util::{OTHER_SOLC_VERSION, OutputExt, TestCommand, pretty_err},
+    util::{OTHER_SOLC_VERSION, OutputExt, TestCommand, pretty_err, test_config_default},
 };
 use path_slash::PathBufExt;
 use semver::VersionReq;
@@ -910,7 +910,7 @@ forgetest_init!(can_prioritise_project_remappings, |prj, cmd| {
     // This should be filtered out from final remappings as root project already has `@utils/`.
     let nested = prj.paths().libraries[0].join("dep1");
     pretty_err(&nested, fs::create_dir_all(&nested));
-    let mut lib_config = Config::load_with_root(&nested).unwrap();
+    let mut lib_config = test_config_default();
     lib_config.remappings = vec![
         Remapping::from_str("@utils/libraries/=src/").unwrap().into(),
         Remapping::from_str("@openzeppelin/contracts-upgradeable/=lib/openzeppelin-upgradeable/")

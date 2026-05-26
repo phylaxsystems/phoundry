@@ -3978,14 +3978,18 @@ Error: Failed to estimate gas: server returned an error response: error code 3: 
 });
 
 // <https://basescan.org/block/30558838>
-casttest!(estimate_base_da, |_prj, cmd| {
-    cmd.args(["da-estimate", "30558838", "-r", "https://mainnet.base.org/"])
-        .assert_success()
-        .stdout_eq(str![[r#"
+casttest!(
+    #[ignore = "mainnet.base.org no longer returns transactions for this historical block"]
+    estimate_base_da,
+    |_prj, cmd| {
+        cmd.args(["da-estimate", "30558838", "-r", "https://mainnet.base.org/"])
+            .assert_success()
+            .stdout_eq(str![[r#"
 Estimated data availability size for block 30558838 with 225 transactions: 52916546100
 
 "#]]);
-});
+    }
+);
 
 // <https://github.com/foundry-rs/foundry/issues/10705>
 casttest!(cast_call_return_array_of_tuples, |_prj, cmd| {
