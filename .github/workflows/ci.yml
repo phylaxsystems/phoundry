@@ -23,10 +23,7 @@ jobs:
       contents: read
     with:
       profile: default
-    secrets:
-      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-      ARBITRUM_RPC: ${{ secrets.ARBITRUM_RPC }}
-      ETH_SEPOLIA_RPC: ${{ secrets.ETH_SEPOLIA_RPC }}
+    secrets: inherit
 
   docs:
     uses: ./.github/workflows/docs.yml
@@ -34,6 +31,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+    secrets: inherit
 
   doctest:
     runs-on: ubuntu-latest
