@@ -2120,7 +2120,7 @@ contract InvariantTest is Test {
 "#,
     );
 
-    assert_invariant(cmd.args(["test"])).failure().stdout_eq(str![[r#"
+    assert_invariant(cmd.args(["test", "--fuzz-seed", "1"])).failure().stdout_eq(str![[r#"
 ...
 Ran 1 test for test/InvariantTest1.t.sol:InvariantTest
 [FAIL: false] invariant_neverFalse

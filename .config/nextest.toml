@@ -1,4 +1,5 @@
 [test-groups]
+forge-clone = { max-threads = 1 }
 
 [profile.default]
 retries = { backoff = "exponential", count = 2, delay = "5s", jitter = true }
@@ -25,7 +26,8 @@ filter = "test(/cmd::can_bind_e2e/)"
 slow-timeout = { period = "5m", terminate-after = 4 }
 
 [[profile.default.overrides]]
-filter = "test(/cmd::clone::tests::test_clone_contract_with_original_remappings/)"
+filter = "test(/cmd::clone::tests::/)"
+test-group = "forge-clone"
 slow-timeout = { period = "5m", terminate-after = 4 }
 
 # Do not re-run so that `cargo cheats` is ran locally.
