@@ -54,7 +54,7 @@ fn setup_testdata_cmd(cmd: &mut TestCommand) {
 /// Format: pipe-separated regex alternation, e.g. `"Foo|Bar|Baz"`.
 const FLAKY_TESTDATA_CONTRACTS: &str = "Issue4640Test|Issue14212Test";
 /// Contracts that are not part of the default Foundry-compatible `testdata` run.
-const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str = "Issue4640Test|Issue14212Test|CredibleTest";
+const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str = "Issue4640Test|Issue14212Test|ModernCredibleTest";
 
 // Run `forge test` on `/testdata`.
 forgetest!(testdata, |_prj, cmd| {
@@ -100,6 +100,13 @@ forgetest!(flaky_testdata, |_prj, cmd| {
     setup_testdata_cmd(&mut cmd);
     let mc = format!("--mc=({FLAKY_TESTDATA_CONTRACTS})");
     cmd.args(["test", &mc]).assert_success();
+});
+
+#[cfg(feature = "credible")]
+forgetest!(credible_testdata, |_prj, cmd| {
+    setup_testdata_cmd(&mut cmd);
+    cmd.env("FOUNDRY_PROFILE", "credible");
+    cmd.args(["test", "--mc", "ModernCredibleTest"]).assert_success();
 });
 
 // tests that test filters are handled correctly
