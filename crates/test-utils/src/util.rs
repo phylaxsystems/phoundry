@@ -37,6 +37,36 @@ pub const SOLC_VERSION: &str = "0.8.35";
 /// Necessary to avoid downloading multiple versions.
 pub const OTHER_SOLC_VERSION: &str = "0.8.26";
 
+/// Returns a [`Config`] suitable for tests: starts from [`Config::default()`] but overrides the
+/// Phylax `assertions/*` path defaults with upstream `src/`, `test/`, `script/`, ... — matching
+/// what `forge init` and `foundry-compilers` scaffold on disk.
+pub fn test_config_default() -> Config {
+    test_config_for_style(foundry_compilers::PathStyle::Dapptools)
+}
+
+/// Like [`test_config_default`], but produces a config whose `src`/`out`/`libs` match the given
+/// [`PathStyle`] so that `forge` commands resolve the same locations as the [`TempProject`].
+pub fn test_config_for_style(style: foundry_compilers::PathStyle) -> Config {
+    let (src, out, libs) = match style {
+        foundry_compilers::PathStyle::HardHat => ("contracts", "artifacts", vec!["node_modules".into()]),
+        foundry_compilers::PathStyle::Dapptools => ("src", "out", vec!["lib".into()]),
+    };
+    Config {
+        src: src.into(),
+        test: "test".into(),
+        script: "script".into(),
+        out: out.into(),
+        libs,
+        cache_path: "cache".into(),
+        broadcast: "broadcast".into(),
+        snapshots: "snapshots".into(),
+        test_failures_file: "cache/test-failures".into(),
+        fuzz: foundry_config::FuzzConfig::new("cache/fuzz".into()),
+        invariant: foundry_config::InvariantConfig::new("cache/invariant".into()),
+        ..Default::default()
+    }
+}
+
 /// Initializes a project with `forge init` at the given path from a template directory.
 ///
 /// This should be called after an empty project is created like in
@@ -84,7 +114,7 @@ pub fn initialize(target: &Path) {
             cmd.args(["init", "--force", "--empty"]).assert_success();
             prj.write_config(Config {
                 solc: Some(foundry_config::SolcReq::Version(SOLC_VERSION.parse().unwrap())),
-                ..Default::default()
+                ..test_config_default()
             });
 
             // Checkout forge-std.

@@ -1,0 +1,8 @@
+{
+  "lib/credible-std": {
+    "branch": {
+      "name": "feat/update-assertion-interface",
+      "rev": "04cd6ed6ce81b9eb09471e6a5b2512b833af4f9d"
+    }
+  }
+}
