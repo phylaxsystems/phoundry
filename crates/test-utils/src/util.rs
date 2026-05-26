@@ -38,7 +38,7 @@ pub const SOLC_VERSION: &str = "0.8.35";
 pub const OTHER_SOLC_VERSION: &str = "0.8.26";
 
 /// Returns a [`Config`] suitable for tests: starts from [`Config::default()`] but overrides the
-/// Phylax `assertions/*` path defaults with upstream `src/`, `test/`, `script/`, ... — matching
+/// Phylax `assertions/*` path defaults with upstream `src/`, `test/`, `script/`, ... matching
 /// what `forge init` and `foundry-compilers` scaffold on disk.
 pub fn test_config_default() -> Config {
     test_config_for_style(foundry_compilers::PathStyle::Dapptools)
@@ -58,6 +58,9 @@ pub fn test_config_for_style(style: foundry_compilers::PathStyle) -> Config {
         test: "test".into(),
         script: "script".into(),
         out: out.into(),
+        fs_permissions: foundry_config::FsPermissions::new([
+            foundry_config::fs_permissions::PathPermission::read(out),
+        ]),
         libs,
         cache_path: "cache".into(),
         broadcast: "broadcast".into(),

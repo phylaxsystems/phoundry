@@ -3162,18 +3162,18 @@
     },
     {
       "func": {
-        "id": "assertionEx",
-        "description": "Gets the address for a given private key.",
-        "declaration": "function assertionEx(bytes calldata tx, address assertionAdopter, bytes calldata assertionContract, string calldata assertionContractLabel) external;",
+        "id": "assertion",
+        "description": "Used to execute assertion against the next call or contract creation.\nWill revert if the assertion is not triggered.",
+        "declaration": "function assertion(address adopter, bytes calldata createData, bytes4 fnSelector) external;",
         "visibility": "external",
         "mutability": "",
-        "signature": "assertionEx(bytes,address,bytes,string)",
-        "selector": "0x6a401fc5",
+        "signature": "assertion(address,bytes,bytes4)",
+        "selector": "0x85f59e0e",
         "selectorBytes": [
-          106,
-          64,
-          31,
-          197
+          133,
+          245,
+          158,
+          14
         ]
       },
       "group": "credible",
