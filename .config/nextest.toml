@@ -30,6 +30,10 @@ filter = "test(/cmd::clone::tests::/)"
 test-group = "forge-clone"
 slow-timeout = { period = "5m", terminate-after = 4 }
 
+[[profile.default.overrides]]
+filter = "test(/invariant_campaign_merges_selected_predicates/)"
+slow-timeout = { period = "5m", terminate-after = 4 }
+
 # Do not re-run so that `cargo cheats` is ran locally.
 [[profile.default.overrides]]
 filter = "package(foundry-cheatcodes-spec)"
