@@ -45,10 +45,12 @@ pub fn test_config_default() -> Config {
 }
 
 /// Like [`test_config_default`], but produces a config whose `src`/`out`/`libs` match the given
-/// [`PathStyle`] so that `forge` commands resolve the same locations as the [`TempProject`].
+/// `PathStyle` so that `forge` commands resolve the same locations as the `TempProject`.
 pub fn test_config_for_style(style: foundry_compilers::PathStyle) -> Config {
     let (src, out, libs) = match style {
-        foundry_compilers::PathStyle::HardHat => ("contracts", "artifacts", vec!["node_modules".into()]),
+        foundry_compilers::PathStyle::HardHat => {
+            ("contracts", "artifacts", vec!["node_modules".into()])
+        }
         foundry_compilers::PathStyle::Dapptools => ("src", "out", vec!["lib".into()]),
     };
     Config {
