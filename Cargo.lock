@@ -1783,7 +1783,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-client"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#65543bc975d6d8e8a668145cedcfcd78fbc56343"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#9c95d337372e396c719ede1c6689b6e2d831ef8e"
 dependencies = [
  "alloy-primitives",
  "assertion-da-core",
@@ -1800,7 +1800,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-core"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#65543bc975d6d8e8a668145cedcfcd78fbc56343"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#9c95d337372e396c719ede1c6689b6e2d831ef8e"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -1809,7 +1809,7 @@ dependencies = [
 [[package]]
 name = "assertion-executor"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#65543bc975d6d8e8a668145cedcfcd78fbc56343"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#9c95d337372e396c719ede1c6689b6e2d831ef8e"
 dependencies = [
  "alloy-chains",
  "alloy-consensus 2.0.5",
@@ -4649,7 +4649,7 @@ checksum = "b04dc5a38e4f151a79d9f2451ae6037fb6eaf5cba34771f44781f80e508498e3"
 [[package]]
 name = "eip-common"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#65543bc975d6d8e8a668145cedcfcd78fbc56343"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?branch=lea%2Feng-3169-featcredible-sdk-update-revm-and-alloy-dependencies#9c95d337372e396c719ede1c6689b6e2d831ef8e"
 dependencies = [
  "alloy-eips 2.0.5",
  "alloy-primitives",
@@ -6020,6 +6020,8 @@ dependencies = [
  "serde_json",
  "solar-compiler",
  "tempfile",
+ "tempo-contracts",
+ "tempo-precompiles",
  "tokio",
  "tracing",
  "yansi",
