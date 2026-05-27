@@ -188,8 +188,7 @@ pub trait FoundryTransaction: Transaction {
     ) -> &mut Vec<Either<SignedAuthorization, RecoveredAuthorization>>;
 
     /// Returns the EIP-7702 authorization list.
-    fn authorization_list_ref(&self)
-    -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>>;
+    fn authorization_list_ref(&self) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>>;
 
     /// Sets the max priority fee per gas.
     fn set_gas_priority_fee(&mut self, gas_priority_fee: Option<u128>);
@@ -321,9 +320,7 @@ impl FoundryTransaction for TxEnv {
         &mut self.authorization_list
     }
 
-    fn authorization_list_ref(
-        &self,
-    ) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
+    fn authorization_list_ref(&self) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
         &self.authorization_list
     }
 
@@ -391,9 +388,7 @@ impl FoundryTransaction for TempoTxEnv {
         self.inner.authorization_list_mut()
     }
 
-    fn authorization_list_ref(
-        &self,
-    ) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
+    fn authorization_list_ref(&self) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
         self.inner.authorization_list_ref()
     }
 
