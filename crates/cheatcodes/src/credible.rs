@@ -14,6 +14,7 @@ use foundry_evm_core::{
     env::FoundryContextExt,
     evm::{FoundryContextFor, FoundryEvmNetwork},
 };
+use foundry_evm_traces::{TraceMode, TracingInspector, TracingInspectorConfig};
 use foundry_fork_db::DatabaseError;
 use revm::{
     Database,
@@ -226,12 +227,47 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
     let mut fork_db = ForkDb::new(db);
     fork_db.commit(state);
 
-    // TODO: restore -vvv assertion tracing once credible-sdk's
-    // `validate_transaction_with_inspector` relaxes the `for<'db>` HRTB on the inspector
-    // (FEN-generic `ThreadSafeDb<'db, DB>` is tied to ecx's lifetime, not `'static`).
-    let tx_validation: TxValidationResult = assertion_executor
-        .validate_transaction(block, &tx_env, &mut fork_db, /* commit */ false)
-        .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+    const TRACING_VERBOSITY: u8 = 3;
+
+    let verbosity = cheats.config.evm_opts.verbosity;
+    let (tx_validation, tracing_inspectors): (TxValidationResult, Option<Vec<TracingInspector>>) =
+        if verbosity >= TRACING_VERBOSITY {
+            let tracing_config = TraceMode::Call
+                .with_verbosity(verbosity)
+                .into_config()
+                .unwrap_or_else(TracingInspectorConfig::default_parity);
+
+            let result_with_inspectors = assertion_executor
+                .validate_transaction_with_tracing(
+                    block,
+                    &tx_env,
+                    &mut fork_db,
+                    /* commit */ false,
+                    tracing_config,
+                )
+                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+
+            (result_with_inspectors.result, Some(result_with_inspectors.inspectors))
+        } else {
+            let result = assertion_executor
+                .validate_transaction(block, &tx_env, &mut fork_db, /* commit */ false)
+                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+            (result, None)
+        };
+
+    if let Some(inspectors) = tracing_inspectors {
+        let mut inspectors = inspectors.into_iter();
+        if let Some(trigger_inspector) = inspectors.next() {
+            let trigger_traces = std::iter::once(trigger_inspector.into_traces())
+                .filter(|arena| !arena.nodes().is_empty());
+            cheats.push_assertion_trigger_traces(trigger_traces);
+        }
+
+        let traces = inspectors
+            .map(|tracing_inspector| tracing_inspector.into_traces())
+            .filter(|arena| !arena.nodes().is_empty());
+        cheats.push_assertion_traces(traces);
+    }
 
     // if transaction execution reverted, log the revert reason
     if !tx_validation.result_and_state.result.is_success() {
