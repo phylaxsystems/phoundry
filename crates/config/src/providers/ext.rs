@@ -365,7 +365,11 @@ impl Provider for DappHardhatDirProvider<'_> {
 
     fn data(&self) -> Result<Map<Profile, Dict>, Error> {
         let mut dict = Dict::new();
-        if self.0.join("src").exists() || self.0.join("contracts").exists() {
+        // Pair `src`/`out` by project style so an unbuilt project (out/ missing) still gets
+        // the right output directory inferred from src/contracts.
+        let has_foundry_layout = self.0.join("src").exists();
+        let has_hardhat_layout = self.0.join("contracts").exists();
+        if has_foundry_layout || has_hardhat_layout {
             dict.insert(
                 "src".to_string(),
                 ProjectPathsConfig::find_source_dir(self.0)
@@ -375,17 +379,10 @@ impl Provider for DappHardhatDirProvider<'_> {
                     .to_string()
                     .into(),
             );
-        }
-        if self.0.join("out").exists() || self.0.join("artifacts").exists() {
-            dict.insert(
-                "out".to_string(),
-                ProjectPathsConfig::find_artifacts_dir(self.0)
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string()
-                    .into(),
-            );
+            // Foundry layout -> "out", Hardhat layout -> "artifacts". Prefer foundry when both
+            // exist (find_source_dir returns "src" in that case).
+            let out_dir = if has_foundry_layout { "out" } else { "artifacts" };
+            dict.insert("out".to_string(), out_dir.to_string().into());
         }
 
         // detect libs folders:

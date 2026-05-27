@@ -1937,15 +1937,14 @@ impl Config {
         // autodetect paths
         let paths = ProjectPathsConfig::builder().build_with_root::<()>(root);
         let default = Self::default();
-        let src = if root.join("src").exists() || root.join("contracts").exists() {
-            ProjectPathsConfig::find_source_dir(root).file_name().unwrap().into()
+        // Pair `src`/`out` by project style so an unbuilt project (out/ missing) still gets
+        // the right output directory inferred from src/contracts.
+        let (src, out): (PathBuf, PathBuf) = if root.join("src").exists() {
+            ("src".into(), "out".into())
+        } else if root.join("contracts").exists() {
+            ("contracts".into(), "artifacts".into())
         } else {
-            default.src.clone()
-        };
-        let out = if root.join("out").exists() || root.join("artifacts").exists() {
-            ProjectPathsConfig::find_artifacts_dir(root).file_name().unwrap().into()
-        } else {
-            default.out.clone()
+            (default.src.clone(), default.out.clone())
         };
         Self {
             root: paths.root,
