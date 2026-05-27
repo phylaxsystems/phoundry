@@ -238,7 +238,7 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
 
         let result_with_traces = assertion_executor
             .validate_transaction_with_tracing(
-                block,
+                &block,
                 &tx_env,
                 &mut fork_db,
                 /* commit */ false,

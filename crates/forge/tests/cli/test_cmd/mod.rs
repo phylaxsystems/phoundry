@@ -109,6 +109,26 @@ forgetest!(credible_testdata, |_prj, cmd| {
     cmd.args(["test", "--mc", "ModernCredibleTest"]).assert_success();
 });
 
+#[cfg(feature = "credible")]
+forgetest!(credible_testdata_prints_assertion_traces, |_prj, cmd| {
+    setup_testdata_cmd(&mut cmd);
+    cmd.env("FOUNDRY_PROFILE", "credible");
+    let assert = cmd
+        .args([
+            "test",
+            "--mc",
+            "ModernCredibleTest",
+            "--mt",
+            "testRegisterCallTriggerAssertionPasses",
+            "-vvvv",
+        ])
+        .assert_success();
+    let output = assert.get_output().stdout_lossy();
+
+    assert!(output.contains("Trigger Call:"), "{output}");
+    assert!(output.contains("Assertion Traces:"), "{output}");
+});
+
 // tests that test filters are handled correctly
 forgetest!(can_set_filter_values, |prj, cmd| {
     let patt = regex::Regex::new("test*").unwrap();
