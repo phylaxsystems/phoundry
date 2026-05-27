@@ -5,7 +5,7 @@ use assertion_executor::{
     db::{DatabaseCommit, DatabaseRef, fork_db::ForkDb},
     primitives::{
         AccountInfo, Address, AssertionFunctionExecutionResult, B256, Bytecode, ExecutionResult,
-        TxEnv, TxValidationResult, U256,
+        TxEnv, U256,
     },
     store::{AssertionState, AssertionStore},
 };
@@ -14,7 +14,7 @@ use foundry_evm_core::{
     env::FoundryContextExt,
     evm::{FoundryContextFor, FoundryEvmNetwork},
 };
-use foundry_evm_traces::{TraceMode, TracingInspector, TracingInspectorConfig};
+use foundry_evm_traces::{TraceMode, TracingInspectorConfig};
 use foundry_fork_db::DatabaseError;
 use revm::{
     Database,
@@ -230,42 +230,39 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
     const TRACING_VERBOSITY: u8 = 3;
 
     let verbosity = cheats.config.evm_opts.verbosity;
-    let (tx_validation, tracing_inspectors): (TxValidationResult, Option<Vec<TracingInspector>>) =
-        if verbosity >= TRACING_VERBOSITY {
-            let tracing_config = TraceMode::Call
-                .with_verbosity(verbosity)
-                .into_config()
-                .unwrap_or_else(TracingInspectorConfig::default_parity);
+    let (tx_validation, captured_traces) = if verbosity >= TRACING_VERBOSITY {
+        let tracing_config = TraceMode::Call
+            .with_verbosity(verbosity)
+            .into_config()
+            .unwrap_or_else(TracingInspectorConfig::default_parity);
 
-            let result_with_inspectors = assertion_executor
-                .validate_transaction_with_tracing(
-                    block,
-                    &tx_env,
-                    &mut fork_db,
-                    /* commit */ false,
-                    tracing_config,
-                )
-                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+        let result_with_traces = assertion_executor
+            .validate_transaction_with_tracing(
+                block,
+                &tx_env,
+                &mut fork_db,
+                /* commit */ false,
+                tracing_config,
+            )
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
 
-            (result_with_inspectors.result, Some(result_with_inspectors.inspectors))
-        } else {
-            let result = assertion_executor
-                .validate_transaction(block, &tx_env, &mut fork_db, /* commit */ false)
-                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
-            (result, None)
-        };
+        (
+            result_with_traces.result,
+            Some((result_with_traces.tx_trace, result_with_traces.assertion_traces)),
+        )
+    } else {
+        let result = assertion_executor
+            .validate_transaction(block, &tx_env, &mut fork_db, /* commit */ false)
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+        (result, None)
+    };
 
-    if let Some(inspectors) = tracing_inspectors {
-        let mut inspectors = inspectors.into_iter();
-        if let Some(trigger_inspector) = inspectors.next() {
-            let trigger_traces = std::iter::once(trigger_inspector.into_traces())
-                .filter(|arena| !arena.nodes().is_empty());
-            cheats.push_assertion_trigger_traces(trigger_traces);
-        }
+    if let Some((trigger_trace, assertion_traces)) = captured_traces {
+        let trigger_traces =
+            std::iter::once(trigger_trace).filter(|arena| !arena.nodes().is_empty());
+        cheats.push_assertion_trigger_traces(trigger_traces);
 
-        let traces = inspectors
-            .map(|tracing_inspector| tracing_inspector.into_traces())
-            .filter(|arena| !arena.nodes().is_empty());
+        let traces = assertion_traces.into_iter().filter(|arena| !arena.nodes().is_empty());
         cheats.push_assertion_traces(traces);
     }
 
