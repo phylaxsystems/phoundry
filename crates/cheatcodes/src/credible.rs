@@ -167,7 +167,8 @@ fn build_block_env(block: &impl Block) -> BlockEnv {
         difficulty: block.difficulty(),
         prevrandao: block.prevrandao(),
         blob_excess_gas_and_price: block.blob_excess_gas_and_price(),
-        ..Default::default()
+        // EIP-7843 (Amsterdam) slot number
+        slot_num: block.slot_num(),
     }
 }
 
