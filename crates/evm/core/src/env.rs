@@ -179,10 +179,17 @@ pub trait FoundryTransaction: Transaction {
     /// Sets the access list.
     fn set_access_list(&mut self, access_list: AccessList);
 
+    /// Returns the EIP-2930 access list.
+    fn access_list_ref(&self) -> &AccessList;
+
     /// Returns a mutable reference to the EIP-7702 authorization list.
     fn authorization_list_mut(
         &mut self,
     ) -> &mut Vec<Either<SignedAuthorization, RecoveredAuthorization>>;
+
+    /// Returns the EIP-7702 authorization list.
+    fn authorization_list_ref(&self)
+    -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>>;
 
     /// Sets the max priority fee per gas.
     fn set_gas_priority_fee(&mut self, gas_priority_fee: Option<u128>);
@@ -304,10 +311,20 @@ impl FoundryTransaction for TxEnv {
         self.access_list = access_list;
     }
 
+    fn access_list_ref(&self) -> &AccessList {
+        &self.access_list
+    }
+
     fn authorization_list_mut(
         &mut self,
     ) -> &mut Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
         &mut self.authorization_list
+    }
+
+    fn authorization_list_ref(
+        &self,
+    ) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
+        &self.authorization_list
     }
 
     fn set_gas_priority_fee(&mut self, gas_priority_fee: Option<u128>) {
@@ -364,10 +381,20 @@ impl FoundryTransaction for TempoTxEnv {
         self.inner.set_access_list(access_list);
     }
 
+    fn access_list_ref(&self) -> &AccessList {
+        self.inner.access_list_ref()
+    }
+
     fn authorization_list_mut(
         &mut self,
     ) -> &mut Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
         self.inner.authorization_list_mut()
+    }
+
+    fn authorization_list_ref(
+        &self,
+    ) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
+        self.inner.authorization_list_ref()
     }
 
     fn set_gas_priority_fee(&mut self, gas_priority_fee: Option<u128>) {
@@ -590,10 +617,20 @@ mod optimism {
             self.base.set_access_list(access_list);
         }
 
+        fn access_list_ref(&self) -> &AccessList {
+            self.base.access_list_ref()
+        }
+
         fn authorization_list_mut(
             &mut self,
         ) -> &mut Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
             self.base.authorization_list_mut()
+        }
+
+        fn authorization_list_ref(
+            &self,
+        ) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
+            self.base.authorization_list_ref()
         }
 
         fn set_gas_priority_fee(&mut self, gas_priority_fee: Option<u128>) {
@@ -684,10 +721,20 @@ mod optimism {
             self.0.set_access_list(access_list);
         }
 
+        fn access_list_ref(&self) -> &AccessList {
+            self.0.access_list_ref()
+        }
+
         fn authorization_list_mut(
             &mut self,
         ) -> &mut Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
             self.0.authorization_list_mut()
+        }
+
+        fn authorization_list_ref(
+            &self,
+        ) -> &Vec<Either<SignedAuthorization, RecoveredAuthorization>> {
+            self.0.authorization_list_ref()
         }
 
         fn set_gas_priority_fee(&mut self, gas_priority_fee: Option<u128>) {

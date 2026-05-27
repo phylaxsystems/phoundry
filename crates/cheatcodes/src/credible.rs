@@ -11,14 +11,14 @@ use assertion_executor::{
 };
 use foundry_evm_core::{
     decode::RevertDecoder,
-    env::FoundryContextExt,
+    env::{FoundryContextExt, FoundryTransaction},
     evm::{FoundryContextFor, FoundryEvmNetwork},
 };
 use foundry_evm_traces::{TraceMode, TracingInspectorConfig};
 use foundry_fork_db::DatabaseError;
 use revm::{
     Database,
-    context::{Block, BlockEnv, ContextTr, JournalTr, Transaction},
+    context::{Block, BlockEnv, ContextTr, JournalTr},
 };
 use std::{
     cmp::max,
@@ -132,11 +132,13 @@ fn check_assertion_gas_limit(gas_used: u64) -> Option<String> {
 
 fn build_tx_env(
     tx_attributes: TxAttributes,
-    base_tx_env: &impl Transaction,
+    base_tx_env: &impl FoundryTransaction,
     chain_id: u64,
     nonce: u64,
 ) -> TxEnv {
     let tx_gas_limit = tx_attributes.gas_limit.min(TX_GAS_LIMIT_CAP);
+    // Preserve EIP-2930 access lists and EIP-7702 authorization lists from the base tx so the
+    // assertion simulation matches the actual call's intrinsic-gas and warm-storage profile.
     TxEnv {
         tx_type: base_tx_env.tx_type(),
         caller: tx_attributes.caller,
@@ -150,7 +152,8 @@ fn build_tx_env(
         gas_priority_fee: base_tx_env.max_priority_fee_per_gas(),
         blob_hashes: base_tx_env.blob_versioned_hashes().to_vec(),
         max_fee_per_blob_gas: base_tx_env.max_fee_per_blob_gas(),
-        ..Default::default()
+        access_list: base_tx_env.access_list_ref().clone(),
+        authorization_list: base_tx_env.authorization_list_ref().clone(),
     }
 }
 
