@@ -1,11 +1,14 @@
 use crate::{Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
-use alloy_primitives::{Bytes, FixedBytes, TxKind};
+use alloy_primitives::{Bytes, FixedBytes, TxKind, U16};
 use assertion_executor::{
-    ExecutorConfig,
+    AssertionExecutor, ExecutorConfig,
+    anomaly::AnomalySubsystem,
     db::{DatabaseCommit, DatabaseRef, fork_db::ForkDb},
+    inspectors::CallTracer,
+    native::registry::NativeAssertionRegistry,
     primitives::{
         AccountInfo, Address, AssertionFunctionExecutionResult, B256, Bytecode, ExecutionResult,
-        TxEnv, U256,
+        ResultAndState, TxEnv, U256,
     },
     store::{AssertionState, AssertionStore},
 };
@@ -22,7 +25,7 @@ use revm::{
 };
 use std::{
     cmp::max,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
@@ -95,6 +98,42 @@ impl Cheatcode for assertionCall {
 
         ccx.state.assertion = Some(assertion);
         Ok(Default::default())
+    }
+}
+
+impl Cheatcode for setAnomalyScoreCall {
+    fn apply_stateful<FEN: FoundryEvmNetwork>(&self, ccx: &mut CheatsCtxt<'_, '_, FEN>) -> Result {
+        let Self { target, scoreBps: score_bps } = self;
+        ccx.state.anomaly_scores.insert(*target, *score_bps);
+        Ok(Default::default())
+    }
+}
+
+/// Test-only [`AnomalySubsystem`] backed by a fixed `target -> scoreBps` map staged via
+/// `cl.setAnomalyScore(...)`. Returns the staged map verbatim regardless of the tx being
+/// evaluated; targets absent from the map are not scored.
+#[derive(Debug, Clone, Default)]
+struct PhoundryAnomalySubsystem {
+    scores: HashMap<Address, U16>,
+}
+
+impl PhoundryAnomalySubsystem {
+    fn from_raw(raw: HashMap<Address, u16>) -> Self {
+        Self {
+            scores: raw.into_iter().map(|(addr, bps)| (addr, U16::from(bps))).collect(),
+        }
+    }
+}
+
+impl AnomalySubsystem for PhoundryAnomalySubsystem {
+    fn evaluate(
+        &self,
+        _tracer: &CallTracer,
+        _tx_env: &TxEnv,
+        _block_env: &BlockEnv,
+        _result: &ResultAndState,
+    ) -> HashMap<Address, U16> {
+        self.scores.clone()
     }
 }
 
@@ -221,7 +260,18 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
 
     let tx_env = build_tx_env(tx_attributes, ecx.tx(), chain_id, nonce);
 
-    let mut assertion_executor = config.build(store);
+    // Consume any anomaly scores staged via `cl.setAnomalyScore(...)` and wire them
+    // into the executor through a phoundry-local `AnomalySubsystem`. Default to an
+    // empty map (fail-open) when nothing was staged.
+    let staged_scores = std::mem::take(&mut cheats.anomaly_scores);
+    let anomaly = Arc::new(PhoundryAnomalySubsystem::from_raw(staged_scores));
+    let mut assertion_executor =
+        AssertionExecutor::new_with_anomaly(
+            config,
+            store,
+            Arc::new(NativeAssertionRegistry::default()),
+            anomaly,
+        );
 
     let (raw_db, journal_inner) = ecx.db_journal_inner_mut();
     let state = journal_inner.state.clone();

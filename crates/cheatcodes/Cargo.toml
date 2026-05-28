@@ -18,7 +18,7 @@ workspace = true
 
 [dependencies]
 foundry-fork-db = { workspace = true, optional = true }
-assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "77a5a39601942141c4de1bc361eee3cc0586b571", features = ["phoundry"], optional = true }
+assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "f63d7c04ef808eb29208d4f572e78054f49d669f", features = ["phoundry"], optional = true }
 
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
