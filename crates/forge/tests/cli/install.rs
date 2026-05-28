@@ -6,6 +6,7 @@ use foundry_compilers::artifacts::Remapping;
 use foundry_config::Config;
 use foundry_test_utils::util::{
     ExtTester, FORGE_STD_REVISION, OutputExt, TestCommand, pretty_err, read_string,
+    test_config_default,
 };
 use semver::Version;
 #[cfg(unix)]
@@ -780,7 +781,7 @@ Installing forge-5980-test in [..] (url: https://github.com/evalir/forge-5980-te
                 .unwrap()
                 .into(),
             ],
-            ..Default::default()
+            ..test_config_default()
         };
         prj.write_config(config);
 

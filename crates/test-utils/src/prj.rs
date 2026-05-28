@@ -22,7 +22,9 @@ use std::{
     },
 };
 
-use crate::util::{SOLC_VERSION, copy_dir_filtered, pretty_err};
+use crate::util::{
+    SOLC_VERSION, copy_dir_filtered, pretty_err, test_config_default, test_config_for_style,
+};
 
 static CURRENT_DIR_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
@@ -177,8 +179,17 @@ impl TestProject {
     /// to a logical grouping of tests.
     pub fn new(name: &str, style: PathStyle) -> Self {
         let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
-        let project = pretty_err(name, TempProject::with_style(&format!("{name}-{id}"), style));
-        Self::with_project(project)
+        let project =
+            pretty_err(name, TempProject::with_style(&format!("{name}-{id}"), style.clone()));
+        let this = Self::with_project(project);
+        // Write a foundry.toml so `forge` sees the same paths the TempProject scaffolds.
+        // Without this, Phylax's `assertions/*` defaults (Config::default()) take effect and
+        // `forge build|clean|...` look in directories the test never touches.
+        let config_path = this.config();
+        if !config_path.exists() {
+            this.write_config(test_config_for_style(style));
+        }
+        this
     }
 
     pub fn with_project(project: TempProject) -> Self {
@@ -245,7 +256,7 @@ impl TestProject {
             .exists()
             .then_some(())
             .and_then(|()| Config::load_with_root(self.root()).ok())
-            .unwrap_or_default();
+            .unwrap_or_else(test_config_default);
         config.remappings.clear();
         f(&mut config);
         self.write_config(config);

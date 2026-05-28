@@ -504,7 +504,7 @@ impl TraceKind {
     ///
     /// [`AssertionTrigger`]: TraceKind::AssertionTrigger
     #[must_use]
-    pub fn is_assertion_trigger(self) -> bool {
+    pub const fn is_assertion_trigger(self) -> bool {
         matches!(self, Self::AssertionTrigger)
     }
 
@@ -512,7 +512,7 @@ impl TraceKind {
     ///
     /// [`Assertion`]: TraceKind::Assertion
     #[must_use]
-    pub fn is_assertion(self) -> bool {
+    pub const fn is_assertion(self) -> bool {
         matches!(self, Self::Assertion)
     }
 }

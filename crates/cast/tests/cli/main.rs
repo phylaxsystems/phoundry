@@ -3923,7 +3923,7 @@ Executing previous transactions from the block.
         .assert_success()
         .stdout_eq(str![[r#"
 Traces:
-  [..] → new <unknown>@0x5FbDB2315678afecb367f032d93F642f64180aa3
+  [13711] → new <unknown>@0x5FbDB2315678afecb367f032d93F642f64180aa3
     ├─  emit topic 0: 0xa7263295d3a687d750d1fd377b5df47de69d7db8decc745aaa4bbee44dc1688d
     │           data: 0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266
     └─ ← [Return] 62 bytes of code
@@ -4321,7 +4321,7 @@ forgetest_async!(show_state_changes_in_traces, |prj, cmd| {
         .assert_success()
         .stdout_eq(str![[r#"
 Traces:
-  [..] 0x5FbDB2315678afecb367f032d93F642f64180aa3::setNumber(111)
+  [22492] 0x5FbDB2315678afecb367f032d93F642f64180aa3::setNumber(111)
     ├─  storage changes:
     │   @ 0: 0 → 111
     └─ ← [Stop]
@@ -6458,7 +6458,7 @@ forgetest_async!(cast_send_with_data, |prj, cmd| {
         .assert_success()
         .stdout_eq(str![[r#"
 Traces:
-  [..] 0x5FbDB2315678afecb367f032d93F642f64180aa3::setNumber(111)
+  [22492] 0x5FbDB2315678afecb367f032d93F642f64180aa3::setNumber(111)
     ├─  storage changes:
     │   @ 0: 0 → 111
     └─ ← [Stop]
