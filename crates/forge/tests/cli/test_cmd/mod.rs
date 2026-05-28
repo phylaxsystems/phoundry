@@ -6,7 +6,7 @@ use foundry_test_utils::{
     TestCommand,
     rpc::{self, rpc_endpoints},
     str,
-    util::{OTHER_SOLC_VERSION, OutputExt, SOLC_VERSION},
+    util::{OTHER_SOLC_VERSION, OutputExt, SOLC_VERSION, get_vyper},
 };
 use similar_asserts::assert_eq;
 use std::{io::Write, path::PathBuf, str::FromStr};
@@ -36,12 +36,25 @@ fn setup_testdata_cmd(cmd: &mut TestCommand) {
         }
     }
     drop(dotenv);
+
+    // `testdata` includes Vyper fixtures; keep this test hermetic if PATH lacks a working vyper.
+    let vyper = get_vyper();
+    if let Some(vyper_dir) = vyper.path.parent().filter(|path| !path.as_os_str().is_empty()) {
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        let joined_path = std::env::join_paths(
+            std::iter::once(vyper_dir.to_path_buf()).chain(std::env::split_paths(&path)),
+        )
+        .unwrap();
+        cmd.env("PATH", joined_path);
+    }
 }
 
 /// Contracts excluded from the main `testdata` run because they depend on flaky external RPCs.
 /// These are run separately by the `flaky_testdata` test below.
 /// Format: pipe-separated regex alternation, e.g. `"Foo|Bar|Baz"`.
 const FLAKY_TESTDATA_CONTRACTS: &str = "Issue4640Test|Issue14212Test";
+/// Contracts that are not part of the default Foundry-compatible `testdata` run.
+const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str = "Issue4640Test|Issue14212Test|ModernCredibleTest";
 
 // Run `forge test` on `/testdata`.
 forgetest!(testdata, |_prj, cmd| {
@@ -49,9 +62,9 @@ forgetest!(testdata, |_prj, cmd| {
 
     let mut args = vec!["test"];
     let nmc_isolate = format!(
-        "--nmc=(LastCallGasDefaultTest|MockFunctionTest|WithSeed|StateDiff|GetStorageSlotsTest|RecordAccount|{FLAKY_TESTDATA_CONTRACTS})",
+        "--nmc=(LastCallGasDefaultTest|MockFunctionTest|WithSeed|StateDiff|GetStorageSlotsTest|RecordAccount|{DEFAULT_TESTDATA_EXCLUDED_CONTRACTS})",
     );
-    let nmc_default = format!("--nmc=({FLAKY_TESTDATA_CONTRACTS})");
+    let nmc_default = format!("--nmc=({DEFAULT_TESTDATA_EXCLUDED_CONTRACTS})");
     if cfg!(feature = "isolate-by-default") {
         args.push(&nmc_isolate);
     } else {
@@ -87,6 +100,33 @@ forgetest!(flaky_testdata, |_prj, cmd| {
     setup_testdata_cmd(&mut cmd);
     let mc = format!("--mc=({FLAKY_TESTDATA_CONTRACTS})");
     cmd.args(["test", &mc]).assert_success();
+});
+
+#[cfg(feature = "credible")]
+forgetest!(credible_testdata, |_prj, cmd| {
+    setup_testdata_cmd(&mut cmd);
+    cmd.env("FOUNDRY_PROFILE", "credible");
+    cmd.args(["test", "--mc", "ModernCredibleTest"]).assert_success();
+});
+
+#[cfg(feature = "credible")]
+forgetest!(credible_testdata_prints_assertion_traces, |_prj, cmd| {
+    setup_testdata_cmd(&mut cmd);
+    cmd.env("FOUNDRY_PROFILE", "credible");
+    let assert = cmd
+        .args([
+            "test",
+            "--mc",
+            "ModernCredibleTest",
+            "--mt",
+            "testRegisterCallTriggerAssertionPasses",
+            "-vvvv",
+        ])
+        .assert_success();
+    let output = assert.get_output().stdout_lossy();
+
+    assert!(output.contains("Trigger Call:"), "{output}");
+    assert!(output.contains("Assertion Traces:"), "{output}");
 });
 
 // tests that test filters are handled correctly

@@ -17,9 +17,8 @@ workspace = true
 [build-dependencies]
 
 [dependencies]
-foundry-fork-db.workspace = true
-# pinned to avoid cyclical version bumps between sdk and phoundry
-assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "3387cf96ff9a04869445ea0d20cd5a29f1a0ddfa", features = ["phoundry"], optional = true }
+foundry-fork-db = { workspace = true, optional = true }
+assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "f63d7c04ef808eb29208d4f572e78054f49d669f", features = ["phoundry"], optional = true }
 
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
@@ -77,7 +76,7 @@ serde.workspace = true
 
 [features]
 default = ["optimism"]
-credible = ["dep:assertion-executor"]
+credible = ["dep:assertion-executor", "dep:foundry-fork-db"]
 optimism = [
     "foundry-common/optimism",
     "foundry-evm-core/optimism",

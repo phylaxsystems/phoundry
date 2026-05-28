@@ -1,4 +1,4 @@
-use crate::{Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*, inspector::Ecx};
+use crate::{Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::{Bytes, FixedBytes, TxKind, U16};
 use assertion_executor::{
     AssertionExecutor, ExecutorConfig,
@@ -7,17 +7,22 @@ use assertion_executor::{
     inspectors::CallTracer,
     native::registry::NativeAssertionRegistry,
     primitives::{
-        AccountInfo, Address, AssertionFunctionExecutionResult, B256, BlockEnv, Bytecode,
-        ExecutionResult, ResultAndState, TxEnv, TxValidationResult, U256,
+        AccountInfo, Address, AssertionFunctionExecutionResult, B256, Bytecode, ExecutionResult,
+        ResultAndState, TxEnv, U256,
     },
     store::{AssertionState, AssertionStore},
 };
-use foundry_evm_core::{ContextExt, decode::RevertDecoder};
-use foundry_evm_traces::{TraceMode, TracingInspector, TracingInspectorConfig};
+use foundry_evm_core::{
+    decode::RevertDecoder,
+    env::{FoundryContextExt, FoundryTransaction},
+    evm::{FoundryContextFor, FoundryEvmNetwork},
+};
+use foundry_evm_traces::{TraceMode, TracingInspectorConfig};
 use foundry_fork_db::DatabaseError;
-
-use foundry_evm_core::backend::DatabaseExt;
-use revm::context_interface::{ContextTr, JournalTr};
+use revm::{
+    Database,
+    context::{Block, BlockEnv, ContextTr, JournalTr},
+};
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
@@ -26,38 +31,30 @@ use std::{
 
 use revm::primitives::eip7825::TX_GAS_LIMIT_CAP;
 
-/// Wrapper around DatabaseExt to make it thread-safe and 'static.
-/// Uses a leaked reference internally to satisfy 'static bounds required by
-/// the inspector API. This is safe because the wrapper is only used within
-/// a single function scope and the original database outlives this usage.
-#[derive(Clone)]
-struct ThreadSafeDb {
-    // Im fine with leaking this because it only lives for the duration
-    // of assex execution
-    db: Arc<Mutex<&'static mut dyn DatabaseExt>>,
+/// Wrapper around DatabaseExt so assertion-executor can clone and share the active database.
+struct ThreadSafeDb<'db, DB: Database<Error = DatabaseError> + Send> {
+    db: Arc<Mutex<&'db mut DB>>,
 }
 
-impl std::fmt::Debug for ThreadSafeDb {
+impl<DB: Database<Error = DatabaseError> + Send> Clone for ThreadSafeDb<'_, DB> {
+    fn clone(&self) -> Self {
+        Self { db: self.db.clone() }
+    }
+}
+
+impl<DB: Database<Error = DatabaseError> + Send> std::fmt::Debug for ThreadSafeDb<'_, DB> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ThreadSafeDb")
     }
 }
 
-impl ThreadSafeDb {
-    /// Creates a new thread-safe database wrapper by leaking the reference.
-    /// # Safety
-    /// The caller must ensure the original database outlives all uses of this wrapper.
-    pub fn new(db: &mut dyn DatabaseExt) -> Self {
-        // SAFETY: We transmute the lifetime to 'static. This is safe because:
-        // 1. ThreadSafeDb is only used within execute_assertion's scope
-        // 2. The original ecx.db_mut() outlives this entire function
-        // 3. We don't store ThreadSafeDb beyond this function's execution
-        let static_ref: &'static mut dyn DatabaseExt = unsafe { std::mem::transmute(db) };
-        Self { db: Arc::new(Mutex::new(static_ref)) }
+impl<'db, DB: Database<Error = DatabaseError> + Send> ThreadSafeDb<'db, DB> {
+    pub fn new(db: &'db mut DB) -> Self {
+        Self { db: Arc::new(Mutex::new(db)) }
     }
 }
 
-impl DatabaseRef for ThreadSafeDb {
+impl<DB: Database<Error = DatabaseError> + Send> DatabaseRef for ThreadSafeDb<'_, DB> {
     type Error = DatabaseError;
 
     fn basic_ref(
@@ -85,7 +82,7 @@ impl DatabaseRef for ThreadSafeDb {
 }
 
 impl Cheatcode for assertionCall {
-    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+    fn apply_stateful<FEN: FoundryEvmNetwork>(&self, ccx: &mut CheatsCtxt<'_, '_, FEN>) -> Result {
         let Self { adopter, createData: create_data, fnSelector: fn_selector } = self;
 
         ensure!(
@@ -96,7 +93,7 @@ impl Cheatcode for assertionCall {
             adopter: *adopter,
             create_data: create_data.to_vec(),
             fn_selector: *fn_selector,
-            depth: ccx.ecx.journaled_state.depth(),
+            depth: ccx.ecx.journal().depth(),
         };
 
         ccx.state.assertion = Some(assertion);
@@ -105,7 +102,7 @@ impl Cheatcode for assertionCall {
 }
 
 impl Cheatcode for setAnomalyScoreCall {
-    fn apply_stateful(&self, ccx: &mut CheatsCtxt) -> Result {
+    fn apply_stateful<FEN: FoundryEvmNetwork>(&self, ccx: &mut CheatsCtxt<'_, '_, FEN>) -> Result {
         let Self { target, scoreBps: score_bps } = self;
         ccx.state.anomaly_scores.insert(*target, *score_bps);
         Ok(Default::default())
@@ -163,57 +160,81 @@ const ASSERTION_GAS_LIMIT: u64 = 300_000;
 /// Checks if the assertion gas usage is within the allowed limit.
 /// Returns a detailed log message if the limit is exceeded, None otherwise.
 fn check_assertion_gas_limit(gas_used: u64) -> Option<String> {
-    if gas_used > ASSERTION_GAS_LIMIT {
+    (gas_used > ASSERTION_GAS_LIMIT).then(|| {
         let over_by = gas_used - ASSERTION_GAS_LIMIT;
         let over_percent = (over_by as f64 / ASSERTION_GAS_LIMIT as f64) * 100.0;
-        Some(format!(
+        format!(
             "Assertion used {gas_used} gas, exceeding limit of {ASSERTION_GAS_LIMIT} by {over_by} ({over_percent:.1}% over)"
-        ))
-    } else {
-        None
-    }
+        )
+    })
 }
 
 fn build_tx_env(
     tx_attributes: TxAttributes,
-    base_tx_env: &TxEnv,
+    base_tx_env: &impl FoundryTransaction,
     chain_id: u64,
     nonce: u64,
 ) -> TxEnv {
     let tx_gas_limit = tx_attributes.gas_limit.min(TX_GAS_LIMIT_CAP);
-    let mut tx_env = base_tx_env.clone();
-    tx_env.caller = tx_attributes.caller;
-    tx_env.gas_limit = tx_gas_limit;
-    tx_env.chain_id = Some(chain_id);
-    tx_env.value = tx_attributes.value;
-    tx_env.data = tx_attributes.data;
-    tx_env.kind = tx_attributes.kind;
-    tx_env.nonce = nonce;
-    tx_env
+    // Preserve EIP-2930 access lists and EIP-7702 authorization lists from the base tx so the
+    // assertion simulation matches the actual call's intrinsic-gas and warm-storage profile.
+    TxEnv {
+        tx_type: base_tx_env.tx_type(),
+        caller: tx_attributes.caller,
+        gas_limit: tx_gas_limit,
+        gas_price: base_tx_env.gas_price(),
+        chain_id: Some(chain_id),
+        value: tx_attributes.value,
+        data: tx_attributes.data,
+        kind: tx_attributes.kind,
+        nonce,
+        gas_priority_fee: base_tx_env.max_priority_fee_per_gas(),
+        blob_hashes: base_tx_env.blob_versioned_hashes().to_vec(),
+        max_fee_per_blob_gas: base_tx_env.max_fee_per_blob_gas(),
+        access_list: base_tx_env.access_list_ref().clone(),
+        authorization_list: base_tx_env.authorization_list_ref().clone(),
+    }
+}
+
+fn build_block_env(block: &impl Block) -> BlockEnv {
+    BlockEnv {
+        number: block.number(),
+        beneficiary: block.beneficiary(),
+        timestamp: block.timestamp(),
+        gas_limit: block.gas_limit(),
+        basefee: block.basefee(),
+        difficulty: block.difficulty(),
+        prevrandao: block.prevrandao(),
+        blob_excess_gas_and_price: block.blob_excess_gas_and_price(),
+        // EIP-7843 (Amsterdam) slot number
+        slot_num: block.slot_num(),
+    }
 }
 
 /// Used to handle assertion execution in inspector in calls after the cheatcode was called.
-pub fn execute_assertion(
+pub fn execute_assertion<FEN: FoundryEvmNetwork>(
     assertion: &Assertion,
     tx_attributes: TxAttributes,
-    ecx: Ecx,
-    executor: &mut dyn CheatcodesExecutor,
-    cheats: &mut Cheatcodes,
+    ecx: &mut FoundryContextFor<'_, FEN>,
+    executor: &mut dyn CheatcodesExecutor<FEN>,
+    cheats: &mut Cheatcodes<FEN>,
 ) -> Result<(), crate::Error> {
-    let spec_id = ecx.cfg.spec;
-    let block = ecx.block.clone();
-    let state = ecx.journaled_state.state.clone();
-    let chain_id = ecx.cfg.chain_id;
-    let base_tx_env = ecx.tx.clone();
-    let verbosity = cheats.config.evm_opts.verbosity;
-
-    let nonce = {
-        let (db, journal, _) = ecx.as_db_env_and_journal();
-        journal.load_account(db, tx_attributes.caller).map(|acc| acc.info.nonce).unwrap_or(0)
-    };
+    let spec_id = ecx.cfg().spec.into();
+    let block = build_block_env(ecx.block());
+    let chain_id = ecx.cfg().chain_id;
+    let nonce = ecx
+        .journal_mut()
+        .load_account(tx_attributes.caller)
+        .map(|acc| acc.data.info.nonce)
+        .unwrap_or(0);
 
     // Prepare assertion store
-    let config = ExecutorConfig { spec_id, chain_id, assertion_gas_limit: TX_GAS_LIMIT_CAP };
+    let config = ExecutorConfig {
+        spec_id,
+        chain_id,
+        assertion_gas_limit: TX_GAS_LIMIT_CAP,
+        assertion_evaluation_enabled: true,
+    };
 
     let store = AssertionStore::new_ephemeral();
 
@@ -237,7 +258,7 @@ pub fn execute_assertion(
 
     store.insert(assertion.adopter, assertion_state).expect("Failed to store assertions");
 
-    let tx_env = build_tx_env(tx_attributes, &base_tx_env, chain_id, nonce);
+    let tx_env = build_tx_env(tx_attributes, ecx.tx(), chain_id, nonce);
 
     // Consume any anomaly scores staged via `cl.setAnomalyScore(...)` and wire them
     // into the executor through a phoundry-local `AnomalySubsystem`. Default to an
@@ -252,66 +273,53 @@ pub fn execute_assertion(
             anomaly,
         );
 
-    // Setup assertion database with 'static lifetime (via transmute in ThreadSafeDb::new)
-    let db = ThreadSafeDb::new(*ecx.db_mut());
+    let (raw_db, journal_inner) = ecx.db_journal_inner_mut();
+    let state = journal_inner.state.clone();
+    let db = ThreadSafeDb::new(raw_db);
 
     // Commit current journal state so that it is available for assertions and triggering tx
-    let mut fork_db = ForkDb::new(db.clone());
+    let mut fork_db = ForkDb::new(db);
     fork_db.commit(state);
 
-    // Odysseas: This is a hack to use the new unified codepath for validate_transaction_ext_db
-    // Effectively, we are applying the transaction in a clone of the currently running database
-    // which is then used by the fork_db.
-    // TODO: Remove this once we have a proper way to handle this.
-    let mut ext_db = revm::database::WrapDatabaseRef(fork_db.clone());
-
-    // Minimum verbosity for tracing (matches Foundry's -vvv)
     const TRACING_VERBOSITY: u8 = 3;
 
-    // Execute assertion validation with optional tracing based on verbosity
-    let (tx_validation, tracing_inspectors): (TxValidationResult, Option<Vec<TracingInspector>>) =
-        if verbosity >= TRACING_VERBOSITY {
-            // Create tracing inspector configured based on verbosity
-            let tracing_config = TraceMode::Call
-                .with_verbosity(verbosity)
-                .into_config()
-                .unwrap_or_else(TracingInspectorConfig::default_parity);
-            let tracing_inspector = TracingInspector::new(tracing_config);
+    let verbosity = cheats.config.evm_opts.verbosity;
+    let (tx_validation, captured_traces) = if verbosity >= TRACING_VERBOSITY {
+        let tracing_config = TraceMode::Call
+            .with_verbosity(verbosity)
+            .into_config()
+            .unwrap_or_else(TracingInspectorConfig::default_parity);
 
-            let result_with_inspectors = assertion_executor
-                .validate_transaction_with_inspector(
-                    block,
-                    &tx_env,
-                    &mut fork_db,
-                    &mut ext_db,
-                    tracing_inspector,
-                )
-                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+        let result_with_traces = assertion_executor
+            .validate_transaction_with_tracing(
+                &block,
+                &tx_env,
+                &mut fork_db,
+                /* commit */ false,
+                tracing_config,
+            )
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
 
-            (result_with_inspectors.result, Some(result_with_inspectors.inspectors))
-        } else {
-            // No tracing - use the standard path
-            let result = assertion_executor
-                .validate_transaction_ext_db(block, &tx_env, &mut fork_db, &mut ext_db)
-                .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
-            (result, None)
-        };
+        (
+            result_with_traces.result,
+            Some((result_with_traces.tx_trace, result_with_traces.assertion_traces)),
+        )
+    } else {
+        let result = assertion_executor
+            .validate_transaction(block, &tx_env, &mut fork_db, /* commit */ false)
+            .map_err(|e| format!("Assertion Executor Error: {e:#?}"))?;
+        (result, None)
+    };
 
-    if let Some(inspectors) = tracing_inspectors {
-        let mut inspectors = inspectors.into_iter();
-        if let Some(trigger_inspector) = inspectors.next() {
-            let trigger_traces = std::iter::once(trigger_inspector.into_traces())
-                .filter(|arena| !arena.nodes().is_empty());
-            cheats.push_assertion_trigger_traces(trigger_traces);
-        }
+    if let Some((trigger_trace, assertion_traces)) = captured_traces {
+        let trigger_traces =
+            std::iter::once(trigger_trace).filter(|arena| !arena.nodes().is_empty());
+        cheats.push_assertion_trigger_traces(trigger_traces);
 
-        let traces = inspectors
-            .map(|tracing_inspector| tracing_inspector.into_traces())
-            .filter(|arena| !arena.nodes().is_empty());
+        let traces = assertion_traces.into_iter().filter(|arena| !arena.nodes().is_empty());
         cheats.push_assertion_traces(traces);
     }
 
-    let mut inspector = executor.get_inspector(cheats);
     // if transaction execution reverted, log the revert reason
     if !tx_validation.result_and_state.result.is_success() {
         bail!(format!(
@@ -323,18 +331,16 @@ pub fn execute_assertion(
     // else get information about the assertion execution
     let total_assertion_gas = tx_validation.total_assertions_gas();
     let total_assertions_ran = tx_validation.total_assertion_funcs_ran();
-    let tx_gas_used = tx_validation.result_and_state.result.gas_used();
+    let tx_gas_used = tx_validation.result_and_state.result.tx_gas_used();
 
     if total_assertions_ran != 1 {
         // If assertions were not executed, we need to update expect revert depth to
         // allow for matching on this revert condition, as we will not execute against
         // test evm in this case.
-        ecx.journaled_state.inner.checkpoint();
+        journal_inner.checkpoint();
 
-        // Drop inspector first to release the borrow on cheats
-        std::mem::drop(inspector);
         if let Some(expected) = &mut cheats.expected_revert {
-            expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
+            expected.max_depth = max(journal_inner.depth, expected.max_depth);
         }
         bail!("Expected 1 assertion to be executed, but {total_assertions_ran} were executed.");
     }
@@ -351,29 +357,25 @@ pub fn execute_assertion(
         .expect("Expected 1 assertion to be executed, but got 0");
 
     if !assertion_fn_result.console_logs.is_empty() {
-        inspector.console_log("Assertion function logs: ");
+        executor.console_log("Assertion function logs: ");
         for log in &assertion_fn_result.console_logs {
-            inspector.console_log(log);
+            executor.console_log(log);
         }
     }
 
-    inspector.console_log(&format!(
+    executor.console_log(&format!(
         "Transaction gas cost: {tx_gas_used}\n  Assertion gas cost: {total_assertion_gas}"
     ));
-
-    // Drop the inspector to avoid borrow checker issues
-    std::mem::drop(inspector);
 
     if !tx_validation.is_valid() {
         // If invalidated, we don't execute against test evm, so we must update expected depth
         // for expect revert cheatcode.
-        ecx.journaled_state.inner.checkpoint();
+        journal_inner.checkpoint();
 
         if let Some(expected) = &mut cheats.expected_revert {
-            expected.max_depth = max(ecx.journaled_state.depth(), expected.max_depth);
+            expected.max_depth = max(journal_inner.depth, expected.max_depth);
         }
 
-        let mut inspector = executor.get_inspector(cheats);
         let (msg, result) = match &assertion_fn_result.result {
             AssertionFunctionExecutionResult::AssertionContractDeployFailure(r) => {
                 ("Assertion contract deploy failed", r)
@@ -382,13 +384,12 @@ pub fn execute_assertion(
                 ("Assertion function reverted", r)
             }
         };
-        inspector.console_log(&format!("{msg}: {}", decode_invalidated_assertion(result)));
+        executor.console_log(&format!("{msg}: {}", decode_invalidated_assertion(result)));
         return Err(crate::Error::from(result.output().unwrap_or_default().clone()));
     }
 
     if let Some(log_msg) = check_assertion_gas_limit(total_assertion_gas) {
-        let mut inspector = executor.get_inspector(cheats);
-        inspector.console_log(&log_msg);
+        executor.console_log(&log_msg);
         bail!("Assertion exceeded gas limit");
     }
 
@@ -420,13 +421,12 @@ mod tests {
     use super::*;
     use alloy_sol_types::{Revert, SolError};
     use assertion_executor::primitives::HaltReason;
-    use revm::context_interface::result::{Output, SuccessReason};
+    use revm::context_interface::result::{Output, ResultGas, SuccessReason};
 
     #[test]
     fn test_decode_revert_error_success() {
         let result = ExecutionResult::Success {
-            gas_used: 0,
-            gas_refunded: 0,
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
             logs: vec![],
             output: Output::Call(Bytes::new()),
             reason: SuccessReason::Return,
@@ -439,7 +439,11 @@ mod tests {
     fn test_decode_revert_error_revert() {
         let revert_reason = "Something is a bit fky wuky";
         let revert_output = Revert::new((revert_reason.to_string(),)).abi_encode();
-        let result = ExecutionResult::Revert { output: revert_output.into(), gas_used: 0 };
+        let result = ExecutionResult::Revert {
+            output: revert_output.into(),
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         assert_eq!(decoded, revert_reason);
     }
@@ -448,7 +452,11 @@ mod tests {
     fn test_decode_revert_panic() {
         // Panic(uint256) with code 0x01 (assertion failed)
         let panic_output = alloy_sol_types::Panic::from(0x01).abi_encode();
-        let result = ExecutionResult::Revert { output: panic_output.into(), gas_used: 0 };
+        let result = ExecutionResult::Revert {
+            output: panic_output.into(),
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         assert!(decoded.contains("Panic") || decoded.contains("panic"));
     }
@@ -457,7 +465,11 @@ mod tests {
     fn test_decode_revert_raw_bytes() {
         // Raw bytes that don't match any known format
         let raw_bytes = vec![0xde, 0xad, 0xbe, 0xef];
-        let result = ExecutionResult::Revert { output: raw_bytes.into(), gas_used: 0 };
+        let result = ExecutionResult::Revert {
+            output: raw_bytes.into(),
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         // Should contain hex representation
         assert!(decoded.contains("deadbeef") || decoded.contains("custom error"));
@@ -466,7 +478,11 @@ mod tests {
     #[test]
     fn test_decode_revert_error_halt() {
         let halt_reason = HaltReason::CallTooDeep;
-        let result = ExecutionResult::Halt { reason: halt_reason, gas_used: 0 };
+        let result = ExecutionResult::Halt {
+            reason: halt_reason,
+            gas: ResultGas::new_with_state_gas(0, 0, 0, 0),
+            logs: vec![],
+        };
         let decoded = decode_invalidated_assertion(&result);
         assert_eq!(decoded, "Halt reason: CallTooDeep");
     }

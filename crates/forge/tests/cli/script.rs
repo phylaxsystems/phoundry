@@ -2812,17 +2812,17 @@ Traces:
     │   └─ ← [Return] 481 bytes of code
     ├─ [0] VM::signAndAttachDelegation(0x5FbDB2315678afecb367f032d93F642f64180aa3, "<pk>")
     │   └─ ← [Return] (0, 0xd4301eb9f82f747137a5f2c3dc3a5c2d253917cf99ecdc0d49f7bb85313c3159, 0x786d354f0bbd456f44116ddd3aa50475e989d72d8396005e5b3a12cede83fb68, 4, 0x5FbDB2315678afecb367f032d93F642f64180aa3)
-    ├─ [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
+    ├─ [22418] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
     │   └─ ← [Stop]
-    ├─ [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
+    ├─ [518] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
     │   └─ ← [Stop]
     ├─ [0] VM::signAndAttachDelegation(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, "<pk>")
     │   └─ ← [Return] (0, 0xaba9128338f7ff036a0d2ecb96d4f4376389005cd565f87aba33b312570af962, 0x69acbe0831fb8ca95338bc4b908dcfebaf7b81b0f770a12c073ceb07b89fbdf3, 7, 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512)
-    ├─ [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
+    ├─ [492] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
     │   └─ ← [Stop]
     ├─ [0] VM::signAndAttachDelegation(0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0, "<pk>")
     │   └─ ← [Return] (1, 0x3a3427b66e589338ce7ea06135650708f9152e93e257b4a5ec6eb86a3e09a2ce, 0x444651c354c89fd3312aafb05948e12c0a16220827a5e467705253ab4d8aa8d3, 9, 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0)
-    ├─ [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
+    ├─ [492] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
     │   └─ ← [Stop]
     ├─ [0] VM::stopBroadcast()
     │   └─ ← [Return]
@@ -2844,16 +2844,16 @@ Simulated On-chain Traces:
   [..] → new Counter@0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
     └─ ← [Return] 481 bytes of code
 
-  [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
+  [22418] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
     └─ ← [Stop]
 
-  [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
+  [5318] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::increment()
     └─ ← [Stop]
 
-  [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
+  [5392] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
     └─ ← [Stop]
 
-  [..] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
+  [2592] 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266::setNumber(0)
     └─ ← [Stop]
 
 

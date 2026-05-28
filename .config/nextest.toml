@@ -1,4 +1,5 @@
 [test-groups]
+forge-clone = { max-threads = 1 }
 
 [profile.default]
 retries = { backoff = "exponential", count = 2, delay = "5s", jitter = true }
@@ -15,6 +16,22 @@ slow-timeout = { period = "5m", terminate-after = 4 }
 # against an in-process Anvil Tempo node.
 [[profile.default.overrides]]
 filter = "test(/vaddr_e2e::/)"
+slow-timeout = { period = "5m", terminate-after = 4 }
+
+# These tests do nested heavy work after the command under test succeeds:
+# `can_bind_e2e` builds generated bindings with Cargo, and the clone test
+# depends on external verified-source fetching.
+[[profile.default.overrides]]
+filter = "test(/cmd::can_bind_e2e/)"
+slow-timeout = { period = "5m", terminate-after = 4 }
+
+[[profile.default.overrides]]
+filter = "test(/cmd::clone::tests::/)"
+test-group = "forge-clone"
+slow-timeout = { period = "5m", terminate-after = 4 }
+
+[[profile.default.overrides]]
+filter = "test(/invariant_campaign_merges_selected_predicates/)"
 slow-timeout = { period = "5m", terminate-after = 4 }
 
 # Do not re-run so that `cargo cheats` is ran locally.
