@@ -1298,7 +1298,7 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
                 executor,
                 self,
             ) {
-                Ok(_) => None,
+                Ok(()) => None,
                 Err(err) => Some(CallOutcome {
                     result: InterpreterResult {
                         result: InstructionResult::Revert,
@@ -1619,10 +1619,10 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 assume_no_revert.reverted_by = Some(call.target_address);
             }
 
-            let curr_depth = ecx.journal().depth();
             // allow multiple cheatcode calls at the same depth
+            let curr_depth = ecx.journal().depth();
             if curr_depth <= assume_no_revert.depth && !cheatcode_call {
-                // discard run if we're at the same depth as cheatcode, call reverted, and no
+                // Discard run if we're at the same depth as cheatcode, call reverted, and no
                 // specific reason was supplied
                 if outcome.result.is_revert() {
                     let assume_no_revert = std::mem::take(&mut self.assume_no_revert).unwrap();
@@ -2136,6 +2136,7 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 depth: curr_depth as u64,
             }]);
         }
+
         #[cfg(feature = "credible")]
         if let Some(assertion) = self.assertion.take() {
             let tx_attributes = crate::credible::TxAttributes {
@@ -2153,7 +2154,7 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
                 &mut TransparentCheatcodesExecutor,
                 self,
             ) {
-                Ok(_) => None,
+                Ok(()) => None,
                 Err(err) => Some(CreateOutcome {
                     result: InterpreterResult {
                         result: InstructionResult::Revert,

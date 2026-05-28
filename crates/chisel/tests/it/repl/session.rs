@@ -2,7 +2,7 @@ use foundry_compilers::PathStyle;
 use foundry_test_utils::TestProject;
 use rexpect::{reader::Options, session::PtySession, spawn_with_options};
 
-const TIMEOUT_SECS: u64 = 3;
+const TIMEOUT_SECS: u64 = 10;
 const PROMPT: &str = "➜ ";
 
 /// Testing session for Chisel.

@@ -16,7 +16,7 @@ use foundry_config::{
 use foundry_evm::opts::EvmOpts;
 use foundry_test_utils::{
     foundry_compilers::artifacts::{EvmVersion, remappings::Remapping},
-    util::{OTHER_SOLC_VERSION, OutputExt, TestCommand, pretty_err},
+    util::{OTHER_SOLC_VERSION, OutputExt, TestCommand, pretty_err, test_config_default},
 };
 use path_slash::PathBufExt;
 use semver::VersionReq;
@@ -30,21 +30,21 @@ use std::{
 };
 
 const DEFAULT_CONFIG: &str = r#"[profile.default]
-src = "src"
-test = "test"
-script = "script"
-out = "out"
+src = "assertions/src"
+test = "assertions/test"
+script = "assertions/script"
+out = "assertions/out"
 libs = ["lib"]
 remappings = ["forge-std/=lib/forge-std/src/"]
 auto_detect_remappings = true
 libraries = []
 cache = true
-cache_path = "cache"
+cache_path = "assertions/cache"
 dynamic_test_linking = false
-snapshots = "snapshots"
+snapshots = "assertions/snapshots"
 gas_snapshot_check = false
 gas_snapshot_emit = true
-broadcast = "broadcast"
+broadcast = "assertions/broadcast"
 allow_paths = []
 include_paths = []
 skip = []
@@ -72,7 +72,7 @@ ignored_error_codes = [
 ignored_error_codes_from = []
 ignored_warnings_from = []
 deny = "never"
-test_failures_file = "cache/test-failures"
+test_failures_file = "assertions/cache/test-failures"
 show_progress = false
 ffi = false
 live_logs = false
@@ -124,7 +124,7 @@ endpoints = "all"
 
 [[profile.default.fs_permissions]]
 access = "read"
-path = "out"
+path = "assertions/out"
 
 [fmt]
 line_length = 120
@@ -197,7 +197,7 @@ corpus_min_size = 0
 show_edge_coverage = false
 sancov_edges = false
 sancov_trace_cmp = false
-failure_persist_dir = "cache/fuzz"
+failure_persist_dir = "assertions/cache/fuzz"
 show_logs = false
 
 [invariant]
@@ -220,7 +220,7 @@ corpus_min_size = 0
 show_edge_coverage = false
 sancov_edges = false
 sancov_trace_cmp = false
-failure_persist_dir = "cache/invariant"
+failure_persist_dir = "assertions/cache/invariant"
 show_metrics = true
 show_solidity = false
 check_interval = 1
@@ -755,7 +755,10 @@ forgetest!(can_set_use_literal_content, |prj, cmd| {
 // <https://github.com/foundry-rs/foundry/issues/9665>
 forgetest!(enable_optimizer_when_runs_set, |prj, cmd| {
     // explicitly set optimizer runs
-    prj.update_config(|config| config.optimizer_runs = Some(1337));
+    prj.update_config(|config| {
+        config.optimizer = None;
+        config.optimizer_runs = Some(1337);
+    });
 
     let config = cmd.config();
     assert!(config.optimizer.unwrap());
@@ -933,7 +936,7 @@ forgetest_init!(can_prioritise_project_remappings, |prj, cmd| {
     // This should be filtered out from final remappings as root project already has `@utils/`.
     let nested = prj.paths().libraries[0].join("dep1");
     pretty_err(&nested, fs::create_dir_all(&nested));
-    let mut lib_config = Config::load_with_root(&nested).unwrap();
+    let mut lib_config = test_config_default();
     lib_config.remappings = vec![
         Remapping::from_str("@utils/libraries/=src/").unwrap().into(),
         Remapping::from_str("@openzeppelin/contracts-upgradeable/=lib/openzeppelin-upgradeable/")
@@ -1226,10 +1229,10 @@ forgetest_init!(test_default_config, |prj, cmd| {
 
     cmd.forge_fuse().args(["config", "--json"]).assert_success().stdout_eq(str![[r#"
 {
-  "src": "src",
-  "test": "test",
-  "script": "script",
-  "out": "out",
+  "src": "assertions/src",
+  "test": "assertions/test",
+  "script": "assertions/script",
+  "out": "assertions/out",
   "libs": [
     "lib"
   ],
@@ -1239,12 +1242,12 @@ forgetest_init!(test_default_config, |prj, cmd| {
   "auto_detect_remappings": true,
   "libraries": [],
   "cache": true,
-  "cache_path": "cache",
+  "cache_path": "assertions/cache",
   "dynamic_test_linking": false,
-  "snapshots": "snapshots",
+  "snapshots": "assertions/snapshots",
   "gas_snapshot_check": false,
   "gas_snapshot_emit": true,
-  "broadcast": "broadcast",
+  "broadcast": "assertions/broadcast",
   "allow_paths": [],
   "include_paths": [],
   "skip": [],
@@ -1290,7 +1293,7 @@ forgetest_init!(test_default_config, |prj, cmd| {
   "match_path": null,
   "no_match_path": null,
   "no_match_coverage": null,
-  "test_failures_file": "cache/test-failures",
+  "test_failures_file": "assertions/cache/test-failures",
   "threads": null,
   "show_progress": false,
   "fuzz": {
@@ -1314,7 +1317,7 @@ forgetest_init!(test_default_config, |prj, cmd| {
     "show_edge_coverage": false,
     "sancov_edges": false,
     "sancov_trace_cmp": false,
-    "failure_persist_dir": "cache/fuzz",
+    "failure_persist_dir": "assertions/cache/fuzz",
     "show_logs": false,
     "timeout": null
   },
@@ -1339,7 +1342,7 @@ forgetest_init!(test_default_config, |prj, cmd| {
     "show_edge_coverage": false,
     "sancov_edges": false,
     "sancov_trace_cmp": false,
-    "failure_persist_dir": "cache/invariant",
+    "failure_persist_dir": "assertions/cache/invariant",
     "show_metrics": true,
     "timeout": null,
     "show_solidity": false,
@@ -1449,7 +1452,7 @@ forgetest_init!(test_default_config, |prj, cmd| {
   "fs_permissions": [
     {
       "access": "read",
-      "path": "out"
+      "path": "assertions/out"
     }
   ],
   "isolate": false,

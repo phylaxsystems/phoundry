@@ -151,7 +151,7 @@ interface Vm {
     function assertNotEq(bytes32 left, bytes32 right, string calldata err) external pure;
     function assertTrue(bool condition) external pure;
     function assertTrue(bool condition, string calldata err) external pure;
-    function assertionEx(bytes calldata tx, address assertionAdopter, bytes calldata assertionContract, string calldata assertionContractLabel) external;
+    function assertion(address adopter, bytes calldata createData, bytes4 fnSelector) external;
     function assume(bool condition) external pure;
     function assumeNoRevert() external pure;
     function assumeNoRevert(PotentialRevert calldata potentialRevert) external pure;

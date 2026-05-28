@@ -1936,14 +1936,23 @@ impl Config {
     fn _with_root(root: &Path) -> Self {
         // autodetect paths
         let paths = ProjectPathsConfig::builder().build_with_root::<()>(root);
-        let artifacts: PathBuf = paths.artifacts.file_name().unwrap().into();
+        let default = Self::default();
+        // Pair `src`/`out` by project style so an unbuilt project (out/ missing) still gets
+        // the right output directory inferred from src/contracts.
+        let (src, out): (PathBuf, PathBuf) = if root.join("src").exists() {
+            ("src".into(), "out".into())
+        } else if root.join("contracts").exists() {
+            ("contracts".into(), "artifacts".into())
+        } else {
+            (default.src.clone(), default.out.clone())
+        };
         Self {
             root: paths.root,
-            src: paths.sources.file_name().unwrap().into(),
-            out: artifacts.clone(),
+            src,
+            out: out.clone(),
             libs: paths.libraries.into_iter().map(|lib| lib.file_name().unwrap().into()).collect(),
-            fs_permissions: FsPermissions::new([PathPermission::read(artifacts)]),
-            ..Self::default()
+            fs_permissions: FsPermissions::new([PathPermission::read(out)]),
+            ..default
         }
     }
 
@@ -2640,7 +2649,7 @@ impl Default for Config {
         Self {
             profile: Self::DEFAULT_PROFILE,
             profiles: vec![Self::DEFAULT_PROFILE],
-            fs_permissions: FsPermissions::new([PathPermission::read("out")]),
+            fs_permissions: FsPermissions::new([PathPermission::read("assertions/out")]),
             isolate: cfg!(feature = "isolate-by-default"),
             root: root_default(),
             extends: None,
@@ -3114,7 +3123,7 @@ mod tests {
         figment::Jail::expect_with(|_| {
             let config = Config::default();
             let paths_config = config.project_paths::<Solc>();
-            assert_eq!(paths_config.tests, PathBuf::from(r"test"));
+            assert_eq!(paths_config.tests, PathBuf::from(r"assertions/test"));
             Ok(())
         });
     }
@@ -4994,7 +5003,7 @@ mod tests {
                 InvariantConfig {
                     runs: 512,
                     depth: 10,
-                    failure_persist_dir: Some(PathBuf::from("cache/invariant")),
+                    failure_persist_dir: Some(PathBuf::from("assertions/cache/invariant")),
                     ..Default::default()
                 }
             );

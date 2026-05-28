@@ -399,7 +399,7 @@ Ran 2 test suites [ELAPSED]: 4 tests passed, 0 failed, 0 skipped (4 total tests)
 forgetest_init!(config_inline_hardfork_same_network_family, |prj, cmd| {
     prj.write_config(foundry_config::Config {
         hardfork: Some("tempo:T2".parse::<foundry_config::FoundryHardfork>().unwrap()),
-        ..foundry_config::Config::default()
+        ..foundry_test_utils::util::test_config_default()
     });
     prj.add_test(
         "inline.sol",

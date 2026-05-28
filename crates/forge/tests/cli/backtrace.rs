@@ -290,7 +290,7 @@ forgetest!(test_library_backtrace, |prj, cmd| {
     // Add foundry.toml configuration for linked library
     let config = foundry_config::Config {
         libraries: vec!["src/libraries/ExternalMathLib.sol:ExternalMathLib:0x1234567890123456789012345678901234567890".to_string()],
-        ..Default::default()
+        ..foundry_test_utils::util::test_config_default()
     };
     prj.write_config(config);
 
