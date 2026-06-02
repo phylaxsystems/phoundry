@@ -9872,6 +9872,26 @@
     },
     {
       "func": {
+        "id": "setAnomalyScore",
+        "description": "Stages an anomaly score (basis points, `0..=10_000`) for `target` that the executor's\n`AnomalySubsystem` will return on the next `cl.assertion(...)` invocation. Targets not\nstaged with this cheatcode are not scored (fail open). Call multiple times to stage\nscores for multiple targets before invoking `cl.assertion`.",
+        "declaration": "function setAnomalyScore(address target, uint16 scoreBps) external;",
+        "visibility": "external",
+        "mutability": "",
+        "signature": "setAnomalyScore(address,uint16)",
+        "selector": "0x36285dfc",
+        "selectorBytes": [
+          54,
+          40,
+          93,
+          252
+        ]
+      },
+      "group": "credible",
+      "status": "stable",
+      "safety": "safe"
+    },
+    {
+      "func": {
         "id": "setArbitraryStorage_0",
         "description": "Utility cheatcode to set arbitrary storage for given target address.",
         "declaration": "function setArbitraryStorage(address target) external;",
