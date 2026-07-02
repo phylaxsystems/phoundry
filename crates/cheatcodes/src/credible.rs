@@ -229,12 +229,7 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
         .unwrap_or(0);
 
     // Prepare assertion store
-    let config = ExecutorConfig {
-        spec_id,
-        chain_id,
-        assertion_gas_limit: TX_GAS_LIMIT_CAP,
-        assertion_evaluation_enabled: true,
-    };
+    let config = ExecutorConfig::new(spec_id, chain_id).with_assertion_gas_limit(TX_GAS_LIMIT_CAP);
 
     let store = AssertionStore::new_ephemeral();
 
