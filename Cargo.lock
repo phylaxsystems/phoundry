@@ -111,7 +111,7 @@ dependencies = [
  "alloy-rlp",
  "num_enum",
  "serde",
- "strum",
+ "strum 0.27.2",
 ]
 
 [[package]]
@@ -789,7 +789,7 @@ dependencies = [
  "jsonwebtoken",
  "rand 0.8.6",
  "serde",
- "strum",
+ "strum 0.27.2",
 ]
 
 [[package]]
@@ -1305,7 +1305,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1329,7 +1329,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1783,7 +1783,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-client"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=77a5a39601942141c4de1bc361eee3cc0586b571#77a5a39601942141c4de1bc361eee3cc0586b571"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=600d7434b9352b6f5afe0534ed1f5b65a795f20e#600d7434b9352b6f5afe0534ed1f5b65a795f20e"
 dependencies = [
  "alloy-primitives",
  "assertion-da-core",
@@ -1800,7 +1800,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-core"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=77a5a39601942141c4de1bc361eee3cc0586b571#77a5a39601942141c4de1bc361eee3cc0586b571"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=600d7434b9352b6f5afe0534ed1f5b65a795f20e#600d7434b9352b6f5afe0534ed1f5b65a795f20e"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -1809,7 +1809,7 @@ dependencies = [
 [[package]]
 name = "assertion-executor"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=77a5a39601942141c4de1bc361eee3cc0586b571#77a5a39601942141c4de1bc361eee3cc0586b571"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=600d7434b9352b6f5afe0534ed1f5b65a795f20e#600d7434b9352b6f5afe0534ed1f5b65a795f20e"
 dependencies = [
  "alloy-chains",
  "alloy-consensus 2.0.5",
@@ -1840,7 +1840,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sled",
- "strum",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -2501,7 +2501,7 @@ dependencies = [
  "bitflags 2.11.1",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -3283,7 +3283,7 @@ dependencies = [
  "terminfo",
  "thiserror 2.0.18",
  "which",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3436,7 +3436,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4499,7 +4499,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4650,11 +4650,12 @@ checksum = "b04dc5a38e4f151a79d9f2451ae6037fb6eaf5cba34771f44781f80e508498e3"
 [[package]]
 name = "eip-common"
 version = "1.4.0"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=77a5a39601942141c4de1bc361eee3cc0586b571#77a5a39601942141c4de1bc361eee3cc0586b571"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=600d7434b9352b6f5afe0534ed1f5b65a795f20e#600d7434b9352b6f5afe0534ed1f5b65a795f20e"
 dependencies = [
  "alloy-eips 2.0.5",
  "alloy-primitives",
  "revm",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4735,9 +4736,9 @@ checksum = "c34f04666d835ff5d62e058c3995147c06f42fe86ff053337632bca83e42702d"
 
 [[package]]
 name = "enum-as-inner"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e6a265c649f3f5979b601d26f1d05ada116434c87741c9493cb56218f76cbc"
+checksum = "0359ee92f81184d7985519e474bda2a5738476334edd3746c9b1265c067afe70"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -4832,7 +4833,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5205,7 +5206,7 @@ dependencies = [
  "solar-compiler",
  "soldeer-commands",
  "soldeer-core",
- "strum",
+ "strum 0.27.2",
  "svm-rs",
  "tempfile",
  "tempo-alloy",
@@ -5540,7 +5541,7 @@ dependencies = [
  "serde_json",
  "solar-compiler",
  "strsim",
- "strum",
+ "strum 0.27.2",
  "tempfile",
  "tempo-primitives",
  "tikv-jemallocator",
@@ -6212,12 +6213,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fuchsia-cprng"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
-
-[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6388,8 +6383,8 @@ dependencies = [
  "libc",
  "log",
  "rustversion",
- "windows-link 0.1.3",
- "windows-result 0.3.4",
+ "windows-link 0.2.1",
+ "windows-result 0.4.1",
 ]
 
 [[package]]
@@ -6860,7 +6855,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -7217,7 +7212,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -8173,7 +8168,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9313,7 +9308,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.12.1",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -9482,7 +9477,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9520,19 +9515,6 @@ checksum = "c069c179fcdc6a2fe24d8d18305cf085fdbd4f922c041943e203685d6a1c58fd"
 dependencies = [
  "endian-type",
  "nibble_vec",
-]
-
-[[package]]
-name = "rand"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "552840b97013b1a26992c11eac34bdd778e464601a4c2054b5f0bff7c6761293"
-dependencies = [
- "fuchsia-cprng",
- "libc",
- "rand_core 0.3.1",
- "rdrand",
- "winapi",
 ]
 
 [[package]]
@@ -9577,21 +9559,6 @@ dependencies = [
  "ppv-lite86",
  "rand_core 0.9.5",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a6fdeb83b075e8266dcc8762c22776f6877a63111121f5f8c7411e5be7eed4b"
-dependencies = [
- "rand_core 0.4.2",
-]
-
-[[package]]
-name = "rand_core"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c33a3c44ca05fa6f1807d8e6743f3824e8509beca625669633be0acbdf509dc"
 
 [[package]]
 name = "rand_core"
@@ -9666,7 +9633,7 @@ dependencies = [
  "itertools 0.14.0",
  "kasuari",
  "lru",
- "strum",
+ "strum 0.27.2",
  "thiserror 2.0.18",
  "unicode-segmentation",
  "unicode-truncate",
@@ -9698,7 +9665,7 @@ dependencies = [
  "itertools 0.14.0",
  "line-clipping",
  "ratatui-core",
- "strum",
+ "strum 0.27.2",
  "time",
  "unicode-segmentation",
  "unicode-width 0.2.2",
@@ -9731,15 +9698,6 @@ checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
-]
-
-[[package]]
-name = "rdrand"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
-dependencies = [
- "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -9849,15 +9807,6 @@ checksum = "2057b2325e68a893284d1538021ab90279adac1139957ca2a74426c6f118fb48"
 dependencies = [
  "hashbrown 0.16.1",
  "memchr",
-]
-
-[[package]]
-name = "remove_dir_all"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
-dependencies = [
- "winapi",
 ]
 
 [[package]]
@@ -10061,7 +10010,7 @@ dependencies = [
  "reth-storage-errors 1.11.2",
  "reth-tracing",
  "rustc-hash",
- "strum",
+ "strum 0.27.2",
  "sysinfo 0.38.4",
  "thiserror 2.0.18",
  "tracing",
@@ -10408,7 +10357,7 @@ dependencies = [
  "modular-bitfield",
  "reth-codecs 1.11.2",
  "serde",
- "strum",
+ "strum 0.27.2",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -10423,7 +10372,7 @@ dependencies = [
  "modular-bitfield",
  "reth-codecs 0.3.1",
  "serde",
- "strum",
+ "strum 0.27.2",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -10512,7 +10461,7 @@ dependencies = [
  "fixed-map",
  "reth-stages-types 1.11.2",
  "serde",
- "strum",
+ "strum 0.27.2",
 ]
 
 [[package]]
@@ -10525,7 +10474,7 @@ dependencies = [
  "fixed-map",
  "reth-stages-types 2.2.0",
  "serde",
- "strum",
+ "strum 0.27.2",
  "tracing",
 ]
 
@@ -11185,7 +11134,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -11244,7 +11193,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -11918,14 +11867,12 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "sled"
 version = "1.0.0-alpha.124"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "863ddb1887c62f8dad18635f6096876c648923e61962057058f92228fee2308f"
+source = "git+https://github.com/spacejam/sled?rev=e449d17111f4a097e1c66b6db241962ccb6a4136#e449d17111f4a097e1c66b6db241962ccb6a4136"
 dependencies = [
  "bincode",
  "cache-advisor",
  "concurrent-map",
  "crc32fast",
- "crossbeam-channel",
  "crossbeam-queue",
  "ebr",
  "fault-injection",
@@ -11938,7 +11885,6 @@ dependencies = [
  "rayon",
  "serde",
  "stack-map",
- "tempdir",
  "zstd 0.12.4",
 ]
 
@@ -12005,7 +11951,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -12021,7 +11967,7 @@ dependencies = [
  "solar-data-structures",
  "solar-interface",
  "solar-macros",
- "strum",
+ "strum 0.27.2",
 ]
 
 [[package]]
@@ -12045,7 +11991,7 @@ version = "0.1.8"
 source = "git+https://github.com/paradigmxyz/solar?rev=530f129#530f129b1b2d7138df973dd71d2fc1e592b593d7"
 dependencies = [
  "colorchoice",
- "strum",
+ "strum 0.27.2",
 ]
 
 [[package]]
@@ -12073,7 +12019,7 @@ dependencies = [
  "derive_more",
  "dunce",
  "inturn",
- "itertools 0.12.1",
+ "itertools 0.14.0",
  "itoa",
  "normalize-path",
  "once_map",
@@ -12108,7 +12054,7 @@ dependencies = [
  "alloy-primitives",
  "bitflags 2.11.1",
  "bumpalo",
- "itertools 0.12.1",
+ "itertools 0.14.0",
  "memchr",
  "num-bigint",
  "num-rational",
@@ -12142,7 +12088,7 @@ dependencies = [
  "solar-interface",
  "solar-macros",
  "solar-parse",
- "strum",
+ "strum 0.27.2",
  "thread_local",
  "tracing",
 ]
@@ -12305,7 +12251,16 @@ version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.27.2",
+]
+
+[[package]]
+name = "strum"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
+dependencies = [
+ "strum_macros 0.28.0",
 ]
 
 [[package]]
@@ -12313,6 +12268,18 @@ name = "strum_macros"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -12563,16 +12530,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
-name = "tempdir"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15f2b5fb00ccdf689e0149d1b1b3c03fead81c2b37735d812fa8bddbbf41b6d8"
-dependencies = [
- "rand 0.4.6",
- "remove_dir_all",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12582,7 +12539,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12792,7 +12749,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -14146,7 +14103,7 @@ dependencies = [
  "watchexec-events",
  "watchexec-signals",
  "watchexec-supervisor",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -14296,7 +14253,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
