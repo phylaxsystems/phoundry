@@ -324,10 +324,8 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
         // If assertions were not executed, we need to update expect revert depth to
         // allow for matching on this revert condition, as we will not execute against
         // test evm in this case.
-        journal_inner.checkpoint();
-
         if let Some(expected) = &mut cheats.expected_revert {
-            expected.max_depth = max(journal_inner.depth, expected.max_depth);
+            expected.max_depth = max(journal_inner.depth + 1, expected.max_depth);
         }
         bail!("Expected 1 assertion to be executed, but {total_assertions_ran} were executed.");
     }
@@ -357,10 +355,8 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
     if !tx_validation.is_valid() {
         // If invalidated, we don't execute against test evm, so we must update expected depth
         // for expect revert cheatcode.
-        journal_inner.checkpoint();
-
         if let Some(expected) = &mut cheats.expected_revert {
-            expected.max_depth = max(journal_inner.depth, expected.max_depth);
+            expected.max_depth = max(journal_inner.depth + 1, expected.max_depth);
         }
 
         let (msg, result) = match &assertion_fn_result.result {
