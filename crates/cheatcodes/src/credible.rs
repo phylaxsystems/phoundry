@@ -1,14 +1,13 @@
 use crate::{Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
 use alloy_primitives::{Bytes, FixedBytes, TxKind, U16};
 use assertion_executor::{
-    AssertionExecutor, ExecutorConfig,
-    anomaly::AnomalySubsystem,
+    AnomalySubsystem, AssertionExecutor, ExecutorConfig, Trace,
+    api::EthBackend,
     db::{DatabaseCommit, DatabaseRef, fork_db::ForkDb},
-    inspectors::CallTracer,
     native::registry::NativeAssertionRegistry,
     primitives::{
         AccountInfo, Address, AssertionFunctionExecutionResult, B256, Bytecode, ExecutionResult,
-        ResultAndState, TxEnv, U256,
+        TxEnv, U256,
     },
     store::{AssertionState, AssertionStore},
 };
@@ -17,7 +16,7 @@ use foundry_evm_core::{
     env::{FoundryContextExt, FoundryTransaction},
     evm::{FoundryContextFor, FoundryEvmNetwork},
 };
-use foundry_evm_traces::{TraceMode, TracingInspectorConfig};
+use foundry_evm_traces::TraceRequirements;
 use foundry_fork_db::DatabaseError;
 use revm::{
     Database,
@@ -119,21 +118,13 @@ struct PhoundryAnomalySubsystem {
 
 impl PhoundryAnomalySubsystem {
     fn from_raw(raw: HashMap<Address, u16>) -> Self {
-        Self {
-            scores: raw.into_iter().map(|(addr, bps)| (addr, U16::from(bps))).collect(),
-        }
+        Self { scores: raw.into_iter().map(|(addr, bps)| (addr, U16::from(bps))).collect() }
     }
 }
 
 impl AnomalySubsystem for PhoundryAnomalySubsystem {
-    fn evaluate(
-        &self,
-        _tracer: &CallTracer,
-        _tx_env: &TxEnv,
-        _block_env: &BlockEnv,
-        _result: &ResultAndState,
-    ) -> HashMap<Address, U16> {
-        self.scores.clone()
+    fn evaluate(&self, _trace: &Trace<'_>) -> Option<HashMap<Address, U16>> {
+        Some(self.scores.clone())
     }
 }
 
@@ -259,14 +250,14 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
     // into the executor through a phoundry-local `AnomalySubsystem`. Default to an
     // empty map (fail-open) when nothing was staged.
     let staged_scores = std::mem::take(&mut cheats.anomaly_scores);
-    let anomaly = Arc::new(PhoundryAnomalySubsystem::from_raw(staged_scores));
-    let mut assertion_executor =
-        AssertionExecutor::new_with_anomaly(
-            config,
-            store,
-            Arc::new(NativeAssertionRegistry::default()),
-            anomaly,
-        );
+    let anomaly = PhoundryAnomalySubsystem::from_raw(staged_scores);
+    let mut assertion_executor = AssertionExecutor::new_with_backend_and_anomaly(
+        config,
+        store,
+        Arc::new(NativeAssertionRegistry::default()),
+        EthBackend::default(),
+        anomaly,
+    );
 
     let (raw_db, journal_inner) = ecx.db_journal_inner_mut();
     let state = journal_inner.state.clone();
@@ -280,10 +271,11 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
 
     let verbosity = cheats.config.evm_opts.verbosity;
     let (tx_validation, captured_traces) = if verbosity >= TRACING_VERBOSITY {
-        let tracing_config = TraceMode::Call
+        let tracing_config = TraceRequirements::none()
+            .with_calls(true)
             .with_verbosity(verbosity)
             .into_config()
-            .unwrap_or_else(TracingInspectorConfig::default_parity);
+            .expect("call tracing is enabled");
 
         let result_with_traces = assertion_executor
             .validate_transaction_with_tracing(
