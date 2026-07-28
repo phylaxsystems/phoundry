@@ -36,7 +36,7 @@ pub trait MessageSigner: Send + Sync {
 /// A transaction signer, generic over the network.
 ///
 /// Modelled after alloy's `NetworkWallet<N>`: the
-/// [`sign_transaction_from`] method takes an
+/// [`Signer::sign_transaction_from`] method takes an
 /// unsigned transaction and returns the fully-signed envelope in one step.
 pub trait Signer<N: Network>: MessageSigner {
     /// Signs an unsigned transaction and returns the signed envelope.
