@@ -2917,9 +2917,7 @@ impl TestArgs {
                 let show_traces = !self.suppress_successful_traces || test_failed;
                 let render_trace_output = should_render_trace_output(silent, show_traces);
                 let should_include_trace = |kind: &TraceKind| match kind {
-                    TraceKind::Execution
-                    | TraceKind::AssertionTrigger
-                    | TraceKind::Assertion => {
+                    TraceKind::Execution | TraceKind::AssertionTrigger | TraceKind::Assertion => {
                         (trace_verbosity == 3 && test_failed) || trace_verbosity >= 4
                     }
                     TraceKind::Setup => {
@@ -3008,17 +3006,9 @@ impl TestArgs {
                             let rendered_trace = if let Some(trace_depth) = tracing.trace_depth {
                                 let mut arena = arena.clone();
                                 prune_trace_depth(&mut arena, trace_depth);
-                                render_trace_arena_inner(
-                                    &arena,
-                                    false,
-                                    trace_verbosity > 4,
-                                )
+                                render_trace_arena_inner(&arena, false, trace_verbosity > 4)
                             } else {
-                                render_trace_arena_inner(
-                                    arena,
-                                    false,
-                                    trace_verbosity > 4,
-                                )
+                                render_trace_arena_inner(arena, false, trace_verbosity > 4)
                             };
 
                             match kind {

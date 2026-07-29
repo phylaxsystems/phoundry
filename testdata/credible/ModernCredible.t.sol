@@ -128,6 +128,15 @@ contract ModernCredibleTest is DSTest {
         assertEq(counter.value(), 0);
     }
 
+    function testMissingCallTriggerCanFailUnderExpectRevert() public {
+        cl.assertion(address(counter), _assertionCode(), bytes4(keccak256("unregisteredAssertion()")));
+        cl.expectRevert(bytes("Expected 1 assertion to be executed, but 0 were executed."));
+
+        counter.set(1);
+
+        assertEq(counter.value(), 0);
+    }
+
     function testPrePostStateReadsTxDiffAndOuterExecutionAppliesOnce() public {
         cl.assertion(address(counter), _assertionCode(), ModernCounterAssertion.assertPrePostAndSingleApply.selector);
 

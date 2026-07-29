@@ -2343,7 +2343,11 @@ impl TestResult {
                 self.traces.extend(assertion_trigger_traces.into_iter().map(|arena| {
                     (
                         TraceKind::AssertionTrigger,
-                        SparsedTraceArena { arena, ignored: Default::default() },
+                        SparsedTraceArena {
+                            arena,
+                            ignored: Default::default(),
+                            diagnostics: Default::default(),
+                        },
                     )
                 }));
             }
@@ -2351,7 +2355,14 @@ impl TestResult {
             let assertion_traces = cheatcodes.take_assertion_traces();
             if !assertion_traces.is_empty() {
                 self.traces.extend(assertion_traces.into_iter().map(|arena| {
-                    (TraceKind::Assertion, SparsedTraceArena { arena, ignored: Default::default() })
+                    (
+                        TraceKind::Assertion,
+                        SparsedTraceArena {
+                            arena,
+                            ignored: Default::default(),
+                            diagnostics: Default::default(),
+                        },
+                    )
                 }));
             }
 
