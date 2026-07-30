@@ -1798,7 +1798,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-client"
 version = "1.7.1"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=e19422ae#e19422ae1061ee731eb750d64a090841b7f4570e"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=7fd81734#7fd817342768f8dec91ada0507a17498d19f5f72"
 dependencies = [
  "alloy-primitives",
  "assertion-da-core",
@@ -1815,7 +1815,7 @@ dependencies = [
 [[package]]
 name = "assertion-da-core"
 version = "1.7.1"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=e19422ae#e19422ae1061ee731eb750d64a090841b7f4570e"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=7fd81734#7fd817342768f8dec91ada0507a17498d19f5f72"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -1824,7 +1824,7 @@ dependencies = [
 [[package]]
 name = "assertion-executor"
 version = "1.7.1"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=e19422ae#e19422ae1061ee731eb750d64a090841b7f4570e"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=7fd81734#7fd817342768f8dec91ada0507a17498d19f5f72"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -5891,7 +5891,7 @@ dependencies = [
 [[package]]
 name = "eip-common"
 version = "1.7.1"
-source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=e19422ae#e19422ae1061ee731eb750d64a090841b7f4570e"
+source = "git+https://github.com/phylaxsystems/credible-sdk.git?rev=7fd81734#7fd817342768f8dec91ada0507a17498d19f5f72"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
