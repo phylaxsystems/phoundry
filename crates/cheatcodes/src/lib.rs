@@ -90,13 +90,13 @@ mod credible_stub {
         }
     }
 
-    impl Cheatcode for setAnomalyScoreCall {
+    impl Cheatcode for setAnomalyLevelCall {
         fn apply_stateful<FEN: FoundryEvmNetwork>(
             &self,
             _ccx: &mut CheatsCtxt<'_, '_, FEN>,
         ) -> Result {
             bail!(
-                "vm.setAnomalyScore() requires Phylax-built forge with the `credible` feature enabled. \
+                "vm.setAnomalyLevel() requires Phylax-built forge with the `credible` feature enabled. \
                  Install from: https://github.com/phylaxsystems/phoundry"
             )
         }

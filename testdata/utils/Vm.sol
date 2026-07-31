@@ -499,7 +499,7 @@ interface Vm {
     function serializeUintToHex(string calldata objectKey, string calldata valueKey, uint256 value) external returns (string memory json);
     function serializeUint(string calldata objectKey, string calldata valueKey, uint256 value) external returns (string memory json);
     function serializeUint(string calldata objectKey, string calldata valueKey, uint256[] calldata values) external returns (string memory json);
-    function setAnomalyScore(address target, uint16 scoreBps) external;
+    function setAnomalyLevel(address target, uint8 firesAt) external;
     function setArbitraryStorage(address target) external;
     function setArbitraryStorage(address target, bool overwrite) external;
     function setBlockhash(uint256 blockNumber, bytes32 blockHash) external;

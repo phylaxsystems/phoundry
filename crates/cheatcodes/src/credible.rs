@@ -1,7 +1,7 @@
 use crate::{Cheatcode, Cheatcodes, CheatcodesExecutor, CheatsCtxt, Result, Vm::*};
-use alloy_primitives::{Bytes, FixedBytes, TxKind, U16};
+use alloy_primitives::{Bytes, FixedBytes, TxKind};
 use assertion_executor::{
-    AnomalySubsystem, AssertionExecutor, ExecutorConfig, Trace,
+    AnomalySubsystem, AnomalyVerdict, AnomalyVerdictMap, AssertionExecutor, ExecutorConfig, Trace,
     api::EthBackend,
     db::{DatabaseCommit, DatabaseRef, fork_db::ForkDb},
     native::registry::NativeAssertionRegistry,
@@ -100,31 +100,47 @@ impl Cheatcode for assertionCall {
     }
 }
 
-impl Cheatcode for setAnomalyScoreCall {
+/// The loosest sensitivity level the ladder defines. Above it there is no rung, so no registered
+/// trigger can satisfy the verdict.
+const MAX_SENSITIVITY_LEVEL: u8 = 10;
+
+impl Cheatcode for setAnomalyLevelCall {
     fn apply_stateful<FEN: FoundryEvmNetwork>(&self, ccx: &mut CheatsCtxt<'_, '_, FEN>) -> Result {
-        let Self { target, scoreBps: score_bps } = self;
-        ccx.state.anomaly_scores.insert(*target, *score_bps);
+        let Self { target, firesAt: fires_at } = self;
+        // Only `0..=10` names anything. A level past the ladder is not a stricter stage, it is a
+        // verdict no trigger can ever clear: the assertion silently never runs and the test passes
+        // green having exercised nothing. Reject it here, where the typo is, rather than let it
+        // read as a passing test.
+        ensure!(
+            *fires_at <= MAX_SENSITIVITY_LEVEL,
+            "anomaly level must be 0 (clears nothing) or 1..={MAX_SENSITIVITY_LEVEL}, got {fires_at}"
+        );
+        ccx.state.anomaly_verdicts.insert(*target, AnomalyVerdict::new(*fires_at));
         Ok(Default::default())
     }
 }
 
-/// Test-only [`AnomalySubsystem`] backed by a fixed `target -> scoreBps` map staged via
-/// `cl.setAnomalyScore(...)`. Returns the staged map verbatim regardless of the tx being
-/// evaluated; targets absent from the map are not scored.
+/// Test-only [`AnomalySubsystem`] backed by a fixed `target -> verdict` map staged via
+/// `cl.setAnomalyLevel(...)`. Returns the staged map verbatim regardless of the tx being
+/// evaluated; targets absent from the map are not scored, which is the fail-open default.
+///
+/// A level rather than a score, because that is the whole verdict the real subsystem produces: the
+/// raw score is spent resolving it against the model's own ladder and never leaves the scorer. A
+/// test that staged basis points would be staging an input this seam does not carry.
 #[derive(Debug, Clone, Default)]
 struct PhoundryAnomalySubsystem {
-    scores: HashMap<Address, U16>,
+    verdicts: AnomalyVerdictMap,
 }
 
 impl PhoundryAnomalySubsystem {
-    fn from_raw(raw: HashMap<Address, u16>) -> Self {
-        Self { scores: raw.into_iter().map(|(addr, bps)| (addr, U16::from(bps))).collect() }
+    fn new(verdicts: AnomalyVerdictMap) -> Self {
+        Self { verdicts }
     }
 }
 
 impl AnomalySubsystem for PhoundryAnomalySubsystem {
-    fn evaluate(&self, _trace: &Trace<'_>) -> Option<HashMap<Address, U16>> {
-        Some(self.scores.clone())
+    fn evaluate(&self, _trace: &Trace<'_>) -> Option<AnomalyVerdictMap> {
+        Some(self.verdicts.clone())
     }
 }
 
@@ -246,11 +262,12 @@ pub fn execute_assertion<FEN: FoundryEvmNetwork>(
 
     let tx_env = build_tx_env(tx_attributes, ecx.tx(), chain_id, nonce);
 
-    // Consume any anomaly scores staged via `cl.setAnomalyScore(...)` and wire them
-    // into the executor through a phoundry-local `AnomalySubsystem`. Default to an
-    // empty map (fail-open) when nothing was staged.
-    let staged_scores = std::mem::take(&mut cheats.anomaly_scores);
-    let anomaly = PhoundryAnomalySubsystem::from_raw(staged_scores);
+    // Consume any verdicts staged via `cl.setAnomalyLevel(...)` and wire them into the
+    // executor through a phoundry-local `AnomalySubsystem`. Taken, not cloned: a staged
+    // verdict applies to the next `cl.assertion(...)` and no further, so a later one in
+    // the same test starts fail-open rather than inheriting a stale flag.
+    let staged = std::mem::take(&mut cheats.anomaly_verdicts);
+    let anomaly = PhoundryAnomalySubsystem::new(staged);
     let mut assertion_executor = AssertionExecutor::new_with_backend_and_anomaly(
         config,
         store,

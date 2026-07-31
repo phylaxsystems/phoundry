@@ -25,12 +25,18 @@ interface Vm {
     #[cheatcode(group = Credible, safety = Safe)]
     function assertion(address adopter, bytes calldata createData, bytes4 fnSelector) external;
 
-    /// Stages an anomaly score (basis points, `0..=10_000`) for `target` that the executor's
-    /// `AnomalySubsystem` will return on the next `cl.assertion(...)` invocation. Targets not
-    /// staged with this cheatcode are not scored (fail open). Call multiple times to stage
-    /// scores for multiple targets before invoking `cl.assertion`.
+    /// Stages an anomaly verdict for `target` that the executor's `AnomalySubsystem` will return
+    /// on the next `cl.assertion(...)` invocation: `firesAt` is the strictest sensitivity level
+    /// (`1..=10`) the model's score clears against `target`'s own ladder, and `0` clears none.
+    /// A trigger registered at level `L` fires iff `firesAt != 0 && L >= firesAt`.
+    ///
+    /// A level, not a score: basis points name nothing without the ladder that produced them,
+    /// which belongs to one contract and one model version. Staging a level tests the assertion
+    /// against the same verdict the deployed gate hands it. Targets not staged with this cheatcode
+    /// are not scored (fail open). Call multiple times to stage several targets before invoking
+    /// `cl.assertion`.
     #[cheatcode(group = Credible, safety = Safe)]
-    function setAnomalyScore(address target, uint16 scoreBps) external;
+    function setAnomalyLevel(address target, uint8 firesAt) external;
 
 
     //  ======== Types ========

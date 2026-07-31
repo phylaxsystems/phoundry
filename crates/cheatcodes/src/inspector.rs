@@ -84,7 +84,7 @@ pub use analysis::CheatcodeAnalysis;
 /// Helper trait for running nested EVM operations from inside cheatcode implementations.
 pub trait CheatcodesExecutor<FEN: FoundryEvmNetwork> {
     /// Runs a closure with a nested EVM built from the current context.
-    /// The inspector is assembled internally — never exposed to the caller.
+    /// The inspector is assembled internally, never exposed to the caller.
     fn with_nested_evm(
         &mut self,
         cheats: &mut Cheatcodes<FEN>,
@@ -318,7 +318,7 @@ pub struct EnvOverrides {
     /// was active.
     pub pre_override_blob_hashes: Option<Vec<B256>>,
     /// The opcode about to run (captured in `step`, consumed in `step_end`),
-    /// used to know what was just executed when `step_end` fires — at that
+    /// used to know what was just executed when `step_end` fires, at that
     /// point `interpreter.bytecode.opcode()` already points at the *next*
     /// instruction.
     pending_opcode: Option<u8>,
@@ -608,11 +608,11 @@ pub struct Cheatcodes<FEN: FoundryEvmNetwork = EthEvmNetwork> {
     #[cfg(feature = "credible")]
     pub assertion: Option<crate::credible::Assertion>,
 
-    /// Anomaly scores staged via `cl.setAnomalyScore(...)`. Read by the phoundry
-    /// anomaly subsystem during the next `cl.assertion(...)` invocation. Cleared
-    /// after the assertion executes.
+    /// Anomaly verdicts staged via `cl.setAnomalyLevel(...)`. Read by the phoundry anomaly
+    /// subsystem during the next `cl.assertion(...)` invocation, and consumed by it: a staged
+    /// verdict applies once, so a second assertion in the same test starts fail-open.
     #[cfg(feature = "credible")]
-    pub anomaly_scores: std::collections::HashMap<alloy_primitives::Address, u16>,
+    pub anomaly_verdicts: assertion_executor::AnomalyVerdictMap,
 
     /// Assume next call can revert and discard fuzz run if it does.
     pub assume_no_revert: Option<AssumeNoRevert>,
@@ -828,7 +828,7 @@ impl<FEN: FoundryEvmNetwork> Cheatcodes<FEN> {
             #[cfg(feature = "credible")]
             assertion: Default::default(),
             #[cfg(feature = "credible")]
-            anomaly_scores: Default::default(),
+            anomaly_verdicts: Default::default(),
             expected_creates: Default::default(),
             allowed_mem_writes: Default::default(),
             broadcast: Default::default(),
@@ -1960,7 +1960,7 @@ impl<FEN: FoundryEvmNetwork> Inspector<FoundryContextFor<'_, FEN>> for Cheatcode
             if self.env_overrides.get(&fork_id).is_some_and(|o| o.is_any_set()) {
                 // Mirrors the pattern used by `meter_gas_record`: when `action` is
                 // `Some` with an `instruction_result`, the opcode has set a
-                // non-continue result (halt/revert/error) — i.e. it didn't push
+                // non-continue result (halt/revert/error), i.e. it didn't push
                 // its normal result. `None` means "still running", which is the
                 // success path for a stack-only opcode in `step_end`.
                 let opcode_failed = interpreter

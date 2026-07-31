@@ -10134,18 +10134,18 @@
     },
     {
       "func": {
-        "id": "setAnomalyScore",
-        "description": "Stages an anomaly score (basis points, `0..=10_000`) for `target` that the executor's\n`AnomalySubsystem` will return on the next `cl.assertion(...)` invocation. Targets not\nstaged with this cheatcode are not scored (fail open). Call multiple times to stage\nscores for multiple targets before invoking `cl.assertion`.",
-        "declaration": "function setAnomalyScore(address target, uint16 scoreBps) external;",
+        "id": "setAnomalyLevel",
+        "description": "Stages an anomaly verdict for `target` that the executor's `AnomalySubsystem` will return\non the next `cl.assertion(...)` invocation: `firesAt` is the strictest sensitivity level\n(`1..=10`) the model's score clears against `target`'s own ladder, and `0` clears none.\nA trigger registered at level `L` fires iff `firesAt != 0 && L >= firesAt`.\nA level, not a score: basis points name nothing without the ladder that produced them,\nwhich belongs to one contract and one model version. Staging a level tests the assertion\nagainst the same verdict the deployed gate hands it. Targets not staged with this cheatcode\nare not scored (fail open). Call multiple times to stage several targets before invoking\n`cl.assertion`.",
+        "declaration": "function setAnomalyLevel(address target, uint8 firesAt) external;",
         "visibility": "external",
         "mutability": "",
-        "signature": "setAnomalyScore(address,uint16)",
-        "selector": "0x36285dfc",
+        "signature": "setAnomalyLevel(address,uint8)",
+        "selector": "0x7ae86815",
         "selectorBytes": [
-          54,
-          40,
-          93,
-          252
+          122,
+          232,
+          104,
+          21
         ]
       },
       "group": "credible",
