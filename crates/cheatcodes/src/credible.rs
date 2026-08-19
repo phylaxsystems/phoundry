@@ -24,7 +24,7 @@ use revm::{
 };
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     sync::{Arc, Mutex},
 };
 
