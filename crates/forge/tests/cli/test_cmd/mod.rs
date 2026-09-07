@@ -199,6 +199,19 @@ forgetest!(credible_testdata_prints_assertion_traces, |_prj, cmd| {
     assert!(output.contains("Assertion Traces:"), "{output}");
 });
 
+#[cfg(feature = "credible")]
+forgetest!(credible_testdata_decodes_precompiles, |_prj, cmd| {
+    setup_testdata_cmd(&mut cmd);
+    cmd.env("FOUNDRY_PROFILE", "credible");
+    cmd.args(["test", "--mc", "PrecompileTracesTest", "-vvvv"]).assert_success().stdout_eq(
+        foundry_test_utils::snapbox::Data::read_from(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/cli/test_cmd/credible-precompile-traces.stdout"),
+            None,
+        ),
+    );
+});
+
 // tests that test filters are handled correctly
 forgetest!(can_set_filter_values, |prj, cmd| {
     let patt = regex::Regex::new("test*").unwrap();

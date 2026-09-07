@@ -297,6 +297,7 @@ crossterm.opt-level = "s"
 alloy-json-abi.opt-level = "s"
 
 [workspace.dependencies]
+assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", branch = "main", features = ["phoundry"] }
 anvil = { path = "crates/anvil", default-features = false }
 cast = { path = "crates/cast", default-features = false }
 chisel = { path = "crates/chisel", default-features = false }

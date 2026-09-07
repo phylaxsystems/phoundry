@@ -141,3 +141,8 @@ jobs:
           fi
           args+=(--no-fail-fast)
           cargo nextest run --locked "${args[@]}"
+      - name: Credible trace regressions
+        if: matrix.target == 'x86_64-unknown-linux-gnu' && !contains(matrix.name, 'external') && matrix.partition == 1
+        run: |
+          cargo nextest run --locked -p foundry-evm-traces --features credible -E 'test(credible)'
+          cargo nextest run --locked -p forge --features credible --test cli -E 'test(credible_testdata)'

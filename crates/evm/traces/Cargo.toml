@@ -14,6 +14,9 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+# credible
+assertion-executor = { workspace = true, optional = true }
+
 foundry-block-explorers.workspace = true
 foundry-common.workspace = true
 foundry-compilers.workspace = true
@@ -60,3 +63,4 @@ tokio = { workspace = true, features = ["test-util"] }
 [features]
 default = ["optimism"]
 optimism = ["foundry-common/optimism", "foundry-evm-core/optimism"]
+credible = ["dep:assertion-executor"]

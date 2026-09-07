@@ -21,7 +21,7 @@ foundry-fork-db = { workspace = true, optional = true }
 # Tracks the sensitivity-ladder branch while the three repos land together: the previous rev
 # predates `watchAnomaly(target, selector, level)` and the `AnomalyVerdict` seam this crate's
 # `setAnomalyLevel` cheatcode is written against. Re-pin to a merged `main` rev before merging.
-assertion-executor = { git = "https://github.com/phylaxsystems/credible-sdk.git", rev = "7fd81734", features = ["phoundry"], optional = true }
+assertion-executor = { workspace = true, optional = true }
 
 foundry-cheatcodes-spec.workspace = true
 foundry-common.workspace = true
