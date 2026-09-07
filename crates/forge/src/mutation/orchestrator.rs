@@ -292,14 +292,14 @@ pub async fn run_mutation_testing(
 
         // Run mutations in parallel using isolated workspaces
         let batch = run_mutations_parallel_with_progress(
-            mutants_to_test.clone(),
+            mutants_to_test,
             path.clone(),
             handler.src.clone(),
             config.clone(),
             evm_opts.clone(),
             create2_deployer_available,
             num_workers,
-            progress.clone(),
+            progress,
             json_output,
             mutation_config.filter_args.clone(),
             mutation_config.rerun_failures.clone(),

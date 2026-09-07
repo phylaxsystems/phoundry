@@ -2545,7 +2545,7 @@ impl<N: Network> Backend<N> {
             for res in genesis_accounts {
                 let (address, mut info) = res.unwrap()?;
                 info.balance = self.genesis.balance;
-                db.insert_account(address, info.clone());
+                db.insert_account(address, info);
             }
         } else {
             let mut db = self.db.write().await;
