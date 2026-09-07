@@ -11,6 +11,10 @@ on:
         required: true
         type: string
     secrets:
+      APP_ID:
+        required: true
+      APP_PRIVATE_KEY:
+        required: true
       ETHERSCAN_API_KEY:
         required: false
       ARBITRUM_RPC:
@@ -117,6 +121,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Setup Git config
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

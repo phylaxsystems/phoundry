@@ -23,7 +23,12 @@ jobs:
       contents: read
     with:
       profile: default
-    secrets: inherit
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+      ARBITRUM_RPC: ${{ secrets.ARBITRUM_RPC }}
+      ETH_SEPOLIA_RPC: ${{ secrets.ETH_SEPOLIA_RPC }}
 
   docs:
     uses: ./.github/workflows/docs.yml
@@ -31,7 +36,9 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    secrets: inherit
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
   doctest:
     runs-on: ubuntu-latest
@@ -58,6 +65,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Configure git for private cargo deps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -86,6 +97,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Configure git for private cargo deps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -142,6 +157,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Configure git for private cargo deps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -187,6 +206,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Configure git for private cargo deps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -220,6 +243,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Configure git for private cargo deps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -242,6 +269,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          repositories: |
+            credible-sdk
+            anomaly-detection
+          permission-contents: read
       - name: Configure git for private cargo deps
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

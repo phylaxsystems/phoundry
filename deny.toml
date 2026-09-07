@@ -5,6 +5,15 @@
 version = 2
 yanked = "warn"
 ignore = [
+    # imbl 7.0.1 and imbl-sized-chunks 0.1.3 construct bitmaps with
+    # default/new/from_value; neither calls the affected TryFrom<&[u8]>.
+    # No patched bitmaps release exists. Revisit when imbl replaces bitmaps.
+    { id = "RUSTSEC-2025-0167", reason = "The affected byte-slice conversion is unused by imbl and imbl-sized-chunks" },
+    { id = "RUSTSEC-2026-0247", reason = "Unmaintained transitive dependency of imbl; no replacement release is available" },
+    # alloy-provider 2.2.0 still requires lru 0.16. Its caches use u64 and
+    # B256 keys, which have no panicking Drop. The ratatui lru is upgraded.
+    { id = "RUSTSEC-2026-0253", reason = "Remaining lru 0.16 consumer alloy-provider uses keys without Drop; revisit on alloy upgrade" },
+    { id = "RUSTSEC-2025-0172", reason = "zip-extract is transitive through pinned soldeer-core 0.11.0; migrate with soldeer" },
     # https://rustsec.org/advisories/RUSTSEC-2024-0436 paste! is unmaintained
     "RUSTSEC-2024-0436",
     # https://rustsec.org/advisories/RUSTSEC-2026-0173 proc-macro-error2 is unmaintained
