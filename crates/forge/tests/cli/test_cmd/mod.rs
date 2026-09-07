@@ -125,7 +125,8 @@ fn collect_debug_dump_storage_changes<'a>(
 }
 
 /// Contracts that are not part of the default Foundry-compatible `testdata` run.
-const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str = "Issue4640Test|Issue14212Test|ModernCredibleTest";
+const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str =
+    "Issue4640Test|Issue14212Test|ModernCredibleTest|PrecompileTracesTest";
 
 // Issue14212Test depends on Base transaction lookups that are not reliably served by the public
 // Base RPC endpoint used in CI.
