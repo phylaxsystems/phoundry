@@ -29,14 +29,22 @@ class Case:
     n_partitions: int
     # Whether to run on non-Linux platforms for PRs. All platforms and tests are run on pushes.
     pr_cross_platform: bool
+    # Space-separated CLI packages whose binaries the tests launch.
+    cli_packages: str
 
     def __init__(
-        self, name: str, filter: str, n_partitions: int, pr_cross_platform: bool
+        self,
+        name: str,
+        filter: str,
+        n_partitions: int,
+        pr_cross_platform: bool,
+        cli_packages: str,
     ):
         self.name = name
         self.filter = filter
         self.n_partitions = n_partitions
         self.pr_cross_platform = pr_cross_platform
+        self.cli_packages = cli_packages
 
 
 # GHA matrix entry
@@ -48,6 +56,7 @@ class Expanded:
     filter: str
     partition_arg: str
     partition: int
+    cli_packages: str
 
     def __init__(
         self,
@@ -58,6 +67,7 @@ class Expanded:
         filter: str,
         partition_arg: str,
         partition: int,
+        cli_packages: str,
     ):
         self.name = name
         self.runner_label = runner_label
@@ -66,6 +76,7 @@ class Expanded:
         self.filter = filter
         self.partition_arg = partition_arg
         self.partition = partition
+        self.cli_packages = cli_packages
 
 
 is_pr = os.environ.get("EVENT_NAME") == "pull_request"
@@ -88,12 +99,14 @@ config = [
         filter="!test(/\\bext_integration/)",
         n_partitions=1,
         pr_cross_platform=True,
+        cli_packages="forge cast anvil chisel",
     ),
     Case(
         name="external",
         filter="package(=forge) & test(/\\bext_integration/)",
         n_partitions=1,
         pr_cross_platform=False,
+        cli_packages="forge",
     ),
 ]
 
@@ -127,6 +140,7 @@ def main():
                     filter=case.filter,
                     partition_arg=partition_arg,
                     partition=partition,
+                    cli_packages=case.cli_packages,
                 )
                 expanded.append(vars(obj))
 

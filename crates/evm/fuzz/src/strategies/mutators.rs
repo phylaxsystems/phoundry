@@ -482,7 +482,8 @@ fn apply_scale_to_bytes(bytes: &mut [u8], scale_factor: f64) -> Option<()> {
 
     for i in (0..bytes.len()).rev() {
         let byte_val = bytes[i] as f64;
-        let scaled = f64::mul_add(carry_down, 256.0, byte_val) * scale_factor;
+        #[expect(clippy::suboptimal_flops, reason = "Preserve the existing mutation arithmetic.")]
+        let scaled = (carry_down * 256.0 + byte_val) * scale_factor;
 
         if i == 0 && scaled >= 256.0 {
             for b in bytes.iter_mut() {

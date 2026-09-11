@@ -136,11 +136,18 @@ jobs:
           git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
       # Tests also launch sibling CLI tools by name, including Anvil through alloy-node-bindings.
       - name: Build CLI binaries
+        if: matrix.cli_packages != ''
         env:
           SVM_TARGET_PLATFORM: ${{ matrix.svm_target_platform }}
+          CLI_PACKAGES: ${{ matrix.cli_packages }}
         shell: bash
         run: |
-          cargo build --locked --workspace --bins
+          read -r -a packages <<< "$CLI_PACKAGES"
+          args=()
+          for package in "${packages[@]}"; do
+            args+=(-p "$package")
+          done
+          cargo build --locked "${args[@]}" --bins
           printf '%s/target/debug\n' "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
       - name: Test
         env:
