@@ -74,7 +74,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
-          toolchain: stable
+          toolchain: nightly-2026-09-07
           target: ${{ matrix.target }}
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444
       - uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
@@ -133,6 +133,14 @@ jobs:
           git config --global user.email "<>"
           git config --global url."https://github.com/".insteadOf "git@github.com:"
           git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+      # Tests also launch sibling CLI tools by name, including Anvil through alloy-node-bindings.
+      - name: Build CLI binaries
+        env:
+          SVM_TARGET_PLATFORM: ${{ matrix.svm_target_platform }}
+        shell: bash
+        run: |
+          cargo build --locked --workspace --bins
+          printf '%s/target/debug\n' "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
       - name: Test
         env:
           SVM_TARGET_PLATFORM: ${{ matrix.svm_target_platform }}
@@ -151,6 +159,9 @@ jobs:
           cargo nextest run --locked "${args[@]}"
       - name: Credible trace regressions
         if: matrix.target == 'x86_64-unknown-linux-gnu' && !contains(matrix.name, 'external') && matrix.partition == 1
+        env:
+          SVM_TARGET_PLATFORM: ${{ matrix.svm_target_platform }}
         run: |
           cargo nextest run --locked -p foundry-evm-traces --features credible -E 'test(credible)'
+          cargo build --locked -p forge --features credible --bin forge
           cargo nextest run --locked -p forge --features credible --test cli -E 'test(credible_testdata)'

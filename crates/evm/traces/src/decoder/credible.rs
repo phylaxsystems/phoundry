@@ -146,17 +146,6 @@ pub(crate) fn decoded_function(trace: &CallTrace) -> Option<&'static Function> {
     Some(function)
 }
 
-/// Rendering may hide the call kind only after the canonical operation was decoded.
-pub(crate) fn is_decoded(trace: &CallTrace) -> bool {
-    decoded_function(trace).is_some_and(|function| {
-        trace
-            .decoded
-            .as_ref()
-            .and_then(|decoded| decoded.call_data.as_ref())
-            .is_some_and(|data| data.signature == function.signature())
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -351,7 +340,6 @@ mod tests {
         }
         let malformed_output = trace(valid.data.clone(), Bytes::from_static(&[0xab]));
         output.push_str(&render(&decoder, malformed_output).await);
-        assert!(!is_decoded(&valid));
         let mut creation = valid.clone();
         creation.kind = CallKind::Create;
         assert!(decoded_function(&creation).is_none());

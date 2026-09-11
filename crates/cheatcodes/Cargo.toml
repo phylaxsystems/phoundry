@@ -18,9 +18,7 @@ workspace = true
 
 [dependencies]
 foundry-fork-db = { workspace = true, optional = true }
-# Tracks the sensitivity-ladder branch while the three repos land together: the previous rev
-# predates `watchAnomaly(target, selector, level)` and the `AnomalyVerdict` seam this crate's
-# `setAnomalyLevel` cheatcode is written against. Re-pin to a merged `main` rev before merging.
+# Keep runtime and trace metadata on the same pinned executor revision.
 assertion-executor = { workspace = true, optional = true }
 
 foundry-cheatcodes-spec.workspace = true

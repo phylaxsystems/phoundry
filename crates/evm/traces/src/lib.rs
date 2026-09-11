@@ -334,16 +334,6 @@ pub fn render_trace_arena_inner(
 
     let mut resolved = arena.resolve_arena();
 
-    #[cfg(feature = "credible")]
-    if resolved.nodes().iter().any(|node| decoder::credible::is_decoded(&node.trace)) {
-        // Change only the text renderer's copy, preserving captured call kinds and JSON.
-        for node in resolved.to_mut().nodes_mut() {
-            if decoder::credible::is_decoded(&node.trace) {
-                node.trace.kind = CallKind::Call;
-            }
-        }
-    }
-
     let mut tempo_changes = None;
     if with_storage_changes {
         tempo_changes = tempo_channel_storage_decodes(&resolved);

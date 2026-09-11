@@ -466,9 +466,16 @@ impl TestProject {
         cmd
     }
 
-    /// Returns the path to a sibling Foundry executable in the current test target directory.
+    /// Returns a Cargo-provided executable path, falling back to the test target directory.
     pub fn foundry_bin_path(&self, name: &str) -> PathBuf {
-        canonicalize(self.exe_root.join(format!("../{name}{}", env::consts::EXE_SUFFIX)))
+        for prefix in ["NEXTEST_BIN_EXE_", "CARGO_BIN_EXE_"] {
+            if let Some(path) = env::var_os(format!("{prefix}{name}")) {
+                return PathBuf::from(path);
+            }
+        }
+        canonicalize(
+            cargo_profile_dir(&self.exe_root).join(format!("{name}{}", env::consts::EXE_SUFFIX)),
+        )
     }
 
     /// Returns the path to a sibling Foundry executable, building it when cargo did not.
@@ -939,7 +946,7 @@ fn canonicalize(path: impl AsRef<Path>) -> PathBuf {
 }
 
 fn cargo_build_target_dir_and_profile(exe_root: &Path) -> (&Path, Option<&str>) {
-    let profile_dir = exe_root.parent().expect("test executable profile directory");
+    let profile_dir = cargo_profile_dir(exe_root);
     let target_dir = profile_dir.parent().expect("Cargo target directory");
     let profile = match profile_dir.file_name().and_then(OsStr::to_str) {
         // Cargo's dev profile writes to `debug`, so the default `cargo build` profile is correct.
@@ -948,4 +955,40 @@ fn cargo_build_target_dir_and_profile(exe_root: &Path) -> (&Path, Option<&str>) 
         None => panic!("test executable profile directory must be UTF-8"),
     };
     (target_dir, profile)
+}
+
+/// Locate the profile directory in both Cargo's legacy and new artifact layouts.
+fn cargo_profile_dir(exe_root: &Path) -> &Path {
+    exe_root
+        .ancestors()
+        .find(|path| matches!(path.file_name().and_then(OsStr::to_str), Some("deps" | "build")))
+        .and_then(Path::parent)
+        .unwrap_or(exe_root)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cargo_binary_directories() {
+        for (exe_root, profile_dir, target_dir, profile) in [
+            ("target/debug/deps", "target/debug", "target", None),
+            ("target/release/deps", "target/release", "target", Some("release")),
+            ("target/debug/build/forge/hash/out", "target/debug", "target", None),
+            (
+                "custom-target/x86_64-unknown-linux-gnu/profiling/build/forge/hash/out",
+                "custom-target/x86_64-unknown-linux-gnu/profiling",
+                "custom-target/x86_64-unknown-linux-gnu",
+                Some("profiling"),
+            ),
+        ] {
+            let exe_root = Path::new(exe_root);
+            assert_eq!(cargo_profile_dir(exe_root), Path::new(profile_dir));
+            assert_eq!(
+                cargo_build_target_dir_and_profile(exe_root),
+                (Path::new(target_dir), profile)
+            );
+        }
+    }
 }
