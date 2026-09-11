@@ -6011,8 +6011,38 @@ contract GasDependent {
 
 // tests that cast call properly applies state diff override
 // <https://github.com/foundry-rs/foundry/issues/10930>
-casttest!(cast_call_can_override_state_diff, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_call_can_override_state_diff, async |_prj, cmd| {
+    let (api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
+    // A minimal proxy delegates to code that returns storage slot 1 multiplied by 0x1337.
+    api.anvil_set_code(
+        address!("1EA77b250eF79e917A5A637D5BB82D0980653F1B"),
+        "363d3d373d3d3d363d73e537cb8a46bd179c0c36ab7e3fdecd759c8b80fc5af43d82803e903d91602b57fd5bf3"
+            .parse()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    api.anvil_set_code(
+        address!("e537cb8a46Bd179c0C36aB7E3Fdecd759C8B80fc"),
+        "600154611337026000526002601ef3".parse().unwrap(),
+    )
+    .await
+    .unwrap();
+    cmd.args([
+        "call",
+        "--rpc-url",
+        rpc.as_str(),
+        "--data",
+        "0x",
+        "0x1EA77b250eF79e917A5A637D5BB82D0980653F1B",
+    ])
+    .assert_success()
+    .stdout_eq(str![[r#"
+0x0000
+
+"#]]);
+    cmd.cast_fuse();
     cmd.args([
         "call",
         "--rpc-url",
@@ -6030,8 +6060,8 @@ casttest!(cast_call_can_override_state_diff, |_prj, cmd| {
 "#]]);
     cmd.args(["--trace"]).assert_success().stdout_eq(str![[r#"
 Traces:
-  [7281] 0x1EA77b250eF79e917A5A637D5BB82D0980653F1B::fallback()
-    ├─ [2275] 0xe537cb8a46Bd179c0C36aB7E3Fdecd759C8B80fc::fallback() [delegatecall]
+  [4789] 0x1EA77b250eF79e917A5A637D5BB82D0980653F1B::fallback()
+    ├─ [2126] 0xe537cb8a46Bd179c0C36aB7E3Fdecd759C8B80fc::fallback() [delegatecall]
     │   └─ ← [Return] 0x1337
     └─ ← [Return] 0x1337
 
@@ -6047,8 +6077,9 @@ Transaction successfully executed.
 // instead of being treated as command flags
 
 // Test that cast call accepts negative numbers as function arguments
-casttest!(cast_call_negative_numbers, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_call_negative_numbers, async |_prj, cmd| {
+    let (_api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
     // Test with negative int parameter - should not treat -456789 as a flag
     cmd.args([
         "call",
@@ -6062,8 +6093,9 @@ casttest!(cast_call_negative_numbers, |_prj, cmd| {
 });
 
 // Test negative numbers with multiple parameters
-casttest!(cast_call_multiple_negative_numbers, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_call_multiple_negative_numbers, async |_prj, cmd| {
+    let (_api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
     cmd.args([
         "call",
         "--rpc-url",
@@ -6078,8 +6110,9 @@ casttest!(cast_call_multiple_negative_numbers, |_prj, cmd| {
 });
 
 // Test negative numbers mixed with flags
-casttest!(cast_call_negative_with_flags, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_call_negative_with_flags, async |_prj, cmd| {
+    let (_api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
     cmd.args([
         "call",
         "--trace", // flag before
@@ -6113,8 +6146,9 @@ For more information, try '--help'.
 });
 
 // Test cast estimate with negative numbers
-casttest!(cast_estimate_negative_numbers, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_estimate_negative_numbers, async |_prj, cmd| {
+    let (_api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
     cmd.args([
         "estimate",
         "0xBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb",
@@ -6127,8 +6161,9 @@ casttest!(cast_estimate_negative_numbers, |_prj, cmd| {
 });
 
 // Test cast mktx with negative numbers
-casttest!(cast_mktx_negative_numbers, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_mktx_negative_numbers, async |_prj, cmd| {
+    let (_api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
     cmd.args([
         "mktx",
         "0x1111111111111111111111111111111111111111",
@@ -6208,8 +6243,9 @@ casttest!(cast_mktx_eip7594_blob, |prj, cmd| {
 });
 
 // Test cast access-list with negative numbers
-casttest!(cast_access_list_negative_numbers, |_prj, cmd| {
-    let rpc = next_rpc_endpoint(NamedChain::Sepolia);
+casttest!(cast_access_list_negative_numbers, async |_prj, cmd| {
+    let (_api, handle) = anvil::spawn(NodeConfig::test()).await;
+    let rpc = handle.http_endpoint();
     cmd.args([
         "access-list",
         "0x9999999999999999999999999999999999999999",

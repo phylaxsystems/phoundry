@@ -106,7 +106,7 @@ pub fn rpc_endpoints() -> RpcEndpoints {
         ("polygon", RpcEndpointUrl::Url(next_rpc_endpoint(NamedChain::Polygon))),
         ("bsc", RpcEndpointUrl::Url(next_rpc_endpoint(NamedChain::BinanceSmartChain))),
         ("avaxTestnet", RpcEndpointUrl::Url("https://api.avax-test.network/ext/bc/C/rpc".into())),
-        ("moonbeam", RpcEndpointUrl::Url("https://moonbeam-rpc.publicnode.com".into())),
+        ("moonbeam", RpcEndpointUrl::Url("https://moonbeam.api.onfinality.io/public".into())),
         ("polkadotTestnet", RpcEndpointUrl::Url("https://eth-rpc-testnet.polkadot.io".into())),
         ("kusama", RpcEndpointUrl::Url("https://eth-rpc-kusama.polkadot.io".into())),
         ("polkadot", RpcEndpointUrl::Url("https://eth-rpc.polkadot.io".into())),
@@ -194,6 +194,11 @@ fn next_url_inner(is_ws: bool, chain: NamedChain) -> String {
         if !rpc_url.is_empty() {
             return rpc_url;
         }
+        return if is_ws {
+            "wss://ethereum-sepolia-rpc.publicnode.com".to_string()
+        } else {
+            "https://rpc.sepolia.ethpandaops.io".to_string()
+        };
     }
 
     if matches!(chain, Arbitrum) {
@@ -213,7 +218,6 @@ fn next_url_inner(is_ws: bool, chain: NamedChain) -> String {
             Mainnet => "ethereum",
             Polygon => "polygon",
             Arbitrum => "arbitrum",
-            Sepolia => "sepolia",
             _ => "",
         };
         &format!("lb.drpc.org/ogrpc?network={network}&dkey={key}")

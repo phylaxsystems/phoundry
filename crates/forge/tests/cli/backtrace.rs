@@ -265,7 +265,10 @@ Suite result: FAILED. 0 passed; 2 failed; 0 skipped; [ELAPSED]
 
 forgetest!(test_library_backtrace, |prj, cmd| {
     prj.insert_ds_test();
-    prj.insert_vm();
+    prj.add_source(
+        "Vm.sol",
+        "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.13;\ninterface Vm { function etch(address, bytes calldata) external; }",
+    );
 
     // Add library source files
     prj.add_source(

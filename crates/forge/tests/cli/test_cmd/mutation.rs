@@ -310,7 +310,7 @@ contract StackTooDeepTest {
 });
 
 forgetest_init!(mutation_testing_uses_mutation_profile_for_initial_compile, |prj, cmd| {
-    fs::write(prj.root().join("foundry.toml"), "[profile.default]\nvia_ir = false\n").unwrap();
+    prj.update_config(|config| config.via_ir = false);
 
     prj.add_source(
         "StackTooDeep.sol",

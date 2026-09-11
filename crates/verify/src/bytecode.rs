@@ -684,7 +684,7 @@ impl VerifyBytecodeArgs {
                     let tx_env = TxEnvFor::<FEN>::from_recovered_tx(tx.as_ref(), tx.from());
 
                     if ConsensusTransaction::to(tx).is_some() {
-                        executor.transact_with_env(evm_env.clone(), tx_env.clone()).wrap_err_with(
+                        executor.transact_with_env(evm_env.clone(), tx_env).wrap_err_with(
                             || {
                                 format!(
                                     "Failed to execute transaction: {:?} in block {}",
@@ -694,7 +694,7 @@ impl VerifyBytecodeArgs {
                             },
                         )?;
                     } else if let Err(error) =
-                        executor.deploy_with_env(evm_env.clone(), tx_env.clone(), None)
+                        executor.deploy_with_env(evm_env.clone(), tx_env, None)
                     {
                         match error {
                             // Reverted transactions should be skipped

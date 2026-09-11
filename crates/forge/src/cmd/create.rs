@@ -19,8 +19,7 @@ use foundry_cli::{
     },
 };
 use foundry_common::{
-    FoundryTransactionBuilder,
-    compile::{self},
+    FoundryTransactionBuilder, compile,
     fmt::parse_tokens,
     provider::{
         ProviderBuilder,

@@ -60,6 +60,11 @@ pub(crate) fn is_known_precompile(
     chain_id: Option<u64>,
     tempo_hardfork: Option<TempoHardfork>,
 ) -> bool {
+    #[cfg(feature = "credible")]
+    if super::credible::label(address).is_some() {
+        return true;
+    }
+
     // Standard EVM precompiles (all chains).
     let is_standard = address[..19].iter().all(|&x| x == 0)
         && matches!(

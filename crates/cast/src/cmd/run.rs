@@ -465,7 +465,7 @@ impl RunArgs {
 
                     if let Some(to) = Transaction::to(tx) {
                         trace!(tx=?tx.tx_hash(),?to, "executing previous call transaction");
-                        executor.transact_with_env(evm_env.clone(), tx_env.clone()).wrap_err_with(
+                        executor.transact_with_env(evm_env.clone(), tx_env).wrap_err_with(
                             || {
                                 format!(
                                     "Failed to execute transaction: {:?} in block {}",
@@ -476,8 +476,7 @@ impl RunArgs {
                         )?;
                     } else {
                         trace!(tx=?tx.tx_hash(), "executing previous create transaction");
-                        if let Err(error) =
-                            executor.deploy_with_env(evm_env.clone(), tx_env.clone(), None)
+                        if let Err(error) = executor.deploy_with_env(evm_env.clone(), tx_env, None)
                         {
                             match error {
                                 // Reverted transactions should be skipped

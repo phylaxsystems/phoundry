@@ -243,10 +243,12 @@ contract ModernCredibleTest is DSTest {
     /// Called low-level because `expectRevert` only sees calls made at a lower depth than the
     /// cheatcode itself, so it cannot observe a cheatcode rejecting its own argument.
     function testLevelAboveTheLadderIsRejected() public {
-        (bool ok,) = address(cl).call(abi.encodeWithSignature("setAnomalyLevel(address,uint8)", address(counter), uint8(11)));
+        (bool ok,) =
+            address(cl).call(abi.encodeWithSignature("setAnomalyLevel(address,uint8)", address(counter), uint8(11)));
         assertTrue(!ok, "a level past the ladder was accepted");
 
-        (bool okTen,) = address(cl).call(abi.encodeWithSignature("setAnomalyLevel(address,uint8)", address(counter), uint8(10)));
+        (bool okTen,) =
+            address(cl).call(abi.encodeWithSignature("setAnomalyLevel(address,uint8)", address(counter), uint8(10)));
         assertTrue(okTen, "the loosest rung was rejected");
     }
 

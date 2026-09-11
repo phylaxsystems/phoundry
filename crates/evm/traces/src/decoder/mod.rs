@@ -44,6 +44,9 @@ use tempo_precompiles::{
     tip20::ITIP20,
 };
 
+#[cfg(feature = "credible")]
+pub(crate) mod credible;
+
 pub(crate) mod precompiles;
 
 /// Build a new [CallTraceDecoder].
@@ -683,6 +686,27 @@ impl CallTraceDecoder {
                 label,
                 call_data: self.decode_constructor_input(trace),
                 return_data: None,
+            };
+        }
+
+        #[cfg(feature = "credible")]
+        if let Some(precompile_label) = credible::label(trace.address) {
+            let label =
+                label.or_else(|| (!self.disable_labels).then(|| precompile_label.to_string()));
+            return if let Some(function) = credible::decoded_function(trace) {
+                DecodedCallTrace {
+                    label,
+                    call_data: Some(self.decode_function_input(trace, function)),
+                    return_data: self
+                        .decode_function_output(trace, std::slice::from_ref(function))
+                        .await,
+                }
+            } else {
+                DecodedCallTrace {
+                    label,
+                    call_data: None,
+                    return_data: self.default_return_data(trace).await,
+                }
             };
         }
 

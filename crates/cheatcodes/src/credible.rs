@@ -24,7 +24,7 @@ use revm::{
 };
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     sync::{Arc, Mutex},
 };
 
@@ -133,7 +133,7 @@ struct PhoundryAnomalySubsystem {
 }
 
 impl PhoundryAnomalySubsystem {
-    fn new(verdicts: AnomalyVerdictMap) -> Self {
+    const fn new(verdicts: AnomalyVerdictMap) -> Self {
         Self { verdicts }
     }
 }

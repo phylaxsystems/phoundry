@@ -125,7 +125,8 @@ fn collect_debug_dump_storage_changes<'a>(
 }
 
 /// Contracts that are not part of the default Foundry-compatible `testdata` run.
-const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str = "Issue4640Test|Issue14212Test|ModernCredibleTest";
+const DEFAULT_TESTDATA_EXCLUDED_CONTRACTS: &str =
+    "Issue4640Test|Issue14212Test|ModernCredibleTest|PrecompileTracesTest";
 
 // Issue14212Test depends on Base transaction lookups that are not reliably served by the public
 // Base RPC endpoint used in CI.
@@ -135,7 +136,8 @@ const FLAKY_TESTDATA_RUN_CONTRACTS: &str = "Issue4640Test";
 forgetest!(testdata, |_prj, cmd| {
     setup_testdata_cmd(&mut cmd);
 
-    let mut args = vec!["test"];
+    // Include every fixture in semantic analysis after partial cached builds.
+    let mut args = vec!["test", "--force"];
     let nmc_isolate = format!(
         "--nmc=(LastCallGasDefaultTest|MockFunctionTest|WithSeed|StateDiff|GetStorageSlotsTest|RecordAccount|{DEFAULT_TESTDATA_EXCLUDED_CONTRACTS})",
     );
@@ -197,6 +199,19 @@ forgetest!(credible_testdata_prints_assertion_traces, |_prj, cmd| {
 
     assert!(output.contains("Trigger Call:"), "{output}");
     assert!(output.contains("Assertion Traces:"), "{output}");
+});
+
+#[cfg(feature = "credible")]
+forgetest!(credible_testdata_decodes_precompiles, |_prj, cmd| {
+    setup_testdata_cmd(&mut cmd);
+    cmd.env("FOUNDRY_PROFILE", "credible");
+    cmd.args(["test", "--mc", "PrecompileTracesTest", "-vvvv"]).assert_success().stdout_eq(
+        foundry_test_utils::snapbox::Data::read_from(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/cli/test_cmd/credible-precompile-traces.stdout"),
+            None,
+        ),
+    );
 });
 
 // tests that test filters are handled correctly
