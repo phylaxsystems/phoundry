@@ -11,6 +11,11 @@ default-filter = "not test(/flaky_/)"
 filter = "test(/ext_integration/)"
 slow-timeout = { period = "5m", terminate-after = 4 }
 
+# This single Rust test recompiles and runs the complete Solidity fixture suite.
+[[profile.default.overrides]]
+filter = "test(=test_cmd::testdata)"
+slow-timeout = { period = "1m", terminate-after = 5 }
+
 # `cast vaddr` end-to-end tests mine a 4-byte TIP-1022 PoW salt (CPU-bound,
 # minutes in debug mode) before exercising register/resolve/forward/watch
 # against an in-process Anvil Tempo node.

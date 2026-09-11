@@ -757,7 +757,7 @@ contract ExternalFactory {
         solc: Some(foundry_config::SolcReq::Version(SOLC_VERSION.parse().unwrap())),
         optimizer: Some(true),
         optimizer_runs: Some(777),
-        ..Default::default()
+        ..foundry_test_utils::util::test_config_default()
     });
 
     let (_api, anvil) = spawn(NodeConfig::test()).await;
