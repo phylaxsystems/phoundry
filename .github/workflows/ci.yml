@@ -52,6 +52,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
+          components: rustfmt, clippy
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444
       - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -87,6 +88,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
+          components: rustfmt, clippy
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444
       - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -146,7 +148,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
-          components: clippy
+          components: rustfmt, clippy
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444
       - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -181,7 +183,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
-          components: rustfmt
+          components: rustfmt, clippy
       - run: cargo fmt --all --check
 
   forge-fmt:
@@ -196,6 +198,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
+          components: rustfmt, clippy
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444
       - uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
@@ -230,6 +233,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
+          components: rustfmt, clippy
       - uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444
       - uses: taiki-e/install-action@763e3324d4fd026c9bd284c504378585777a87d5 # v2.62.57
         with:
@@ -265,6 +269,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
           toolchain: nightly-2026-09-07
+          components: rustfmt, clippy
       - name: Generate GitHub App token (cross-repo cargo auth)
         id: app-token
         uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b # v2.1.1
