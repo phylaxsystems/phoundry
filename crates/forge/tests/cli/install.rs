@@ -175,6 +175,8 @@ Removing 'forge-std' in [..], (url: https://github.com/foundry-rs/forge-std, tag
 // https://github.com/foundry-rs/foundry/issues/6790
 forgetest!(failed_install_leaves_repository_clean, |prj, cmd| {
     cmd.git_init();
+    cmd.git_add();
+    cmd.git_commit("commit initial test configuration");
     let git = Git::new(prj.root());
     assert!(git.is_clean().unwrap());
 
@@ -270,6 +272,8 @@ forgetest!(failed_install_with_wildcard_alias_preserves_sibling, |prj, cmd| {
 
 forgetest!(install_rejects_non_normal_alias, |prj, cmd| {
     cmd.git_init();
+    cmd.git_add();
+    cmd.git_commit("commit initial test configuration");
     let git = Git::new(prj.root());
 
     cmd.forge_fuse()
@@ -304,6 +308,8 @@ forgetest!(failed_install_preserves_gitmodules, |prj, cmd| {
 
 forgetest!(failed_submodule_add_leaves_repository_clean, |prj, cmd| {
     cmd.git_init();
+    cmd.git_add();
+    cmd.git_commit("commit initial test configuration");
     let git = Git::new(prj.root());
     let git_dir = git.absolute_git_dir().unwrap();
     let index_lock = git_dir.join("index.lock");

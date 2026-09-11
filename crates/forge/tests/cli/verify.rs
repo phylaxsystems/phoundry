@@ -410,7 +410,16 @@ forgetest!(can_verify_random_contract_sepolia_default_sourcify, |prj, cmd| {
 
 // Tests that verify properly validates verifier arguments.
 // <https://github.com/foundry-rs/foundry/issues/11430>
-forgetest_init!(can_validate_verifier_settings, |prj, cmd| {
+forgetest_async!(can_validate_verifier_settings, |prj, cmd| {
+    foundry_test_utils::util::initialize(prj.root());
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let verifier_url = format!("http://{}", listener.local_addr().unwrap());
+    let app = Router::new().fallback(|Query(query): Query<HashMap<String, String>>| async move {
+        assert_eq!(query.get("module").map(String::as_str), Some("contract"));
+        assert_eq!(query.get("action").map(String::as_str), Some("getabi"));
+        r#"{"status":"1","message":"OK","result":"[]"}"#
+    });
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     prj.initialize_default_contracts();
     // Build the project to create the cache.
     cmd.forge_fuse().arg("build").assert_success();
@@ -418,8 +427,8 @@ forgetest_init!(can_validate_verifier_settings, |prj, cmd| {
     cmd.forge_fuse()
         .args([
             "verify-contract",
-            "--rpc-url",
-            "https://rpc.sepolia-api.lisk.com",
+            "--chain",
+            "4202",
             "--verifier",
             "blockscout",
             "0x19b248616E4964f43F611b5871CE1250f360E9d3",
@@ -436,8 +445,8 @@ Error: No verifier URL specified for verifier blockscout
     cmd.forge_fuse()
         .args([
             "verify-contract",
-            "--rpc-url",
-            "https://rpc.sepolia-api.lisk.com",
+            "--chain",
+            "4202",
             "--verifier",
             "etherscan",
             "0x19b248616E4964f43F611b5871CE1250f360E9d3",
@@ -455,12 +464,12 @@ Error: No known Etherscan API URL for chain `4202`. To fix this, please:
     cmd.forge_fuse()
         .args([
             "verify-contract",
-            "--rpc-url",
-            "https://rpc.sepolia-api.lisk.com",
+            "--chain",
+            "4202",
             "--verifier",
             "blockscout",
             "--verifier-url",
-            "https://sepolia-blockscout.lisk.com/api",
+            verifier_url.as_str(),
             "0x19b248616E4964f43F611b5871CE1250f360E9d3",
             "src/Counter.sol:Counter",
         ])
@@ -481,12 +490,12 @@ Contract [src/Counter.sol:Counter] "0x19b248616E4964f43F611b5871CE1250f360E9d3" 
     cmd.env("ETHERSCAN_API_KEY", "dummy");
     cmd.args([
         "verify-contract",
-        "--rpc-url",
-        "https://rpc.sepolia-api.lisk.com",
+        "--chain",
+        "4202",
         "--verifier",
         "blockscout",
         "--verifier-url",
-        "https://sepolia-blockscout.lisk.com/api",
+        verifier_url.as_str(),
         "0x19b248616E4964f43F611b5871CE1250f360E9d3",
         "src/Counter.sol:Counter",
     ])
@@ -499,6 +508,7 @@ Verifying on blockscout...
 Contract [src/Counter.sol:Counter] "0x19b248616E4964f43F611b5871CE1250f360E9d3" is already verified. Skipping verification.
 
 "#]]);
+    server.abort();
 });
 
 // Tests that `forge script --broadcast --verify` fails before broadcasting when
