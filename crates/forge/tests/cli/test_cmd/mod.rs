@@ -136,7 +136,8 @@ const FLAKY_TESTDATA_RUN_CONTRACTS: &str = "Issue4640Test";
 forgetest!(testdata, |_prj, cmd| {
     setup_testdata_cmd(&mut cmd);
 
-    let mut args = vec!["test"];
+    // Include every fixture in semantic analysis after partial cached builds.
+    let mut args = vec!["test", "--force"];
     let nmc_isolate = format!(
         "--nmc=(LastCallGasDefaultTest|MockFunctionTest|WithSeed|StateDiff|GetStorageSlotsTest|RecordAccount|{DEFAULT_TESTDATA_EXCLUDED_CONTRACTS})",
     );
