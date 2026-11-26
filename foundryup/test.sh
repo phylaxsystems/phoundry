@@ -132,18 +132,18 @@ mkdir -p "$version_tmp"
 touch "$version_tmp/solar" "$version_tmp/solar.exe" "$version_tmp/unrelated"
 clear_version_bins "$version_tmp"
 check_eq "version replacement clears stale optional binaries" \
-  "0" "$([ ! -e "$version_tmp/solar" ] && [ ! -e "$version_tmp/solar.exe" ]; echo $?)"
+  "0" "$(if [ ! -e "$version_tmp/solar" ] && [ ! -e "$version_tmp/solar.exe" ]; then echo 0; else echo 1; fi)"
 check_eq "version replacement preserves unrelated files" \
-  "0" "$([ -e "$version_tmp/unrelated" ]; echo $?)"
+  "0" "$(if [ -e "$version_tmp/unrelated" ]; then echo 0; else echo 1; fi)"
 
 built_tmp="$selector_tmp/built"
 mkdir -p "$built_tmp"
 touch "$built_tmp/solar" "$built_tmp/solar.exe" "$built_tmp/unrelated"
 clear_built_bins "$built_tmp"
 check_eq "source builds clear stale optional artifacts" \
-  "0" "$([ ! -e "$built_tmp/solar" ] && [ ! -e "$built_tmp/solar.exe" ]; echo $?)"
+  "0" "$(if [ ! -e "$built_tmp/solar" ] && [ ! -e "$built_tmp/solar.exe" ]; then echo 0; else echo 1; fi)"
 check_eq "source builds preserve unrelated artifacts" \
-  "0" "$([ -e "$built_tmp/unrelated" ]; echo $?)"
+  "0" "$(if [ -e "$built_tmp/unrelated" ]; then echo 0; else echo 1; fi)"
 
 staged_tmp="$selector_tmp/staged"
 installed_tmp="$selector_tmp/installed"
@@ -156,9 +156,9 @@ touch "$installed_tmp/solar"
 validate_staged_bins "$staged_tmp"
 replace_version_bins "$staged_tmp" "$installed_tmp"
 check_eq "staged legacy release replaces required binaries" \
-  "0" "$([ -x "$installed_tmp/forge" ] && [ -x "$installed_tmp/chisel" ]; echo $?)"
+  "0" "$(if [ -x "$installed_tmp/forge" ] && [ -x "$installed_tmp/chisel" ]; then echo 0; else echo 1; fi)"
 check_eq "staged legacy release clears stale solar" \
-  "0" "$([ ! -e "$installed_tmp/solar" ]; echo $?)"
+  "0" "$(if [ ! -e "$installed_tmp/solar" ]; then echo 0; else echo 1; fi)"
 
 download() {
   case "$1" in
