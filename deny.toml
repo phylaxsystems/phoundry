@@ -5,6 +5,12 @@
 version = 2
 yanked = "warn"
 ignore = [
+    # Match PCL's accepted upstream constraints. These exceptions do not
+    # resolve the crypto timing vulnerabilities; remove after upstream migration.
+    { id = "RUSTSEC-2026-0385", reason = "Pinned Commonware requires ctutils 0.3; the fixed 0.4.4 is outside its dependency range. Remove when Commonware is upgraded" },
+    { id = "RUSTSEC-2026-0387", reason = "Foundry/Alloy cryptography requires crypto-bigint 0.5.5 through elliptic-curve 0.13. The fixed 0.7.6 requires an upstream migration" },
+    { id = "RUSTSEC-2026-0441", reason = "Unmaintained pin-utils is transitive through AWS Smithy and coins-ledger's nix 0.26. No patched release exists; remove when those upstreams migrate" },
+    { id = "RUSTSEC-2026-0543", reason = "Chrono maintenance notice with no patched release. Foundry and its dependencies use timestamps and serialization; remove after those consumers migrate" },
     # imbl 7.0.1 and imbl-sized-chunks 0.1.3 construct bitmaps with
     # default/new/from_value; neither calls the affected TryFrom<&[u8]>.
     # No patched bitmaps release exists. Revisit when imbl replaces bitmaps.

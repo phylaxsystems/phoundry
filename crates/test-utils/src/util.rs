@@ -5,7 +5,6 @@ use std::{
     fs::{self, File},
     io::{Read, Seek, Write},
     path::{Path, PathBuf},
-    process::Command,
     sync::LazyLock,
 };
 
@@ -116,19 +115,16 @@ pub fn initialize(target: &Path) {
             let (prj, mut cmd) = setup_forge("template", foundry_compilers::PathStyle::Dapptools);
             test_debug!("- initializing template dir in {}", prj.root().display());
 
-            cmd.args(["init", "--force", "--empty"]).assert_success();
+            cmd.args(["init", "--force", "--empty", "--offline"]).assert_success();
             prj.write_config(Config {
                 solc: Some(foundry_config::SolcReq::Version(SOLC_VERSION.parse().unwrap())),
                 ..test_config_default()
             });
 
-            // Checkout forge-std.
-            let output = Command::new("git")
-                .current_dir(prj.root().join("lib/forge-std"))
-                .args(["checkout", FORGE_STD_REVISION])
-                .output()
-                .expect("failed to checkout forge-std");
-            assert!(output.status.success(), "{output:#?}");
+            // Pin both the submodule and foundry.lock instead of installing the latest release.
+            cmd.forge_fuse()
+                .args(["install", &format!("foundry-rs/forge-std@{FORGE_STD_REVISION}")])
+                .assert_success();
 
             // Build the project.
             cmd.forge_fuse().arg("build").assert_success();
