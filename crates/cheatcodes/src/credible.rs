@@ -160,9 +160,9 @@ pub struct TxAttributes {
     pub gas_limit: u64,
 }
 
-/// Maximum gas allowed for assertion execution (300k gas).
+/// Maximum gas allowed for assertion execution (3M gas).
 /// Assertions exceeding this limit will cause the test to fail.
-const ASSERTION_GAS_LIMIT: u64 = 300_000;
+const ASSERTION_GAS_LIMIT: u64 = 3_000_000;
 
 /// Checks if the assertion gas usage is within the allowed limit.
 /// Returns a detailed log message if the limit is exceeded, None otherwise.
@@ -538,45 +538,44 @@ mod tests {
 
     #[test]
     fn test_assertion_gas_limit_constant() {
-        // Ensure the gas limit is set to the expected value (300k)
-        assert_eq!(ASSERTION_GAS_LIMIT, 300_000);
+        // Keep the test harness aligned with the executor's default budget.
+        assert_eq!(ASSERTION_GAS_LIMIT, 3_000_000);
     }
 
     #[test]
     fn test_check_gas_limit_under() {
         // Gas usage under limit should return None
         assert!(check_assertion_gas_limit(100_000).is_none());
-        assert!(check_assertion_gas_limit(299_999).is_none());
+        assert!(check_assertion_gas_limit(300_001).is_none());
+        assert!(check_assertion_gas_limit(2_999_999).is_none());
     }
 
     #[test]
     fn test_check_gas_limit_exact() {
         // Gas usage exactly at limit should return None
-        assert!(check_assertion_gas_limit(300_000).is_none());
+        assert!(check_assertion_gas_limit(3_000_000).is_none());
     }
 
     #[test]
     fn test_check_gas_limit_over() {
         // Gas usage over limit should return error message with details
-        let result = check_assertion_gas_limit(450_000);
+        let result = check_assertion_gas_limit(4_500_000);
         assert!(result.is_some());
         let msg = result.unwrap();
         // Should contain: gas used, limit, absolute over, percentage
-        assert!(msg.contains("450000"), "should contain gas used");
-        assert!(msg.contains("300000"), "should contain limit");
-        assert!(msg.contains("150000"), "should contain absolute over amount");
+        assert!(msg.contains("4500000"), "should contain gas used");
+        assert!(msg.contains("3000000"), "should contain limit");
+        assert!(msg.contains("1500000"), "should contain absolute over amount");
         assert!(msg.contains("50.0%"), "should contain percentage over");
     }
 
     #[test]
     fn test_check_gas_limit_over_small() {
         // Just 1 gas over the limit
-        let result = check_assertion_gas_limit(300_001);
-        assert!(result.is_some());
-        let msg = result.unwrap();
-        assert!(msg.contains("300001"));
-        assert!(msg.contains("by 1"));
-        assert!(msg.contains("0.0%")); // 1/300000 ≈ 0.0003%
+        assert_eq!(
+            check_assertion_gas_limit(3_000_001).as_deref(),
+            Some("Assertion used 3000001 gas, exceeding limit of 3000000 by 1 (0.0% over)")
+        );
     }
 
     #[test]
