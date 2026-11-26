@@ -121,7 +121,7 @@ impl ExtTester {
         // Clone the external repository.
         let repo_url = format!("https://github.com/{}/{}.git", self.org, self.name);
         let root = prj.root().to_str().unwrap();
-        clone_remote(&repo_url, root, recursive);
+        clone_remote(&repo_url, root, false);
 
         // Checkout the revision.
         if self.rev.is_empty() {
@@ -139,6 +139,15 @@ impl ExtTester {
         test_debug!("$ {git:?}");
         let status = git.status().unwrap();
         assert!(status.success(), "git checkout failed: {status}");
+
+        // Install the pinned revision's dependencies, not those of the default branch.
+        if recursive {
+            let mut git = Command::new("git");
+            git.current_dir(root).args(["submodule", "update", "--init", "--recursive"]);
+            test_debug!("$ {git:?}");
+            let status = git.status().unwrap();
+            assert!(status.success(), "git submodule update failed: {status}");
+        }
 
         // Export fixture-local Python packages, vyper, and forge in the test command.
         let mut new_paths = Vec::new();

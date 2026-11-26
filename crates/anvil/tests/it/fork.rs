@@ -1555,25 +1555,27 @@ async fn flaky_test_arbitrum_fork_block_number() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_base_fork_gas_limit() {
-    // fork to get initial block for test
+    let rpc_url = next_rpc_endpoint(NamedChain::Base);
+    let upstream = get_http_provider(&rpc_url);
+    let fork_block =
+        upstream.get_block(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap().unwrap();
+    let expected_gas_limit = fork_block.header.gas_limit;
+    assert!(expected_gas_limit > 0);
+
+    // Compare the same block: Base's gas limit can change independently of Anvil.
     let (api, handle) = spawn(
-        fork_config()
-            .with_fork_block_number(None::<u64>)
-            .with_eth_rpc_url(Some(next_rpc_endpoint(NamedChain::Base))),
+        NodeConfig::test()
+            .with_fork_block_number(Some(fork_block.header.number))
+            .with_eth_rpc_url(Some(rpc_url)),
     )
     .await;
-
-    // The public Base RPC occasionally returns block zero when it is unhealthy.
-    if api.block_number().unwrap().is_zero() {
-        return;
-    }
 
     let provider = handle.http_provider();
     let block =
         provider.get_block(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap().unwrap();
 
-    assert!(api.gas_limit() >= uint!(96_000_000_U256));
-    assert!(block.header.gas_limit >= 96_000_000_u64);
+    assert_eq!(api.gas_limit(), U256::from(expected_gas_limit));
+    assert_eq!(block.header.gas_limit, expected_gas_limit);
 }
 
 // <https://github.com/foundry-rs/foundry/issues/7023>
